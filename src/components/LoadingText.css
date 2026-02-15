@@ -1,0 +1,50 @@
+ .loading-text-inline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.loading-text-inline .loading-char {
+  display: inline-block;
+  margin: 0 1px;
+  filter: blur(0px);
+  animation-name: loading-blur;
+  animation-duration: 1.5s;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  animation-direction: alternate;
+}
+
+.loading-text-inline .loading-char:nth-child(1) {
+  animation-delay: 0s;
+}
+
+.loading-text-inline .loading-char:nth-child(2) {
+  animation-delay: 0.1s;
+}
+
+.loading-text-inline .loading-char:nth-child(3) {
+  animation-delay: 0.2s;
+}
+
+.loading-text-inline .loading-char:nth-child(4) {
+  animation-delay: 0.3s;
+}
+
+.loading-text-inline .loading-char:nth-child(5) {
+  animation-delay: 0.4s;
+}
+
+.loading-text-inline .loading-char:nth-child(6) {
+  animation-delay: 0.5s;
+}
+
+@keyframes loading-blur {
+  0% {
+    filter: blur(0px);
+  }
+  100% {
+    filter: blur(4px);
+  }
+}
+

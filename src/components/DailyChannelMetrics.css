@@ -1,0 +1,43 @@
+.daily-metrics-container {
+  width: 100%;
+  min-height: 200px;
+  max-height: 70vh;
+  overflow-y: auto;
+  overflow-x: visible;
+  display: block;
+}
+
+@media (max-width: 768px) {
+  .daily-metrics-container {
+    min-height: 150px;
+    max-height: 60vh;
+  }
+  .metrics-min-width {
+    font-size: 12px;
+  }
+  .metrics-min-width .flex.items-center {
+    padding-top: 6px !important;
+    padding-bottom: 6px !important;
+    padding-left: 8px !important;
+    padding-right: 8px !important;
+  }
+  .metrics-row {
+    padding-top: 6px !important;
+    padding-bottom: 6px !important;
+    padding-left: 8px !important;
+    padding-right: 8px !important;
+    font-size: 12px;
+  }
+}
+
+.metrics-min-width {
+  min-width: 1100px;
+  width: 100%;
+  display: block;
+}
+
+.daily-metrics-container .scroll-list {
+  width: 100%;
+  min-height: 150px;
+  overflow-y: auto;
+} 

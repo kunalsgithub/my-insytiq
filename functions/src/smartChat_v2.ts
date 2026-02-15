@@ -1,0 +1,526 @@
+import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { defineSecret } from "firebase-functions/params";
+import axios from "axios";
+import { initializeApp, getApps } from "firebase-admin/app";
+import { getFirestore, Firestore } from "firebase-admin/firestore";
+
+if (getApps().length === 0) {
+  initializeApp();
+}
+const db = getFirestore();
+
+const openaiApiKeySecret = defineSecret("OPENAI_API_KEY");
+const sbClientId = defineSecret("SB_CLIENT_ID");
+const sbApiToken = defineSecret("SB_API_TOKEN");
+
+// ─── TYPES ───────────────────────────────────────────────────────────────
+
+interface Post {
+  likesCount?: number;
+  commentsCount?: number;
+  caption?: string;
+  timestamp?: number | null;
+  type?: string;
+  isVideo?: boolean;
+  url?: string | null;
+}
+
+interface DataSnapshot {
+  hasPosts: boolean;
+  postCount: number;
+  hasAccountMetrics: boolean;
+  engagementRate?: number;
+  followers?: number;
+  avgLikes?: number;
+  avgComments?: number;
+  posts?: Post[];
+  // Optional description of the data window (e.g. "30 days" vs "last 30 posts")
+  dataWindowMode?: "days" | "posts";
+  dataWindowLabel?: string;
+}
+
+type ResponseMode = "ANALYTICS" | "STRATEGY" | "LIMITATION";
+
+// ─── 1. DATA SNAPSHOT (pure function) ────────────────────────────────────
+
+async function getDataSnapshot(
+  db: Firestore,
+  userId: string,
+  selectedAccount: string,
+  sbClientIdVal?: string,
+  sbApiTokenVal?: string
+): Promise<DataSnapshot> {
+  const norm = selectedAccount.toLowerCase().trim();
+  const empty: DataSnapshot = {
+    hasPosts: false,
+    postCount: 0,
+    hasAccountMetrics: false,
+  };
+
+  // 1. Try instagramAnalytics first
+  const analyticsDoc = await db.collection("instagramAnalytics").doc(norm).get();
+  if (analyticsDoc.exists) {
+    const d = analyticsDoc.data();
+    const er = d?.engagementRate ?? d?.engagement_rate ?? 0;
+    const fl = d?.followers ?? d?.followerCount ?? d?.followersCount ?? 0;
+    const al = d?.avgLikes ?? d?.avg_likes ?? 0;
+    const ac = d?.avgComments ?? d?.avg_comments ?? 0;
+    const postsList = (d as any)?.posts;
+    const posts = Array.isArray(postsList) ? postsList : [];
+    const postCount = posts.length;
+    const dataWindowMode = (d as any)?.dataWindowMode as "days" | "posts" | undefined;
+    const dataWindowLabel = (d as any)?.dataWindowLabel as string | undefined;
+
+    return {
+      hasPosts: postCount > 0,
+      postCount,
+      hasAccountMetrics: er > 0 || fl > 0 || al > 0 || ac > 0,
+      engagementRate: er,
+      followers: fl,
+      avgLikes: al,
+      avgComments: ac,
+      posts: postCount > 0 ? posts : undefined,
+      dataWindowMode,
+      dataWindowLabel,
+    };
+  }
+
+  // 2. Fallback to APIFY raw data
+  let rawDoc = await db.collection("users").doc(userId).collection("rawInstagramData").doc(selectedAccount).get();
+  if (!rawDoc.exists && norm !== selectedAccount) {
+    rawDoc = await db.collection("users").doc(userId).collection("rawInstagramData").doc(norm).get();
+  }
+  if (rawDoc.exists) {
+    const profile = rawDoc.data()?.profile;
+    const media = Array.isArray(profile?.media) ? profile.media : [];
+    const postCount = media.length;
+    let engagementRate = 0;
+    let followers = profile?.followersCount ?? profile?.followerCount ?? 0;
+    let avgLikes = 0;
+    let avgComments = 0;
+
+    if (postCount > 0) {
+      let totalLikes = 0;
+      let totalComments = 0;
+      media.forEach((p: any) => {
+        totalLikes += p.likesCount ?? p.likeCount ?? 0;
+        totalComments += p.commentsCount ?? p.commentCount ?? 0;
+      });
+      avgLikes = Math.round(totalLikes / postCount);
+      avgComments = Math.round(totalComments / postCount);
+      if (followers > 0) {
+        engagementRate = parseFloat(((totalLikes + totalComments) / (followers * postCount) * 100).toFixed(2));
+      }
+    }
+
+    const getPostUrl = (p: any): string | null => {
+      const url = p.url || p.permalink || p.link;
+      if (url && typeof url === "string" && url.startsWith("http")) return url;
+      const shortcode = p.shortcode || p.code;
+      if (shortcode && typeof shortcode === "string") return `https://www.instagram.com/p/${shortcode}/`;
+      return null;
+    };
+    const posts: Post[] = media.map((p: any) => ({
+      likesCount: p.likesCount ?? p.likeCount,
+      commentsCount: p.commentsCount ?? p.commentCount,
+      caption: p.caption ?? "",
+      timestamp: p.timestamp ?? p.takenAtTimestamp ?? null,
+      type: p.type,
+      isVideo: p.isVideo,
+      url: getPostUrl(p) || null,
+    }));
+
+    return {
+      hasPosts: postCount > 0,
+      postCount,
+      hasAccountMetrics: engagementRate > 0 || followers > 0 || avgLikes > 0 || avgComments > 0,
+      engagementRate: engagementRate || undefined,
+      followers: followers || undefined,
+      avgLikes: avgLikes || undefined,
+      avgComments: avgComments || undefined,
+      posts: postCount > 0 ? posts : undefined,
+    };
+  }
+
+  // 3. Fallback to Social Blade only if both above fail
+  if (sbClientIdVal && sbApiTokenVal) {
+    try {
+      const url = `https://matrix.sbapis.com/b/instagram/statistics?query=${encodeURIComponent(selectedAccount)}`;
+      const res = await axios.get(url, {
+        headers: { clientid: sbClientIdVal, token: sbApiTokenVal, "Content-Type": "application/json" },
+        timeout: 10000,
+      });
+      if (res.data?.status?.success && res.data?.data?.statistics?.total) {
+        const t = res.data.data.statistics.total;
+        const erDecimal = t.engagement_rate ?? 0;
+        const er = erDecimal > 0 ? parseFloat((erDecimal * 100).toFixed(2)) : 0;
+        const fl = t.followers ?? 0;
+        const daily = res.data.data.daily ?? [];
+        let al = 0;
+        let ac = 0;
+        if (daily.length > 0) {
+          al = Math.round(daily.reduce((s: number, d: any) => s + (d.avg_likes || 0), 0) / daily.length);
+          ac = parseFloat((daily.reduce((s: number, d: any) => s + (d.avg_comments || 0), 0) / daily.length).toFixed(1));
+        }
+        return {
+          hasPosts: false,
+          postCount: 0,
+          hasAccountMetrics: er > 0 || fl > 0,
+          engagementRate: er || undefined,
+          followers: fl || undefined,
+          avgLikes: al || undefined,
+          avgComments: ac || undefined,
+        };
+      }
+    } catch {
+      // Continue with empty snapshot
+    }
+  }
+
+  return empty;
+}
+
+// ─── 2. MODE DECISION (NO OpenAI) ────────────────────────────────────────
+
+const ANALYTICS_POST_THRESHOLD = 5;
+const POSTING_TIME_THRESHOLD = 10;
+
+function classifyIntent(message: string): string {
+  const m = message.toLowerCase();
+  if (
+    m.includes("hashtag") || m.includes("hashtags") || m.includes("tag suggestions") ||
+    /\bhashtags?\b/.test(m) || /\btags?\b/.test(m)
+  ) return "HASHTAGS";
+  if (m.includes("best time") || m.includes("when to post")) return "POSTING_TIME";
+  if (
+    m.includes("best post") || m.includes("top post") || m.includes("best performing") ||
+    m.includes("top performing") || m.includes("which posts perform") ||
+    m.includes("url of") || m.includes("url for") || m.includes("link to") || m.includes("link of") ||
+    (m.includes("url") && (m.includes("post") || m.includes("content")))
+  ) return "BEST_POST";
+  if (
+    m.includes("why") &&
+    (m.includes("these") || m.includes("those") || m.includes("top") || m.includes("post") || m.includes("best") || m.includes("performing"))
+  ) return "WHY_ABOUT_POSTS";
+  if (m.includes("why") || m.includes("not working") || m.includes("not growing") || m.includes("low")) return "DIAGNOSIS";
+  if (
+    m.includes("grow") || m.includes("increase") || m.includes("improve") ||
+    m.includes("ideas") || m.includes("idea") || m.includes("strategy") ||
+    m.includes("tips") || m.includes("advice") || m.includes("how to") || m.includes("content ideas")
+  ) return "GENERATION";
+  if (
+    (m.includes("what is my") || m.includes("whats my") || m.includes("my engagement") ||
+     m.includes("my followers") || m.includes("how many followers") || m.includes("follower count") ||
+     /\bmy\s+(engagement|followers|metrics|stats|numbers)\b/.test(m)) &&
+    !m.includes("how to") && !m.includes("increase") && !m.includes("improve")
+  ) return "ACCOUNT_METRICS";
+  if (
+    m.includes("caption") || m.includes("captions") ||
+    m.includes("paid post") || m.includes("partnership post") || m.includes("sponsored post") ||
+    m.includes("how many paid") || m.includes("how many partnership") || m.includes("how many sponsored") ||
+    m.includes("partnership posts") || m.includes("paid posts") || m.includes("sponsored posts") ||
+    /\b(caption|captions)\s+(used|in|from)\b/.test(m) || /\bwhat\s+(are|is)\s+the\s+caption/.test(m)
+  ) return "CAPTIONS_OR_PAID_POSTS";
+  return "GENERATION";
+}
+
+function decideResponseMode(intent: string, snapshot: DataSnapshot): ResponseMode {
+  if (intent === "ACCOUNT_METRICS") {
+    return snapshot.hasAccountMetrics ? "ANALYTICS" : "LIMITATION";
+  }
+  if (intent === "GENERATION" || intent === "DIAGNOSIS") return "STRATEGY";
+  if (intent === "POSTING_TIME" || intent === "BEST_POST" || intent === "HASHTAGS" || intent === "WHY_ABOUT_POSTS" || intent === "CAPTIONS_OR_PAID_POSTS") {
+    if (snapshot.postCount === 0) return "LIMITATION";
+    const threshold = intent === "POSTING_TIME" ? POSTING_TIME_THRESHOLD : intent === "WHY_ABOUT_POSTS" ? 3 : ANALYTICS_POST_THRESHOLD;
+    if (intent === "CAPTIONS_OR_PAID_POSTS" || snapshot.postCount >= threshold) return "ANALYTICS";
+    return "LIMITATION";
+  }
+  return "STRATEGY";
+}
+
+// ─── 3. RESPONSE OUTPUT ──────────────────────────────────────────────────
+
+function buildLimitationReply(intent: string, snapshot: DataSnapshot): string {
+  const count = snapshot.postCount;
+  const threshold = intent === "POSTING_TIME" ? POSTING_TIME_THRESHOLD : ANALYTICS_POST_THRESHOLD;
+  const shortfall = count > 0 ? `We have ${count} posts but need at least ${threshold} to compare. ` : "";
+
+  const lines: string[] = [];
+  if (intent === "POSTING_TIME") {
+    lines.push("We checked posting times across your recent posts.");
+    lines.push("");
+    lines.push(`${shortfall}We couldn't determine best time because we ${count === 0 ? "have no posts with timestamps to compare" : "don't have enough varied time slots yet"}.`);
+    lines.push("");
+    lines.push("To get this answer: Go to the Analytics section, add your account, and run the analysis. This fetches your posts (with timestamps). Post at 2–3 different times this week, run the analysis again, then ask again.");
+  } else if (intent === "BEST_POST" || intent === "WHY_ABOUT_POSTS") {
+    lines.push("We checked your posts for likes and comments.");
+    lines.push("");
+    lines.push(`${shortfall}We couldn't determine which content performs best because we ${count === 0 ? "have no posts stored yet" : "need more posts to compare"}.`);
+    lines.push("");
+    lines.push("To get this answer: Go to the Analytics section, add your account, and run the analysis. This fetches your posts. Then ask again.");
+  } else if (intent === "HASHTAGS") {
+    lines.push("We checked your posts for captions and hashtags.");
+    lines.push("");
+    lines.push(`${shortfall}We couldn't analyze hashtags because we ${count === 0 ? "have no posts with captions yet" : "need more posts with hashtags to compare"}.`);
+    lines.push("");
+    lines.push("To get this answer: Go to the Analytics section, add your account, and run the analysis. This fetches your posts. Add hashtags to your captions, run the analysis again, then ask again.");
+  } else if (intent === "ACCOUNT_METRICS") {
+    lines.push("We checked your account for engagement and follower data.");
+    lines.push("");
+    lines.push("We couldn't find metrics for your account yet.");
+    lines.push("");
+    lines.push("To get this answer: Go to the Analytics section, add your account, and run the analysis. This fetches your post and follower data. Then ask again.");
+  } else if (intent === "CAPTIONS_OR_PAID_POSTS") {
+    lines.push("We checked your stored posts for captions and partnership/paid indicators.");
+    lines.push("");
+    lines.push(`${shortfall}We couldn't answer because we ${count === 0 ? "have no posts stored yet" : "need posts with captions"}.`);
+    lines.push("");
+    lines.push("To get this answer: Go to the Analytics section, add your account, and run the analysis. This fetches your posts (including captions). Then ask again.");
+  } else {
+    lines.push("We checked your account.");
+    lines.push("");
+    lines.push("We couldn't answer your question because the required data is missing.");
+    lines.push("");
+    lines.push("To get this answer: Go to the Analytics section, add your account, and run the analysis. This fetches your posts. Then ask again.");
+  }
+  return lines.join("\n");
+}
+
+function buildStrategyDataBlock(snapshot: DataSnapshot, selectedAccount: string): string {
+  if (!snapshot.hasAccountMetrics) {
+    return "Account data: Not available. User has not run Instagram Analytics yet.";
+  }
+  const parts: string[] = [
+    `Account: @${selectedAccount}`,
+    `Followers: ${snapshot.followers ?? "unknown"}`,
+    `Engagement rate: ${snapshot.engagementRate ?? "unknown"}%`,
+    `Posts analyzed: ${snapshot.postCount}`,
+    `Avg likes per post: ${snapshot.avgLikes ?? "unknown"}`,
+    `Avg comments per post: ${snapshot.avgComments ?? "unknown"}`,
+  ];
+  return "Account data (use these numbers to tailor your advice):\n" + parts.join("\n");
+}
+
+function buildAnalyticsContext(snapshot: DataSnapshot, selectedAccount: string): string {
+  // Prefer a days-based label when available (from analytics metadata), otherwise
+  // fall back to a simple "last N posts" description.
+  const windowLabel =
+    snapshot.dataWindowMode === "days" && snapshot.dataWindowLabel
+      ? `posts from the last ${snapshot.dataWindowLabel}`
+      : `your last ${snapshot.postCount} posts`;
+
+  const parts: string[] = [
+    `Account: @${selectedAccount}`,
+    `Data analyzed: ${windowLabel}.`,
+    "",
+    "FACTS (numbers only):",
+    `- Followers: ${snapshot.followers ?? "unknown"}`,
+    `- Engagement rate: ${snapshot.engagementRate ?? "unknown"}%`,
+    `- Avg likes per post: ${snapshot.avgLikes ?? "unknown"}`,
+    `- Avg comments per post: ${snapshot.avgComments ?? "unknown"}`,
+  ];
+  if (snapshot.posts && snapshot.posts.length > 0) {
+    const truncate = (s: string, max: number) => (s.length <= max ? s : s.slice(0, max) + "...");
+    const summaries = snapshot.posts.map((p, i) => {
+      const likes = p.likesCount ?? 0;
+      const comments = p.commentsCount ?? 0;
+      const hour = p.timestamp ? new Date(p.timestamp * 1000).getUTCHours() : null;
+      const caption = p.caption ?? "";
+      const tags = caption.match(/#\w+/g) || [];
+      const dateStr = p.timestamp ? new Date(p.timestamp * 1000).toISOString().slice(0, 10) : null;
+      return {
+        n: i + 1,
+        likes,
+        comments,
+        engagement: likes + comments,
+        hour,
+        hashtags: tags.slice(0, 5),
+        url: p.url || null,
+        caption: truncate(caption, 400),
+        date: dateStr,
+      };
+    });
+    // Pre-sort by engagement so GPT gets correct ranking—CRITICAL: use this order for "top N"
+    const topByEngagement = [...summaries].sort((a, b) => b.engagement - a.engagement).slice(0, 10)
+      .map((p, i) => ({ rank: i + 1, ...p }));
+    parts.push("", "TOP_POSTS_BY_ENGAGEMENT (use this exact order for 'top N' lists—already sorted by engagement):");
+    parts.push(JSON.stringify(topByEngagement, null, 2));
+    parts.push("", "Post-level data (POSTING_TIME: use hour; HASHTAGS: use hashtags; CAPTIONS/PAID: use caption and date). When listing top posts, use TOP_POSTS_BY_ENGAGEMENT order. ALWAYS include the exact URL for each post. For 'how many paid/partnership posts': count posts where caption contains words like 'sponsored', 'paid', 'partnership', 'collab', '#ad', 'ad', 'paid partnership'. For 'what captions in last N days': filter by date and list the caption text.");
+    parts.push(JSON.stringify(summaries, null, 0));
+  }
+  parts.push(
+    "",
+    "LOCK: Use ONLY these numbers. Never invent, diagnose, or guess.",
+    "RESPONSE FORMAT (required — use these section headers WITHOUT numbers):",
+    "DATA ANALYZED: [what we checked]",
+    "FACTS (numbers only): [metrics; when referencing specific posts, include the exact post URL]",
+    "WHAT CANNOT BE CONCLUDED: [limitations if any]",
+    "NEXT STEP: [clear and testable]",
+    "",
+    "CRITICAL: Do NOT put numbers before DATA ANALYZED, FACTS, WHAT CANNOT BE CONCLUDED, or NEXT STEP. For sub-lists (e.g. top posts), use 1, 2, 3...",
+    "COMPLETENESS: Always finish your response. If listing posts, either list every one OR cap at 10 and say 'Top 10 of X posts'. Never truncate mid-list.",
+    "We analyze 30 posts by default. In NEXT STEP, add: 'Want more posts? Just say e.g. analyze 50 posts or analyze 100 posts—it will take longer but we will fetch and analyze them.'",
+    "NEVER use: typically, usually, generally, best practices, your content isn't compelling.",
+    "ALWAYS use: Based on your last X posts, Your data shows, We couldn't determine X because, To validate this, do Y."
+  );
+  return parts.join("\n");
+}
+
+type ChatMessage = { role: "system" | "user" | "assistant"; content: string };
+
+async function callOpenAI(
+  systemPrompt: string,
+  userContent: string,
+  apiKey: string,
+  conversationHistory?: Array<{ role: string; content: string }>
+): Promise<string> {
+  const validHistory: ChatMessage[] = conversationHistory
+    ? conversationHistory
+        .filter((m) => m && typeof m.role === "string" && typeof m.content === "string")
+        .slice(-8)
+        .map((m) => ({
+          role: (m.role === "assistant" ? "assistant" : "user") as "user" | "assistant",
+          content: String(m.content).slice(0, 4000),
+        }))
+    : [];
+
+  const messages: ChatMessage[] = [
+    { role: "system", content: systemPrompt },
+    ...validHistory,
+    { role: "user", content: userContent },
+  ];
+
+  const res = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: "gpt-4o-mini",
+      messages,
+      temperature: 0.4,
+      max_tokens: 2000,
+    }),
+  });
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`OpenAI error: ${res.status} ${err}`);
+  }
+  const data: any = await res.json();
+  const reply = data?.choices?.[0]?.message?.content;
+  if (!reply || typeof reply !== "string") throw new Error("OpenAI returned empty response");
+  return reply.trim();
+}
+
+// ─── MAIN HANDLER ────────────────────────────────────────────────────────
+
+export const smartChatV2 = onCall(
+  {
+    region: "us-central1",
+    secrets: [openaiApiKeySecret, sbClientId, sbApiToken],
+    timeoutSeconds: 60,
+    memory: "512MiB",
+    cors: true,
+  },
+  async (request) => {
+    try {
+      const data = request.data as Record<string, unknown> | undefined;
+      const message = data?.message;
+      const conversationHistory = Array.isArray(data?.conversationHistory) ? data.conversationHistory : undefined;
+      if (!message || typeof message !== "string" || !String(message).trim()) {
+        throw new HttpsError("invalid-argument", "Message is required");
+      }
+
+      const userId = request.auth?.uid;
+      if (!userId) {
+        throw new HttpsError("unauthenticated", "You must be signed in to use Smart Chat");
+      }
+
+      const userDoc = await db.collection("users").doc(userId).get();
+      if (!userDoc.exists) {
+        throw new HttpsError("failed-precondition", "Please add an Instagram account in Analytics to use Smart Chat.");
+      }
+
+      const selectedAccount = userDoc.data()?.selectedInstagramAccount;
+      if (!selectedAccount) {
+        throw new HttpsError("failed-precondition", "Please add an Instagram account in Analytics to use Smart Chat.");
+      }
+
+      let sbClientIdVal: string | undefined;
+      let sbApiTokenVal: string | undefined;
+      try {
+        sbClientIdVal = sbClientId.value();
+        sbApiTokenVal = sbApiToken.value();
+      } catch {
+        sbClientIdVal = undefined;
+        sbApiTokenVal = undefined;
+      }
+      const snapshot = await getDataSnapshot(db, userId, selectedAccount, sbClientIdVal, sbApiTokenVal);
+
+      const intent = classifyIntent(message);
+      const mode = decideResponseMode(intent, snapshot);
+
+      if (mode === "LIMITATION") {
+        return {
+          success: true,
+          reply: buildLimitationReply(intent, snapshot),
+        };
+      }
+
+      const apiKey = openaiApiKeySecret.value();
+      if (!apiKey) throw new HttpsError("failed-precondition", "OpenAI API key is not configured.");
+
+      if (mode === "STRATEGY") {
+        const dataBlock = buildStrategyDataBlock(snapshot, selectedAccount);
+        const systemPrompt = `You are Smart Chat, an Instagram growth advisor. Answer with ideas, how-to, and strategy. Be specific and actionable.
+
+${dataBlock}
+
+CRITICAL: When account data is provided above, USE IT. Reference their actual followers, engagement rate, and post count. Tailor advice to their scale. Do NOT give generic advice when you have their numbers.
+When no data is provided, give concrete steps anyway—but never say "run analytics" as the main answer.
+
+NEVER use: typically, usually, generally, best practices, your content isn't compelling, motivational filler.
+ALWAYS use: concrete steps, specific tactics, testable actions.
+
+CONVERSATIONAL: Use prior messages for context. If the user refers to "these", "those", "among these", answer directly from what you previously said—do NOT give generic how-to instructions.`;
+        const reply = await callOpenAI(
+          systemPrompt,
+          `User question: "${message}"`,
+          apiKey,
+          conversationHistory
+        );
+        return { success: true, reply };
+      }
+
+      // mode === "ANALYTICS"
+      const context = buildAnalyticsContext(snapshot, selectedAccount);
+      const systemPrompt = `You are Smart Chat, a data analyst for Instagram. Explain facts from the data. Do NOT diagnose, judge, or invent problems.
+
+${context}
+
+CONVERSATIONAL: Use prior messages for context. If the user refers to "these", "those", "among these", "from above", they mean data YOU provided. Answer directly from your previous response—do NOT give "how to find" instructions.
+
+WHY QUESTIONS (when user asks why posts are top): Use ONLY the numbers in the data. Explain using: (1) engagement breakdown—e.g. "Post 2 had the most comments (1,030)—suggesting it drove discussion"; (2) content type if available; (3) posting time if available.
+BANNED (never use): "Content Appeal", "Effective Captions", "engaging content", "captivating visuals", "compelling narratives", "visually stunning", "resonated with your audience", "high engagement" (as a reason—circular). If you cannot explain from data, say: "We couldn't determine the exact reasons—we only have engagement numbers. From the numbers: [list specific facts]."`;
+      const intentHint = intent === "ACCOUNT_METRICS"
+        ? "User asked for their metrics. Lead with the numbers. Answer directly: e.g. 'Your engagement rate is X%. You have Y followers.'"
+        : intent === "WHY_ABOUT_POSTS"
+        ? "User asked WHY these posts are top. Use ONLY TOP_POSTS_BY_ENGAGEMENT data. Compare likes vs comments, content type, posting time. Do NOT use generic reasons like 'Content Appeal' or 'Effective Captions'. If data is insufficient, say so and list only data-driven facts."
+        : intent === "CAPTIONS_OR_PAID_POSTS"
+        ? "User asked about captions used and/or paid/partnership/sponsored posts. Use the post-level data: each post has 'caption' and 'date'. Count paid/partnership posts by checking captions for words like sponsored, paid, partnership, collab, #ad, paid partnership. For 'what captions in last N days' filter posts by date and list the captions. Answer from the data only; do NOT give manual 'how to find' steps."
+        : `Intent: ${intent}`;
+      const userContent = `${intentHint}\n\nUser question: "${message}"`;
+      const reply = await callOpenAI(systemPrompt, userContent, apiKey, conversationHistory);
+      return { success: true, reply };
+    } catch (e) {
+      if (e instanceof HttpsError) throw e;
+      const msg = e instanceof Error ? e.message : "An unexpected error occurred.";
+      console.error("smartChatV2 error:", msg, e instanceof Error ? e.stack : "");
+      if (msg.includes("OpenAI") || msg.includes("429") || msg.includes("rate limit")) {
+        throw new HttpsError("resource-exhausted", "The AI service is busy. Please try again in a moment.");
+      }
+      if (msg.includes("fetch") || msg.includes("network") || msg.includes("ECONNREFUSED")) {
+        throw new HttpsError("unavailable", "The service is temporarily unavailable. Please try again.");
+      }
+      throw new HttpsError("internal", "Something went wrong. Please try again.");
+    }
+  }
+);
