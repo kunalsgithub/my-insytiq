@@ -1,6 +1,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
 
+// Homepage - uses Link for client-side navigation (fixes Vercel 404)
 const highlights = [
   {
     title: "Instagram Analytics",
