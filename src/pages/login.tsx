@@ -107,15 +107,16 @@ export default function LoginPage() {
            </div>
         </div>
 
-        {/* Form Section (Bottom on mobile, Left on desktop) */}
-        <div className="w-full h-3/5 md:h-auto md:w-1/2 p-8 sm:p-12 bg-white order-2 md:order-1 flex flex-col justify-center relative rounded-t-3xl md:rounded-t-none -mt-8 md:mt-0">
-          <div className="mb-8 text-center md:text-left">
-            <h1 className="text-3xl md:text-4xl font-bold">
+        {/* Form Section (Bottom on mobile, Left on desktop) - white card */}
+        <div className="w-full min-h-[60vh] md:h-auto md:w-1/2 px-6 pt-10 pb-8 sm:px-12 sm:pt-12 bg-white order-2 md:order-1 flex flex-col justify-center relative rounded-t-3xl md:rounded-t-none -mt-6 md:mt-0 md:pt-12 md:px-12">
+          {/* Sign In + Not a Member? — always inside white card with top padding */}
+          <div className="mb-8 flex flex-col items-center text-center md:items-start md:text-left">
+            <h1 className="text-3xl md:text-4xl font-bold text-gray-900">
               {mode === 'login' ? 'Sign In' : 'Sign Up'}
             </h1>
-            <p className="mt-2 text-gray-600">
-              {mode === 'login' ? "Not a Member? " : "Already a Member? "}
-              <button onClick={toggleMode} className="text-purple-600 font-semibold hover:underline">
+            <p className="mt-2 text-gray-600 flex flex-wrap items-center justify-center gap-1 md:justify-start">
+              <span>{mode === 'login' ? "Not a Member? " : "Already a Member? "}</span>
+              <button type="button" onClick={toggleMode} className="text-purple-600 font-semibold hover:underline whitespace-nowrap">
                 {mode === 'login' ? "Create Account" : "Login"}
               </button>
             </p>
