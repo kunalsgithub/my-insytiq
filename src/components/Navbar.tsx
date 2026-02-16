@@ -63,8 +63,8 @@ const Navbar = ({ onCategoryChange }: NavbarProps) => {
       <div className="flex h-16 items-center px-4 relative">
         {/* Hide logo and brand on desktop, show only on mobile */}
         <a href="/" className="flex items-center gap-2 font-semibold hover:opacity-80 transition-opacity md:hidden">
-          <img src={trendLogo} alt="whoistrend logo" className="h-10 w-10" />
-          <span className="text-xl">whoistrend</span>
+          <img src={trendLogo} alt="insytiq.ai logo" className="h-10 w-10" />
+          <span className="text-xl">insytiq.ai</span>
         </a>
         {/* Desktop Login/Signup Button - Mobile sign in is now in burger menu */}
         <div className="ml-auto hidden md:flex items-center gap-4">

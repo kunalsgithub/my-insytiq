@@ -69,8 +69,8 @@ export function WhoistrendSidebarMenu() {
   return (
     <div className="fixed top-0 left-0 h-screen z-30 flex flex-col bg-white border-r shadow-sm min-w-[220px] max-w-[260px] p-4 hidden md:flex">
       <div className="flex items-center gap-2 mb-8">
-        <img src={trendLogo} alt="whoistrend logo" className="h-8 w-8" />
-        <span className="font-extrabold text-xl tracking-tight">whoistrend</span>
+        <img src={trendLogo} alt="insytiq.ai logo" className="h-8 w-8" />
+        <span className="font-extrabold text-xl tracking-tight">insytiq.ai</span>
       </div>
 
       {/* Main Section */}

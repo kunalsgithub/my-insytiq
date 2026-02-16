@@ -4,7 +4,7 @@ const Privacy = () => (
   <div className="max-w-3xl mx-auto py-12 px-4 bg-white rounded-2xl shadow-md">
     <h1 className="text-4xl font-extrabold mb-2 gradient-text">Privacy Policy</h1>
     <p className="text-sm text-muted-foreground mb-8">Effective Date: <span className="font-semibold">27/June/2025</span></p>
-    <p className="mb-6 text-lg">Welcome to <span className="font-semibold">Who is Trend</span> (“we,” “our,” or “us”). We are committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you visit our website <span className="text-insta-primary font-semibold">whoistrend.com</span>, use our analytics platform, or subscribe to our services.</p>
+    <p className="mb-6 text-lg">Welcome to <span className="font-semibold">insytiq.ai</span> (“we,” “our,” or “us”). We are committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you visit our website <span className="text-insta-primary font-semibold">insytiq.ai</span>, use our analytics platform, or subscribe to our services.</p>
 
     <h2 className="text-2xl font-bold mt-10 mb-2">1. Information We Collect</h2>
     <ul className="list-disc list-inside mb-6 text-base space-y-1">
@@ -41,7 +41,7 @@ const Privacy = () => (
       <li>Delete your account and related data.</li>
       <li>Withdraw consent at any time.</li>
     </ul>
-    <p className="mb-6">To make a request, email us at <a href="mailto:contact@whoistrend.com" className="text-insta-primary underline font-semibold">contact@whoistrend.com</a>.</p>
+    <p className="mb-6">To make a request, email us at <a href="mailto:contact@insytiq.ai" className="text-insta-primary underline font-semibold">contact@insytiq.ai</a>.</p>
 
     <h2 className="text-2xl font-bold mt-10 mb-2">7. Children's Privacy</h2>
     <p className="mb-6">Our platform is not intended for users under the age of 13. We do not knowingly collect data from children.</p>
@@ -52,11 +52,11 @@ const Privacy = () => (
     <h2 className="text-2xl font-bold mt-10 mb-2">9. Contact Us</h2>
     <div className="mb-2 flex items-center gap-2">
       <span role="img" aria-label="email">📧</span>
-      <a href="mailto:contact@whoistrend.com" className="text-insta-primary underline font-semibold">contact@whoistrend.com</a>
+      <a href="mailto:contact@insytiq.ai" className="text-insta-primary underline font-semibold">contact@insytiq.ai</a>
     </div>
     <div className="mb-2 flex items-center gap-2">
       <span role="img" aria-label="web">🌐</span>
-      <a href="www.whoistrend.com" className="text-insta-primary underline font-semibold">www.whoistrend.com</a>
+      <a href="https://insytiq.ai" className="text-insta-primary underline font-semibold">insytiq.ai</a>
     </div>
   </div>
 );

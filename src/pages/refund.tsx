@@ -30,7 +30,7 @@ const Refund = () => (
       <li>Refunds may be considered in the following rare cases:</li>
       <li>If the platform experiences extended downtime (over 72 consecutive hours).</li>
       <li>If your account was charged due to a technical error on our side.</li>
-      <li>For any such exception, you must contact us at <a href="mailto:contact@whoistrend.com" className="text-insta-primary underline font-semibold">contact@whoistrend.com</a> within 7 days of the billing date.</li>
+      <li>For any such exception, you must contact us at <a href="mailto:contact@insytiq.ai" className="text-insta-primary underline font-semibold">contact@insytiq.ai</a> within 7 days of the billing date.</li>
     </ul>
 
     <h2 className="text-2xl font-bold mt-10 mb-2">5. Disputed Charges</h2>
@@ -39,11 +39,11 @@ const Refund = () => (
     <h2 className="text-2xl font-bold mt-10 mb-2">6. How to Contact Us</h2>
     <div className="mb-2 flex items-center gap-2">
       <span role="img" aria-label="email">📧</span>
-      <a href="mailto:contact@whoistrend.com" className="text-insta-primary underline font-semibold">contact@whoistrend.com</a>
+      <a href="mailto:contact@insytiq.ai" className="text-insta-primary underline font-semibold">contact@insytiq.ai</a>
     </div>
     <div className="mb-2 flex items-center gap-2">
       <span role="img" aria-label="web">🌐</span>
-      <a href="https://www.whoistrend.com" className="text-insta-primary underline font-semibold">www.whoistrend.com</a>
+      <a href="https://insytiq.ai" className="text-insta-primary underline font-semibold">insytiq.ai</a>
     </div>
   </div>
 );

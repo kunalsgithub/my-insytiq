@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import Papa from "papaparse";
 
 const SHEET_URL = "https://docs.google.com/spreadsheets/d/1PJ4DTnYDBFBWdaEKT2uhIBo-OlNThjFCf0c6tzngXZY/gviz/tq?tqx=out:csv&sheet=Top%20Influencers";
-const LS_KEY = "whoistrend_influencers_data_v1";
+const LS_KEY = "insytiq_ai_influencers_data_v1";
 const LS_TTL = 1000 * 60 * 60; // 1 hour
 
 // Global cache for all categories

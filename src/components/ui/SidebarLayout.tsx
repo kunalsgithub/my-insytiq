@@ -97,8 +97,8 @@ export default function SidebarLayout() {
           <div className="fixed top-0 left-0 w-full h-screen bg-white shadow-2xl z-[9999] flex flex-col md:hidden">
             <div className="flex justify-between items-center p-4 border-b">
               <div className="flex items-center gap-2 font-semibold">
-                <img src={trendLogo} alt="whoistrend logo" className="h-8 w-8" />
-                <span className="text-lg">whoistrend</span>
+              <img src={trendLogo} alt="insytiq.ai logo" className="h-8 w-8" />
+              <span className="text-lg">insytiq.ai</span>
               </div>
               <button onClick={() => setMobileMenuOpen(false)} className="p-2">
                 <X className="w-6 h-6 text-gray-600" />
