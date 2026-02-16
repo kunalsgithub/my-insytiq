@@ -1,7 +1,8 @@
 import React from "react";
 import { Link } from "react-router-dom";
-
+// Optional: open the file and add a comment, or use this one-liner
 // Homepage - uses Link for client-side navigation (fixes Vercel 404)
+// Push test: verify git → my-insytiq → Vercel deploy
 const highlights = [
   {
     title: "Instagram Analytics",
