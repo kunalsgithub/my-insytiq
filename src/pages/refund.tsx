@@ -4,7 +4,7 @@ const Refund = () => (
   <div className="max-w-3xl mx-auto py-12 px-4 bg-white rounded-2xl shadow-md">
     <h1 className="text-4xl font-extrabold mb-2 gradient-text">Refund Policy</h1>
     <p className="text-sm text-muted-foreground mb-8">Effective Date: <span className="font-semibold">27/June/2025</span></p>
-    <p className="mb-6 text-lg">Thank you for subscribing to <span className="font-semibold">Who is Trend</span>. We are committed to delivering value through our trend and influencer analytics tools. However, due to the nature of digital products and data-based services, we have the following refund policy in place:</p>
+    <p className="mb-6 text-lg">Thank you for subscribing to <span className="font-semibold">insytiq.ai</span>. We are committed to delivering value through our trend and influencer analytics tools. However, due to the nature of digital products and data-based services, we have the following refund policy in place:</p>
 
     <h2 className="text-2xl font-bold mt-10 mb-2">1. Subscription Plans (Free & Paid)</h2>
     <p className="mb-6">Our platform offers both free and paid subscription plans.<br/>When you choose a paid plan, you get immediate access to premium data, insights, and analytics tools.</p>
