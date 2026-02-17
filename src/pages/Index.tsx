@@ -77,7 +77,7 @@ const Index = () => {
             <a href="/refund" className="hover:text-insta-primary transition-colors">Refund Policy</a>
           </div>
           <p className="text-sm text-muted-foreground text-center md:text-left">
-            &copy; {new Date().getFullYear()} InstaTrend Seeker. All rights reserved.
+            &copy; {new Date().getFullYear()} Insytiq. All rights reserved.
           </p>
           <p className="text-sm text-muted-foreground">
             Data refreshes every 24 hours

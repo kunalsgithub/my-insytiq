@@ -29,8 +29,13 @@ export const auth = getAuth(app);
 // Initialize Functions with explicit region (us-central1 is default for v2 functions)
 export const functions = getFunctions(app, 'us-central1');
 
-// Example export for calling the function
+// Callable functions
 export const fetchAndStoreInstagramData = httpsCallable(
   functions,
   "fetchAndStoreInstagramData"
+);
+
+export const sendCustomPasswordReset = httpsCallable(
+  functions,
+  "sendCustomPasswordReset"
 );

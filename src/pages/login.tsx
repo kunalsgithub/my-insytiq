@@ -5,8 +5,9 @@ import { ToastAction } from '@/components/ui/toast';
 import { signInWithGoogle, signInWithGoogleRedirect } from '@/services/firebaseService';
 import { useToast } from '@/hooks/use-toast';
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
-import { useNavigate } from 'react-router-dom';
-import { Eye, EyeOff, Apple } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Eye, EyeOff } from 'lucide-react';
+import { sendCustomPasswordReset } from '@/firebase';
 
 export default function LoginPage() {
   const [fullName, setFullName] = useState('');
@@ -16,6 +17,16 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
+
+  const showAuthErrorToast = (title: string, description: string) => {
+    toast({
+      title,
+      description,
+      variant: 'destructive',
+      className:
+        'border border-[rgb(192,37,122)] bg-white text-gray-900 shadow-xl',
+    });
+  };
 
   const handleGoogleSignIn = async () => {
     try {
@@ -28,23 +39,26 @@ export default function LoginPage() {
 
       toast({
         title: '✅ Google successful',
-        description: 'Welcome to InstaTrend Seeker!',
+        description: 'Welcome to Insytiq!',
       });
 
       navigate('/');
     } catch (error) {
       console.error('Google sign-in error in login page:', error);
-      const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
+      const code = (error as any)?.code as string | undefined;
 
-      if (errorMessage.includes('not authorized')) {
+      if (code && code.includes('unauthorized-domain')) {
         const currentHost = window.location.hostname;
         const firebaseUrl = `https://console.firebase.google.com/project/social-trends-29ac2/authentication/settings`;
 
+        showAuthErrorToast(
+          'Google sign-in blocked for this domain',
+          `Domain "${currentHost}" is not authorized. Click the button below to open Firebase Console and add it.`
+        );
         toast({
-          title: '❌ Google Sign-in Failed',
-          description: `Domain "${currentHost}" is not authorized. Click the button below to open Firebase Console and add it.`,
+          title: '',
+          description: '',
           variant: 'destructive',
-          duration: 15000,
           action: (
             <ToastAction
               altText="Open Firebase Console"
@@ -55,12 +69,13 @@ export default function LoginPage() {
           ),
         });
       } else {
-        toast({
-          title: '❌ Google Sign-in Failed',
-          description: errorMessage,
-          variant: 'destructive',
-          duration: 5000,
-        });
+        let description = 'Something went wrong with Google sign-in. Please try again.';
+        if (code === 'auth/popup-closed-by-user') {
+          description = 'The Google sign-in popup was closed before completing. Please try again.';
+        } else if (code === 'auth/cancelled-popup-request') {
+          description = 'Another sign-in attempt was in progress. Please try again.';
+        }
+        showAuthErrorToast('Google sign-in failed', description);
       }
     }
   };
@@ -77,15 +92,55 @@ export default function LoginPage() {
         toast({ title: 'Account created and signed in' });
       }
       navigate('/');
-    } catch (error) {
-      toast({
-        title: mode === 'login' ? 'Login Failed' : 'Signup Failed',
-        description: (error as Error).message,
-        variant: 'destructive',
-      });
+    } catch (error: any) {
+      const code = error?.code as string | undefined;
+      let title = mode === 'login' ? 'Login failed' : 'Signup failed';
+      let description = 'Something went wrong. Please try again.';
+
+      if (mode === 'signup' && code === 'auth/email-already-in-use') {
+        title = 'Email already registered';
+        description = 'This email is already linked to an account. Please sign in instead.';
+        setMode('login');
+      } else if (mode === 'login' && (code === 'auth/wrong-password' || code === 'auth/invalid-credential')) {
+        title = 'Incorrect password';
+        description = 'The password you entered is not correct. Please try again.';
+      } else if (mode === 'login' && code === 'auth/user-not-found') {
+        title = 'No account found';
+        description = 'We couldn’t find an account with this email. Check the address or create a new account.';
+      }
+
+      showAuthErrorToast(title, description);
     }
   };
 
+  const handleForgotPassword = async () => {
+    if (!email) {
+      showAuthErrorToast(
+        'Enter your email first',
+        'Type the email you used to sign up, then tap Forgot password.'
+      );
+      return;
+    }
+    try {
+      await sendCustomPasswordReset({ email });
+      toast({
+        title: 'Password reset email sent',
+        description: `We've emailed a reset link to ${email} from no-reply@insytiq.ai. Check your inbox and follow the instructions.`,
+      });
+    } catch (error: any) {
+      const code = error?.code as string | undefined;
+      const msg = error?.message || '';
+      let description = 'Something went wrong. Please try again.';
+
+      if (code === 'functions/not-found' || msg.includes('No account found')) {
+        description = 'No account exists with this email. Double-check the address or create a new account.';
+      } else if (code === 'functions/failed-precondition') {
+        description = 'Email service is temporarily unavailable. Please try again later.';
+      }
+
+      showAuthErrorToast('Could not send reset link', description);
+    }
+  };
   const toggleMode = () => {
     setMode((prevMode) => (prevMode === 'login' ? 'signup' : 'login'));
   };
@@ -99,9 +154,9 @@ export default function LoginPage() {
         <div className="w-full md:w-[48%] bg-gradient-to-b from-white via-white to-[#fff5fb] px-8 py-10 md:px-10 md:py-12 flex flex-col justify-between">
           {/* Brand and heading */}
           <div>
-            <div className="text-xs font-semibold tracking-[0.2em] uppercase text-gray-500 mb-8">
+            <Link to="/" className="text-xs font-semibold tracking-[0.2em] uppercase text-gray-500 mb-8 block hover:opacity-80 transition-opacity w-fit">
               INSYTIQ.AI
-            </div>
+            </Link>
 
             <div className="space-y-2 mb-8">
               <h1 className="text-3xl md:text-4xl font-extrabold text-gray-900">
@@ -174,6 +229,7 @@ export default function LoginPage() {
                 {mode === 'login' && (
                   <button
                     type="button"
+                    onClick={handleForgotPassword}
                     className="text-[#ee2a7b] font-medium hover:underline"
                   >
                     Forgot password?
