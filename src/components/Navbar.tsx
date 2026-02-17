@@ -64,7 +64,9 @@ const Navbar = ({ onCategoryChange }: NavbarProps) => {
         {/* Hide logo and brand on desktop, show only on mobile */}
         <a href="/" className="flex items-center gap-2 font-semibold hover:opacity-80 transition-opacity md:hidden">
           <img src={trendLogo} alt="insytiq.ai logo" className="h-10 w-10" />
-          <span className="text-xl">insytiq.ai</span>
+          <span className="text-xs font-semibold tracking-[0.2em] text-gray-500 uppercase">
+            INSYTIQ.AI
+          </span>
         </a>
         {/* Desktop Login/Signup Button - Mobile sign in is now in burger menu */}
         <div className="ml-auto hidden md:flex items-center gap-4">

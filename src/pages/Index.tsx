@@ -37,7 +37,10 @@ const Index = () => {
         <p className="text-lg md:text-xl text-gray-700 max-w-3xl mb-8">
           The all-in-one dashboard for creators, brands, and marketers. Analyze, grow, and stay ahead of the trends with powerful analytics and AI tools.
         </p>
-        <Link to="/trending" className="inline-block px-8 py-3 rounded-lg font-bold text-lg bg-gradient-to-r from-[#f9ce34] via-[#ee2a7b] to-[#6228d7] text-white shadow-lg hover:scale-105 transition-transform">
+        <Link
+          to="/trending"
+          className="inline-block px-8 py-3 rounded-lg font-bold text-lg bg-[rgb(192,37,122)] text-white shadow-lg hover:brightness-110 transition-transform"
+        >
           Explore Trending Now
         </Link>
       </section>
@@ -57,7 +60,10 @@ const Index = () => {
       {/* Call to Action */}
       <section className="w-full py-12 flex flex-col items-center bg-gradient-to-r from-[#f9ce34]/10 via-[#ee2a7b]/10 to-[#6228d7]/10 rounded-2xl mb-12">
         <h2 className="text-2xl md:text-3xl font-bold mb-4">Ready to get started?</h2>
-        <Link to="/subscription" className="inline-block px-8 py-3 rounded-lg font-bold text-lg bg-[#8b5cf6] text-white shadow hover:bg-[#7c3aed] transition-colors">
+        <Link
+          to="/subscription"
+          className="inline-block px-8 py-3 rounded-lg font-bold text-lg bg-[rgb(192,37,122)] text-white shadow hover:brightness-110 transition-colors"
+        >
           View Subscription Plans
         </Link>
       </section>

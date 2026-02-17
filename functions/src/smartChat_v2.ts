@@ -43,6 +43,15 @@ type ResponseMode = "ANALYTICS" | "STRATEGY" | "LIMITATION";
 
 // ─── 1. DATA SNAPSHOT (pure function) ────────────────────────────────────
 
+/** Extract Unix seconds from any common timestamp field (Apify/Firestore vary) */
+function parsePostTimestamp(p: any): number | null {
+  const v = p?.timestamp ?? p?.takenAtTimestamp ?? p?.taken_at_timestamp ?? p?.taken_at;
+  if (typeof v === "number" && v > 0) return v;
+  if (typeof v === "string" && /^\d+$/.test(v)) return parseInt(v, 10);
+  if (v && typeof v === "object" && typeof (v as any)._seconds === "number") return (v as any)._seconds;
+  return null;
+}
+
 async function getDataSnapshot(
   db: Firestore,
   userId: string,
@@ -66,7 +75,17 @@ async function getDataSnapshot(
     const al = d?.avgLikes ?? d?.avg_likes ?? 0;
     const ac = d?.avgComments ?? d?.avg_comments ?? 0;
     const postsList = (d as any)?.posts;
-    const posts = Array.isArray(postsList) ? postsList : [];
+    const rawPosts = Array.isArray(postsList) ? postsList : [];
+    // Normalize so every post has .timestamp (from any common field) for POSTING_FREQUENCY / dates
+    const posts: Post[] = rawPosts.map((p: any) => ({
+      likesCount: p.likesCount ?? p.likeCount,
+      commentsCount: p.commentsCount ?? p.commentCount,
+      caption: p.caption ?? "",
+      timestamp: parsePostTimestamp(p),
+      type: p.type,
+      isVideo: p.isVideo,
+      url: p.url ?? null,
+    }));
     const postCount = posts.length;
     const dataWindowMode = (d as any)?.dataWindowMode as "days" | "posts" | undefined;
     const dataWindowLabel = (d as any)?.dataWindowLabel as string | undefined;
@@ -124,7 +143,7 @@ async function getDataSnapshot(
       likesCount: p.likesCount ?? p.likeCount,
       commentsCount: p.commentsCount ?? p.commentCount,
       caption: p.caption ?? "",
-      timestamp: p.timestamp ?? p.takenAtTimestamp ?? null,
+      timestamp: parsePostTimestamp(p),
       type: p.type,
       isVideo: p.isVideo,
       url: getPostUrl(p) || null,
@@ -192,9 +211,21 @@ function classifyIntent(message: string): string {
     /\bhashtags?\b/.test(m) || /\btags?\b/.test(m)
   ) return "HASHTAGS";
   if (m.includes("best time") || m.includes("when to post")) return "POSTING_TIME";
+  // Posts per month / posting frequency / average posts
+  if (
+    m.includes("posts per month") || m.includes("post per month") || m.includes("posting frequency") ||
+    m.includes("average number of posts") || m.includes("how many posts") && (m.includes("month") || m.includes("monthly")) ||
+    m.includes("monthly average") || m.includes("posts in monthly") || m.includes("analyze") && m.includes("posts") && m.includes("month")
+  ) return "POSTING_FREQUENCY";
+  // Follower growth / followers this month (we only have current count, not history)
+  if (
+    m.includes("followers did i get") || m.includes("followers i got") || m.includes("follower growth") ||
+    m.includes("followers this month") || m.includes("gained this month") || m.includes("new followers")
+  ) return "FOLLOWERS_GROWTH";
   if (
     m.includes("best post") || m.includes("top post") || m.includes("best performing") ||
-    m.includes("top performing") || m.includes("which posts perform") ||
+    m.includes("top performing") || m.includes("which posts perform") || m.includes("top 10") || m.includes("top 15") ||
+    /\btop\s+\d+\s+(post|performing)/.test(m) || /\bbest\s+\d+\s+(post|performing)/.test(m) ||
     m.includes("url of") || m.includes("url for") || m.includes("link to") || m.includes("link of") ||
     (m.includes("url") && (m.includes("post") || m.includes("content")))
   ) return "BEST_POST";
@@ -224,9 +255,25 @@ function classifyIntent(message: string): string {
   return "GENERATION";
 }
 
+/** Extract requested "top N" from message (e.g. "top 15 posts" -> 15). Default 10. */
+function parseTopN(message: string): number {
+  const m = message.toLowerCase();
+  const match = m.match(/\b(?:top|best)\s*(\d+)\s*(?:post|performing)?/i) || m.match(/\b(\d+)\s*(?:best|top)\s*post/i);
+  if (match) {
+    const n = parseInt(match[1], 10);
+    if (n >= 1 && n <= 50) return n;
+  }
+  return 10;
+}
+
 function decideResponseMode(intent: string, snapshot: DataSnapshot): ResponseMode {
   if (intent === "ACCOUNT_METRICS") {
     return snapshot.hasAccountMetrics ? "ANALYTICS" : "LIMITATION";
+  }
+  if (intent === "FOLLOWERS_GROWTH") return "LIMITATION"; // we only have current follower count, not monthly delta
+  if (intent === "POSTING_FREQUENCY") {
+    const hasTimestamps = snapshot.posts?.some((p) => p.timestamp != null) ?? false;
+    return snapshot.postCount >= 3 && hasTimestamps ? "ANALYTICS" : "LIMITATION";
   }
   if (intent === "GENERATION" || intent === "DIAGNOSIS") return "STRATEGY";
   if (intent === "POSTING_TIME" || intent === "BEST_POST" || intent === "HASHTAGS" || intent === "WHY_ABOUT_POSTS" || intent === "CAPTIONS_OR_PAID_POSTS") {
@@ -276,6 +323,27 @@ function buildLimitationReply(intent: string, snapshot: DataSnapshot): string {
     lines.push(`${shortfall}We couldn't answer because we ${count === 0 ? "have no posts stored yet" : "need posts with captions"}.`);
     lines.push("");
     lines.push("To get this answer: Go to the Analytics section, add your account, and run the analysis. This fetches your posts (including captions). Then ask again.");
+  } else if (intent === "POSTING_FREQUENCY") {
+    lines.push("We checked your posts for timestamps to compute monthly averages.");
+    lines.push("");
+    if (count === 0) {
+      lines.push("We have no posts stored yet, so we can't compute a monthly average.");
+    } else if (count <= 2) {
+      lines.push(`We only have ${count} post${count === 1 ? "" : "s"} in your analyzed data—not enough to compute a monthly average.`);
+      lines.push("");
+      lines.push("Try asking me to **analyze 50 posts** (or **analyze 30 posts**) in this chat. That will fetch and store more posts; then ask again for your average posts per month.");
+    } else {
+      lines.push("We don't have enough posts with dates in the data we have to compute a reliable monthly average.");
+      lines.push("");
+      lines.push(`We have ${count} posts; once more posts with dates are available in your analyzed data, we can give you the exact average.`);
+    }
+  } else if (intent === "FOLLOWERS_GROWTH") {
+    const current = snapshot.followers != null ? ` Your current follower count is ${snapshot.followers.toLocaleString()}.` : "";
+    lines.push("We only store your current follower count, not day-by-day or month-by-month history.");
+    lines.push("");
+    lines.push(`So we can't tell you how many followers you gained this month.${current}`);
+    lines.push("");
+    lines.push("To track follower growth over time, use Instagram Insights or a tool that stores historical follower data.");
   } else {
     lines.push("We checked your account.");
     lines.push("");
@@ -301,7 +369,7 @@ function buildStrategyDataBlock(snapshot: DataSnapshot, selectedAccount: string)
   return "Account data (use these numbers to tailor your advice):\n" + parts.join("\n");
 }
 
-function buildAnalyticsContext(snapshot: DataSnapshot, selectedAccount: string): string {
+function buildAnalyticsContext(snapshot: DataSnapshot, selectedAccount: string, requestedTopN: number = 10): string {
   // Prefer a days-based label when available (from analytics metadata), otherwise
   // fall back to a simple "last N posts" description.
   const windowLabel =
@@ -340,11 +408,27 @@ function buildAnalyticsContext(snapshot: DataSnapshot, selectedAccount: string):
         date: dateStr,
       };
     });
-    // Pre-sort by engagement so GPT gets correct ranking—CRITICAL: use this order for "top N"
-    const topByEngagement = [...summaries].sort((a, b) => b.engagement - a.engagement).slice(0, 10)
+    // Pre-sort by engagement; include up to requestedTopN (e.g. 15 when user asks "top 15")
+    const topN = Math.min(requestedTopN, summaries.length);
+    const topByEngagement = [...summaries].sort((a, b) => b.engagement - a.engagement).slice(0, topN)
       .map((p, i) => ({ rank: i + 1, ...p }));
-    parts.push("", "TOP_POSTS_BY_ENGAGEMENT (use this exact order for 'top N' lists—already sorted by engagement):");
+    parts.push("", `TOP_POSTS_BY_ENGAGEMENT (use this exact order for 'top N' lists—already sorted by engagement; we have ${topByEngagement.length} here, list all when user asks for top N):`);
     parts.push(JSON.stringify(topByEngagement, null, 2));
+    // Posts per month (for POSTING_FREQUENCY intent)
+    const withDate = summaries.filter((s) => s.date);
+    if (withDate.length >= 3) {
+      const byMonth: Record<string, number> = {};
+      withDate.forEach((s) => {
+        const month = (s.date as string).slice(0, 7);
+        byMonth[month] = (byMonth[month] || 0) + 1;
+      });
+      const months = Object.keys(byMonth).sort();
+      const totalPosts = withDate.length;
+      const numMonths = months.length || 1;
+      const avgPerMonth = (totalPosts / numMonths).toFixed(1);
+      parts.push("", "POSTS_PER_MONTH (for posting frequency / monthly average questions):");
+      parts.push(JSON.stringify({ byMonth: byMonth, totalPostsWithDate: totalPosts, monthsCovered: numMonths, averagePostsPerMonth: avgPerMonth }, null, 2));
+    }
     parts.push("", "Post-level data (POSTING_TIME: use hour; HASHTAGS: use hashtags; CAPTIONS/PAID: use caption and date). When listing top posts, use TOP_POSTS_BY_ENGAGEMENT order. ALWAYS include the exact URL for each post. For 'how many paid/partnership posts': count posts where caption contains words like 'sponsored', 'paid', 'partnership', 'collab', '#ad', 'ad', 'paid partnership'. For 'what captions in last N days': filter by date and list the caption text.");
     parts.push(JSON.stringify(summaries, null, 0));
   }
@@ -491,10 +575,13 @@ CONVERSATIONAL: Use prior messages for context. If the user refers to "these", "
       }
 
       // mode === "ANALYTICS"
-      const context = buildAnalyticsContext(snapshot, selectedAccount);
+      const requestedTopN = parseTopN(message);
+      const context = buildAnalyticsContext(snapshot, selectedAccount, requestedTopN);
       const systemPrompt = `You are Smart Chat, a data analyst for Instagram. Explain facts from the data. Do NOT diagnose, judge, or invent problems.
 
 ${context}
+
+CRITICAL: We HAVE the user's data above. NEVER reply with "to find this, do X" or "you can do this by..." or "follow these steps to...". Always answer FROM THE DATA. If the data is above, use it and give the direct answer (numbers, list of posts, averages). Do NOT give generic instructions.
 
 CONVERSATIONAL: Use prior messages for context. If the user refers to "these", "those", "among these", "from above", they mean data YOU provided. Answer directly from your previous response—do NOT give "how to find" instructions.
 
@@ -506,6 +593,10 @@ BANNED (never use): "Content Appeal", "Effective Captions", "engaging content", 
         ? "User asked WHY these posts are top. Use ONLY TOP_POSTS_BY_ENGAGEMENT data. Compare likes vs comments, content type, posting time. Do NOT use generic reasons like 'Content Appeal' or 'Effective Captions'. If data is insufficient, say so and list only data-driven facts."
         : intent === "CAPTIONS_OR_PAID_POSTS"
         ? "User asked about captions used and/or paid/partnership/sponsored posts. Use the post-level data: each post has 'caption' and 'date'. Count paid/partnership posts by checking captions for words like sponsored, paid, partnership, collab, #ad, paid partnership. For 'what captions in last N days' filter posts by date and list the captions. Answer from the data only; do NOT give manual 'how to find' steps."
+        : intent === "BEST_POST"
+        ? `User asked for top/best performing posts (possibly "top N" e.g. top 15). Use TOP_POSTS_BY_ENGAGEMENT. List exactly what we have (up to the number they asked for). If they asked for 15 and we have 15 or more, list 15. If we have 10, list 10 and say "Here are the top 10 from your last X posts." ALWAYS include each post's URL. Do NOT give instructions like "to find top posts, sort by engagement"—we already did that; give the list.`
+        : intent === "POSTING_FREQUENCY"
+        ? "User asked for posts per month or monthly average. Use POSTS_PER_MONTH data. Give the exact average (averagePostsPerMonth) and optionally byMonth breakdown. Answer in one short paragraph with numbers. Do NOT give steps like 'count your posts' or 'divide by 12'—we already computed it."
         : `Intent: ${intent}`;
       const userContent = `${intentHint}\n\nUser question: "${message}"`;
       const reply = await callOpenAI(systemPrompt, userContent, apiKey, conversationHistory);

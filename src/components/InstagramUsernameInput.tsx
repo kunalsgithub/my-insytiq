@@ -38,7 +38,12 @@ const InstagramUsernameInput: React.FC<InstagramUsernameInputProps> = ({ onAnaly
         onKeyDown={handleKeyDown}
         className="w-full md:w-1/2"
       />
-      <Button onClick={handleAnalyze} className="w-full md:w-auto">Analyze</Button>
+      <Button
+        onClick={handleAnalyze}
+        className="w-full md:w-auto bg-[rgb(192,37,122)] text-white border-0 hover:brightness-110"
+      >
+        Analyze
+      </Button>
     </div>
   );
 };

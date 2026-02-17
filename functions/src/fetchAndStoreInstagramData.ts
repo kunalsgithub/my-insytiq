@@ -39,18 +39,7 @@ export const fetchAndStoreInstagramData = onCall(
       const apifyApiToken = apifyApiTokenSecret.value();
       const profileData = await fetchInstagramData(username, apifyApiToken, postsLimit, timeRange);
 
-      // Store the raw profile data under the user's collection
-      await db
-        .collection("users")
-        .doc(userId)
-        .collection("rawInstagramData")
-        .doc(username)
-        .set({
-          profile: profileData,
-          fetchedAt: new Date().toISOString(),
-        });
-
-      // Extract analytics data from profileData
+      // Extract analytics data from profileData (raw write happens later with size cap)
       const followers = profileData.followersCount || profileData.followerCount || 0;
       
       // Calculate engagement rate and averages from posts
@@ -79,6 +68,15 @@ export const fetchAndStoreInstagramData = onCall(
         return null;
       };
 
+      /** Extract Unix seconds from any common timestamp field (Apify/Instagram scrapers vary) */
+      const parsePostTimestamp = (post: any): number | null => {
+        const v = post.timestamp ?? post.takenAtTimestamp ?? post.taken_at_timestamp ?? post.taken_at;
+        if (typeof v === "number" && v > 0) return v;
+        if (typeof v === "string" && /^\d+$/.test(v)) return parseInt(v, 10);
+        if (v && typeof v === "object" && typeof (v as any)._seconds === "number") return (v as any)._seconds;
+        return null;
+      };
+
       if (profileData.media && Array.isArray(profileData.media)) {
         postCount = profileData.media.length;
         profileData.media.forEach((post: any) => {
@@ -102,12 +100,7 @@ export const fetchAndStoreInstagramData = onCall(
             likesCount: likes,
             commentsCount: comments,
             caption: post.caption || "",
-            timestamp:
-              typeof post.timestamp === "number"
-                ? post.timestamp
-                : typeof post.takenAtTimestamp === "number"
-                ? post.takenAtTimestamp
-                : null,
+            timestamp: parsePostTimestamp(post),
             // Firestore does not allow undefined – normalize to explicit values
             type: typeof post.type === "string" ? post.type : null,
             isVideo: !!post.isVideo,
@@ -133,9 +126,11 @@ export const fetchAndStoreInstagramData = onCall(
       if (profileData.media && Array.isArray(profileData.media) && profileData.media.length > 1) {
         const firstPost = profileData.media[0];
         const lastPost = profileData.media[profileData.media.length - 1];
-        if (firstPost.timestamp && lastPost.timestamp) {
-          const firstDate = new Date(firstPost.timestamp * 1000);
-          const lastDate = new Date(lastPost.timestamp * 1000);
+        const firstTs = parsePostTimestamp(firstPost);
+        const lastTs = parsePostTimestamp(lastPost);
+        if (firstTs != null && lastTs != null) {
+          const firstDate = new Date(firstTs * 1000);
+          const lastDate = new Date(lastTs * 1000);
           const daysDiff = (firstDate.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24);
           postingFrequency = daysDiff > 0 ? parseFloat((postCount / daysDiff * 7).toFixed(2)) : 0;
         }
@@ -153,6 +148,24 @@ export const fetchAndStoreInstagramData = onCall(
           : postCount > 0
           ? String(postCount)
           : null;
+
+      // Store a size-capped copy in rawInstagramData (Firestore doc limit 1 MB).
+      // Smart Chat prefers instagramAnalytics; raw is fallback. Store only what we need.
+      const MAX_RAW_MEDIA = 100;
+      const rawProfileForStorage = {
+        followersCount: profileData.followersCount ?? profileData.followerCount ?? 0,
+        followerCount: profileData.followersCount ?? profileData.followerCount ?? 0,
+        media: simplifiedPosts.slice(0, MAX_RAW_MEDIA),
+      };
+      await db
+        .collection("users")
+        .doc(userId)
+        .collection("rawInstagramData")
+        .doc(username)
+        .set({
+          profile: rawProfileForStorage,
+          fetchedAt: new Date().toISOString(),
+        });
 
       // Create/update instagramAnalytics/{username} document
       // Normalize username to lowercase for consistent document IDs (case-sensitive in Firestore)
