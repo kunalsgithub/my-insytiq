@@ -805,22 +805,19 @@ const SmartChat = ({ useV2 = false }: SmartChatProps) => {
   const mostAskedQuestions = [
     {
       id: '1',
-      title: 'How to increase engagement rate?',
-      description: 'Learn strategies to boost your Instagram engagement and connect better with your audience.',
+      title: 'What are the top 10 best performing posts from last 30 Post with URL.',
       icon: TrendingUp,
       color: 'text-blue-500',
     },
     {
       id: '2',
-      title: 'Best time to post content?',
-      description: 'Discover optimal posting times based on your audience demographics and activity patterns.',
+      title: 'What are the most common used hashtags from last 45 posts',
       icon: BarChart3,
       color: 'text-purple-500',
     },
     {
       id: '3',
-      title: 'Growing follower base effectively',
-      description: 'Get insights on organic growth tactics and content strategies that attract real followers.',
+      title: 'Why these top 10 posts become the best performing post from last 30 Posts?',
       icon: Users,
       color: 'text-pink-500',
     },

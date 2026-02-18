@@ -349,13 +349,13 @@ export default function LoginPage() {
                 </div>
                 <div className="flex -space-x-2">
                   {[
-                    'https://images.pexels.com/photos/1181671/pexels-photo-1181671.jpeg?auto=compress&cs=tinysrgb&w=200',
-                    'https://images.pexels.com/photos/1181467/pexels-photo-1181467.jpeg?auto=compress&cs=tinysrgb&w=200',
-                    'https://images.pexels.com/photos/1181533/pexels-photo-1181533.jpeg?auto=compress&cs=tinysrgb&w=200',
+                    '/assets/top-post-1.png',
+                    '/assets/top-post-2.png',
+                    '/assets/top-post-3.png',
                   ].map((src, idx) => (
                     <div
                       key={idx}
-                      className="w-7 h-7 rounded-full border border-white overflow-hidden bg-white/20"
+                      className="w-10 h-10 rounded-full border-2 border-white overflow-hidden bg-white/20 shadow-md"
                     >
                       <img src={src} alt={`Top post ${idx + 1}`} className="w-full h-full object-cover" />
                     </div>
