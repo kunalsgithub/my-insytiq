@@ -34,8 +34,3 @@ export const fetchAndStoreInstagramData = httpsCallable(
   functions,
   "fetchAndStoreInstagramData"
 );
-
-export const sendCustomPasswordReset = httpsCallable(
-  functions,
-  "sendCustomPasswordReset"
-);

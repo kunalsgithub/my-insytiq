@@ -4,10 +4,9 @@ import { Input } from '@/components/ui/input';
 import { ToastAction } from '@/components/ui/toast';
 import { signInWithGoogle, signInWithGoogleRedirect } from '@/services/firebaseService';
 import { useToast } from '@/hooks/use-toast';
-import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
+import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
 import { Link, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff } from 'lucide-react';
-import { sendCustomPasswordReset } from '@/firebase';
 
 export default function LoginPage() {
   const [fullName, setFullName] = useState('');
@@ -114,6 +113,7 @@ export default function LoginPage() {
   };
 
   const handleForgotPassword = async () => {
+    const auth = getAuth();
     if (!email) {
       showAuthErrorToast(
         'Enter your email first',
@@ -122,20 +122,17 @@ export default function LoginPage() {
       return;
     }
     try {
-      await sendCustomPasswordReset({ email });
+      await sendPasswordResetEmail(auth, email);
       toast({
         title: 'Password reset email sent',
-        description: `We've emailed a reset link to ${email} from no-reply@insytiq.ai. Check your inbox and follow the instructions.`,
+        description: `We've emailed a reset link to ${email}. Check your inbox and follow the instructions.`,
       });
     } catch (error: any) {
       const code = error?.code as string | undefined;
-      const msg = error?.message || '';
       let description = 'Something went wrong. Please try again.';
 
-      if (code === 'functions/not-found' || msg.includes('No account found')) {
+      if (code === 'auth/user-not-found') {
         description = 'No account exists with this email. Double-check the address or create a new account.';
-      } else if (code === 'functions/failed-precondition') {
-        description = 'Email service is temporarily unavailable. Please try again later.';
       }
 
       showAuthErrorToast('Could not send reset link', description);

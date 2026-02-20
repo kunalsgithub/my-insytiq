@@ -149,8 +149,11 @@ export const fetchAndStoreInstagramData = onCall(
           ? String(postCount)
           : null;
 
+      // Normalize username once for consistent document IDs (Smart Chat and Analytics both look up by lowercase)
+      const normalizedUsername = username.toLowerCase().trim();
+
       // Store a size-capped copy in rawInstagramData (Firestore doc limit 1 MB).
-      // Smart Chat prefers instagramAnalytics; raw is fallback. Store only what we need.
+      // Use normalizedUsername so Smart Chat's getDataSnapshot finds it whether user doc has "User" or "user".
       const MAX_RAW_MEDIA = 100;
       const rawProfileForStorage = {
         followersCount: profileData.followersCount ?? profileData.followerCount ?? 0,
@@ -161,15 +164,13 @@ export const fetchAndStoreInstagramData = onCall(
         .collection("users")
         .doc(userId)
         .collection("rawInstagramData")
-        .doc(username)
+        .doc(normalizedUsername)
         .set({
           profile: rawProfileForStorage,
           fetchedAt: new Date().toISOString(),
         });
 
       // Create/update instagramAnalytics/{username} document
-      // Normalize username to lowercase for consistent document IDs (case-sensitive in Firestore)
-      const normalizedUsername = username.toLowerCase().trim();
       const analyticsDocRef = db.collection("instagramAnalytics").doc(normalizedUsername);
       console.log(`Saving analytics to: instagramAnalytics/${normalizedUsername}`);
       await analyticsDocRef.set(

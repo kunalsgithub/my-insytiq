@@ -287,10 +287,15 @@ function decideResponseMode(intent: string, snapshot: DataSnapshot): ResponseMod
 
 // ─── 3. RESPONSE OUTPUT ──────────────────────────────────────────────────
 
-function buildLimitationReply(intent: string, snapshot: DataSnapshot): string {
+function buildLimitationReply(intent: string, snapshot: DataSnapshot, selectedAccount: string): string {
   const count = snapshot.postCount;
   const threshold = intent === "POSTING_TIME" ? POSTING_TIME_THRESHOLD : ANALYTICS_POST_THRESHOLD;
   const shortfall = count > 0 ? `We have ${count} posts but need at least ${threshold} to compare. ` : "";
+  const atAccount = selectedAccount ? ` for @${selectedAccount}` : "";
+  const stepAnalytics = selectedAccount
+    ? `Go to **Instagram Analytics**, enter **@${selectedAccount}**, click **Analyze**, then come back and ask again.`
+    : "Go to **Instagram Analytics**, add your Instagram username, click **Analyze**, then come back and ask again.";
+  const stepChat = " Or in this chat you can say **analyze 30 posts** (or **analyze 50 posts**) to fetch and store posts, then ask again.";
 
   const lines: string[] = [];
   if (intent === "POSTING_TIME") {
@@ -298,31 +303,31 @@ function buildLimitationReply(intent: string, snapshot: DataSnapshot): string {
     lines.push("");
     lines.push(`${shortfall}We couldn't determine best time because we ${count === 0 ? "have no posts with timestamps to compare" : "don't have enough varied time slots yet"}.`);
     lines.push("");
-    lines.push("To get this answer: Go to the Analytics section, add your account, and run the analysis. This fetches your posts (with timestamps). Post at 2–3 different times this week, run the analysis again, then ask again.");
+    lines.push(`To get this answer: ${stepAnalytics}${stepChat}`);
   } else if (intent === "BEST_POST" || intent === "WHY_ABOUT_POSTS") {
     lines.push("We checked your posts for likes and comments.");
     lines.push("");
     lines.push(`${shortfall}We couldn't determine which content performs best because we ${count === 0 ? "have no posts stored yet" : "need more posts to compare"}.`);
     lines.push("");
-    lines.push("To get this answer: Go to the Analytics section, add your account, and run the analysis. This fetches your posts. Then ask again.");
+    lines.push(`To get this answer: ${stepAnalytics}${stepChat}`);
   } else if (intent === "HASHTAGS") {
     lines.push("We checked your posts for captions and hashtags.");
     lines.push("");
     lines.push(`${shortfall}We couldn't analyze hashtags because we ${count === 0 ? "have no posts with captions yet" : "need more posts with hashtags to compare"}.`);
     lines.push("");
-    lines.push("To get this answer: Go to the Analytics section, add your account, and run the analysis. This fetches your posts. Add hashtags to your captions, run the analysis again, then ask again.");
+    lines.push(`To get this answer: ${stepAnalytics} Add hashtags to your captions, run the analysis again, then ask again.`);
   } else if (intent === "ACCOUNT_METRICS") {
     lines.push("We checked your account for engagement and follower data.");
     lines.push("");
-    lines.push("We couldn't find metrics for your account yet.");
+    lines.push(`We couldn't find metrics${atAccount} yet.`);
     lines.push("");
-    lines.push("To get this answer: Go to the Analytics section, add your account, and run the analysis. This fetches your post and follower data. Then ask again.");
+    lines.push(`To get this answer: ${stepAnalytics}`);
   } else if (intent === "CAPTIONS_OR_PAID_POSTS") {
     lines.push("We checked your stored posts for captions and partnership/paid indicators.");
     lines.push("");
     lines.push(`${shortfall}We couldn't answer because we ${count === 0 ? "have no posts stored yet" : "need posts with captions"}.`);
     lines.push("");
-    lines.push("To get this answer: Go to the Analytics section, add your account, and run the analysis. This fetches your posts (including captions). Then ask again.");
+    lines.push(`To get this answer: ${stepAnalytics}`);
   } else if (intent === "POSTING_FREQUENCY") {
     lines.push("We checked your posts for timestamps to compute monthly averages.");
     lines.push("");
@@ -347,9 +352,9 @@ function buildLimitationReply(intent: string, snapshot: DataSnapshot): string {
   } else {
     lines.push("We checked your account.");
     lines.push("");
-    lines.push("We couldn't answer your question because the required data is missing.");
+    lines.push(`We couldn't answer your question because the required data is missing${atAccount}.`);
     lines.push("");
-    lines.push("To get this answer: Go to the Analytics section, add your account, and run the analysis. This fetches your posts. Then ask again.");
+    lines.push(`To get this answer: ${stepAnalytics}${stepChat}`);
   }
   return lines.join("\n");
 }
@@ -545,7 +550,7 @@ export const smartChatV2 = onCall(
       if (mode === "LIMITATION") {
         return {
           success: true,
-          reply: buildLimitationReply(intent, snapshot),
+          reply: buildLimitationReply(intent, snapshot, selectedAccount),
         };
       }
 

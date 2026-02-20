@@ -98,6 +98,14 @@ const planUsageText: Record<PlanKey, string> = {
   'Pro Combo': 'Analyze up to 200 profiles per month',
 };
 
+// Paddle Billing price IDs (from .env)
+const env = (import.meta as unknown as { env: Record<string, string | undefined> }).env;
+const PADDLE_PRICE_IDS: Partial<Record<PlanKey, string>> = {
+  'Trends+': env.VITE_PADDLE_PRICE_ID_CREATOR,
+  'Analytics+': env.VITE_PADDLE_PRICE_ID_PRO,
+  'Pro Combo': env.VITE_PADDLE_PRICE_ID_ELITE,
+};
+
 const gradientText = {
   background: 'linear-gradient(90deg, #f9ce34, #ee2a7b, #6228d7)',
   WebkitBackgroundClip: 'text',
@@ -117,9 +125,44 @@ const Subscription = () => {
   const [sub, setSub] = useState<SubscriptionDoc | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [limitReached, setLimitReached] = useState<boolean>(false);
+  const [paddleReady, setPaddleReady] = useState<boolean>(false);
 
   const currentPlan = sub?.currentPlan || 'Free';
   const currentPlanConfig = useMemo(() => plans.find(p => p.tier === currentPlan)!, [currentPlan]);
+
+  // Initialize Paddle when client token is present (script may load after app)
+  useEffect(() => {
+    const token = env.VITE_PADDLE_CLIENT_TOKEN;
+    if (!token?.trim() || typeof window === 'undefined') {
+      setPaddleReady(false);
+      return;
+    }
+    const trimmedToken = token.trim();
+    const isSandbox = trimmedToken.startsWith('test_');
+    const init = () => {
+      const paddle = (window as unknown as {
+        Paddle?: {
+          Environment?: { set: (env: 'sandbox' | 'production') => void };
+          Initialize: (o: { token: string }) => void;
+        };
+      }).Paddle;
+      if (!paddle) return false;
+      try {
+        if (isSandbox && paddle.Environment?.set) {
+          paddle.Environment.set('sandbox');
+        }
+        paddle.Initialize({ token: trimmedToken });
+        setPaddleReady(true);
+        return true;
+      } catch {
+        setPaddleReady(false);
+        return false;
+      }
+    };
+    if (init()) return;
+    const t = setInterval(() => { if (init()) clearInterval(t); }, 200);
+    return () => clearInterval(t);
+  }, []);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (user) => {
@@ -194,6 +237,28 @@ const Subscription = () => {
     setSub(base);
   };
 
+  const openPaddleCheckout = (plan: PlanKey) => {
+    const priceId = PADDLE_PRICE_IDS[plan];
+    const paddle = (window as unknown as {
+      Paddle?: {
+        Checkout: {
+          open: (o: {
+            items: { priceId: string; quantity: number }[];
+            successUrl: string;
+            customer?: { email: string };
+          }) => void;
+        };
+      };
+    }).Paddle;
+    if (!priceId || !paddle?.Checkout) return;
+    const user = auth.currentUser;
+    paddle.Checkout.open({
+      items: [{ priceId, quantity: 1 }],
+      successUrl: `${window.location.origin}/subscription`,
+      ...(user?.email ? { customer: { email: user.email } } : {}),
+    });
+  };
+
   const renewPlan = async () => {
     if (!uid || !sub) return;
     const ref = doc(db, 'users', uid);
@@ -263,12 +328,19 @@ const Subscription = () => {
                 >
                   {limitReached ? 'Renew Plan' : 'Current Plan'}
                 </button>
-              ) : (
+              ) : plan.isFree ? (
                 <button
                   className="mt-auto px-8 py-3 rounded-lg font-semibold transition-colors w-full text-lg shadow-md bg-[#8b5cf6] text-white hover:bg-[#7c3aed]"
                   onClick={() => selectPlan(plan.tier)}
                 >
-                  {plan.isFree ? 'Get Started' : 'Upgrade'}
+                  Get Started
+                </button>
+              ) : (
+                <button
+                  className="mt-auto px-8 py-3 rounded-lg font-semibold transition-colors w-full text-lg shadow-md bg-[#8b5cf6] text-white hover:bg-[#7c3aed]"
+                  onClick={() => openPaddleCheckout(plan.tier)}
+                >
+                  Upgrade
                 </button>
               )}
               </div>
