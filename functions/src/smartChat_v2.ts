@@ -16,13 +16,29 @@ const sbApiToken = defineSecret("SB_API_TOKEN");
 // ─── TYPES ───────────────────────────────────────────────────────────────
 
 interface Post {
+  postId?: string;
+  timestamp?: number | null;
   likesCount?: number;
   commentsCount?: number;
+  postType?: string;
   caption?: string;
-  timestamp?: number | null;
   type?: string;
   isVideo?: boolean;
   url?: string | null;
+}
+
+/** Time-slot buckets for posting-time analysis (data-driven only) */
+const TIME_SLOTS = ["Morning", "Afternoon", "Evening", "Night"] as const;
+type TimeSlotName = (typeof TIME_SLOTS)[number];
+
+interface TimeSlotInfo {
+  avgEngagement: number;
+  posts: number;
+}
+
+interface TimeSlotsResult {
+  timeSlots: Record<TimeSlotName, TimeSlotInfo>;
+  confidence: "high" | "low";
 }
 
 interface DataSnapshot {
@@ -52,6 +68,78 @@ function parsePostTimestamp(p: any): number | null {
   return null;
 }
 
+/** Bucket hour (0–23) into Morning (6–12), Afternoon (12–18), Evening (18–24), Night (0–6) */
+function getTimeSlot(hour: number): TimeSlotName {
+  if (hour >= 6 && hour < 12) return "Morning";
+  if (hour >= 12 && hour < 18) return "Afternoon";
+  if (hour >= 18 && hour < 24) return "Evening";
+  return "Night";
+}
+
+/**
+ * Analyze posts by time slot. Returns structured JSON only; no raw posts.
+ * Confidence is "low" if any bucket has fewer than 5 posts.
+ */
+function analyzeTimeSlots(posts: Post[]): TimeSlotsResult {
+  const bucketEngagement: Record<TimeSlotName, number[]> = {
+    Morning: [],
+    Afternoon: [],
+    Evening: [],
+    Night: [],
+  };
+  for (const p of posts) {
+    const ts = p.timestamp ?? parsePostTimestamp(p);
+    if (ts == null || ts <= 0) continue;
+    const hour = new Date(ts * 1000).getUTCHours();
+    const slot = getTimeSlot(hour);
+    const engagement = (p.likesCount ?? 0) + (p.commentsCount ?? 0);
+    bucketEngagement[slot].push(engagement);
+  }
+  const timeSlots: Record<TimeSlotName, TimeSlotInfo> = {
+    Morning: { avgEngagement: 0, posts: 0 },
+    Afternoon: { avgEngagement: 0, posts: 0 },
+    Evening: { avgEngagement: 0, posts: 0 },
+    Night: { avgEngagement: 0, posts: 0 },
+  };
+  for (const name of TIME_SLOTS) {
+    const arr = bucketEngagement[name];
+    const postsCount = arr.length;
+    const totalEngagement = arr.reduce((s, e) => s + e, 0);
+    timeSlots[name] = {
+      posts: postsCount,
+      avgEngagement: postsCount > 0 ? Math.round(totalEngagement / postsCount) : 0,
+    };
+  }
+  const minPosts = Math.min(...TIME_SLOTS.map((s) => timeSlots[s].posts));
+  const confidence: "high" | "low" = minPosts >= 5 ? "high" : "low";
+  return { timeSlots, confidence };
+}
+
+/** Build structured posting-time reply when we do NOT call OpenAI (insufficient data or low confidence) */
+function buildStructuredPostingTimeReply(result: TimeSlotsResult, selectedAccount: string): string {
+  const lines: string[] = [
+    "DATA ANALYZED: We checked posting times across your recent posts and grouped them into time slots (Morning 6–12, Afternoon 12–18, Evening 18–24, Night 0–6).",
+    "",
+    "FACTS (from your data only):",
+  ];
+  for (const slot of TIME_SLOTS) {
+    const info = result.timeSlots[slot];
+    lines.push(`- ${slot}: ${info.posts} posts, average engagement ${info.avgEngagement}`);
+  }
+  lines.push("", `JSON: ${JSON.stringify(result.timeSlots)}`);
+  if (result.confidence === "low") {
+    lines.push(
+      "",
+      "CONFIDENCE: Low. At least one time slot has fewer than 5 posts, so the comparison may not be reliable.",
+      "WHAT CANNOT BE CONCLUDED: We need more posts in each time slot for a reliable best-time recommendation.",
+      "NEXT STEP: Post at different times over the next few weeks, then run analysis again (e.g. analyze 50 posts) and ask again."
+    );
+  } else {
+    lines.push("", "Interpret the numbers above: the slot with the highest average engagement in your data is your strongest time so far.");
+  }
+  return lines.join("\n");
+}
+
 async function getDataSnapshot(
   db: Firestore,
   userId: string,
@@ -76,12 +164,14 @@ async function getDataSnapshot(
     const ac = d?.avgComments ?? d?.avg_comments ?? 0;
     const postsList = (d as any)?.posts;
     const rawPosts = Array.isArray(postsList) ? postsList : [];
-    // Normalize so every post has .timestamp (from any common field) for POSTING_FREQUENCY / dates
+    // Normalize so every post has .timestamp, .postId, .postType for POSTING_TIME and analytics
     const posts: Post[] = rawPosts.map((p: any) => ({
+      postId: p.postId ?? p.shortcode ?? p.id ?? null,
+      timestamp: parsePostTimestamp(p),
       likesCount: p.likesCount ?? p.likeCount,
       commentsCount: p.commentsCount ?? p.commentCount,
+      postType: p.postType ?? (p.isVideo ? "Reel" : (p.type || "Post")),
       caption: p.caption ?? "",
-      timestamp: parsePostTimestamp(p),
       type: p.type,
       isVideo: p.isVideo,
       url: p.url ?? null,
@@ -139,15 +229,21 @@ async function getDataSnapshot(
       if (shortcode && typeof shortcode === "string") return `https://www.instagram.com/p/${shortcode}/`;
       return null;
     };
-    const posts: Post[] = media.map((p: any) => ({
-      likesCount: p.likesCount ?? p.likeCount,
-      commentsCount: p.commentsCount ?? p.commentCount,
-      caption: p.caption ?? "",
-      timestamp: parsePostTimestamp(p),
-      type: p.type,
-      isVideo: p.isVideo,
-      url: getPostUrl(p) || null,
-    }));
+    const posts: Post[] = media.map((p: any, i: number) => {
+      const postId = p.postId ?? p.shortcode ?? p.code ?? (p.id != null && String(p.id) !== "" ? String(p.id) : `post_${i}`);
+      const postType = p.postType ?? (!!p.isVideo || (p.type && String(p.type).toLowerCase() === "video") ? "Reel" : (p.type || "Post"));
+      return {
+        postId,
+        timestamp: parsePostTimestamp(p),
+        likesCount: p.likesCount ?? p.likeCount,
+        commentsCount: p.commentsCount ?? p.commentCount,
+        postType,
+        caption: p.caption ?? "",
+        type: p.type,
+        isVideo: p.isVideo,
+        url: getPostUrl(p) || null,
+      };
+    });
 
     return {
       hasPosts: postCount > 0,
@@ -579,7 +675,34 @@ CONVERSATIONAL: Use prior messages for context. If the user refers to "these", "
         return { success: true, reply };
       }
 
-      // mode === "ANALYTICS"
+      // mode === "ANALYTICS" — POSTING_TIME is fully data-driven: analyzeTimeSlots only, no raw posts to OpenAI
+      if (intent === "POSTING_TIME") {
+        const postsWithTs = (snapshot.posts || []).filter((p) => (p.timestamp ?? 0) > 0);
+        if (postsWithTs.length === 0) {
+          return {
+            success: true,
+            reply: buildLimitationReply("POSTING_TIME", snapshot, selectedAccount),
+          };
+        }
+        const result = analyzeTimeSlots(postsWithTs);
+        if (result.confidence === "low") {
+          return {
+            success: true,
+            reply: buildStructuredPostingTimeReply(result, selectedAccount),
+          };
+        }
+        const systemPrompt = `You must only interpret the provided analytics JSON. Do not give advice. Do not suggest tracking future posts. If data is insufficient, explicitly state that.
+
+Analytics JSON (time slots: Morning 6-12, Afternoon 12-18, Evening 18-24, Night 0-6):
+${JSON.stringify(result.timeSlots, null, 2)}
+
+Respond with: DATA ANALYZED: [what we checked]. FACTS: [numbers only from the JSON]. WHAT CANNOT BE CONCLUDED: [if any]. Do not add advice or next steps.`;
+        const userContent = `User question: "${message}"`;
+        const reply = await callOpenAI(systemPrompt, userContent, apiKey, conversationHistory);
+        return { success: true, reply };
+      }
+
+      // mode === "ANALYTICS" (other intents: BEST_POST, HASHTAGS, etc.)
       const requestedTopN = parseTopN(message);
       const context = buildAnalyticsContext(snapshot, selectedAccount, requestedTopN);
       const systemPrompt = `You are Smart Chat, a data analyst for Instagram. Explain facts from the data. Do NOT diagnose, judge, or invent problems.

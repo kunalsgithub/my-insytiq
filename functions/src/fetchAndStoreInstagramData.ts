@@ -48,11 +48,13 @@ export const fetchAndStoreInstagramData = onCall(
       let postCount = 0;
       const hashtagCounts: Record<string, number> = {};
       const simplifiedPosts: {
+        postId: string;
+        timestamp: number | null;
         likesCount: number;
         commentsCount: number;
+        postType: string;
         caption: string;
-        timestamp: number | null;
-        type?: string;
+        type?: string | null;
         isVideo?: boolean;
         url?: string | null;
       }[] = [];
@@ -79,7 +81,7 @@ export const fetchAndStoreInstagramData = onCall(
 
       if (profileData.media && Array.isArray(profileData.media)) {
         postCount = profileData.media.length;
-        profileData.media.forEach((post: any) => {
+        profileData.media.forEach((post: any, index: number) => {
           const likes = post.likesCount || post.likeCount || 0;
           const comments = post.commentsCount || post.commentCount || 0;
 
@@ -95,13 +97,18 @@ export const fetchAndStoreInstagramData = onCall(
             });
           }
 
-          // Store a lightweight version of each post for analytics consumers (Smart Chat, etc.)
+          const shortcode = post.shortcode || post.code;
+          const postId = (typeof shortcode === "string" && shortcode) ? shortcode : (post.id && String(post.id)) ? String(post.id) : `post_${index}`;
+          const postType = !!post.isVideo || (post.type && String(post.type).toLowerCase() === "video") ? "Reel" : (typeof post.type === "string" && post.type) ? post.type : "Post";
+
+          // Store a lightweight version of each post for analytics (Smart Chat, etc.): postId, timestamp, likesCount, commentsCount, postType
           simplifiedPosts.push({
+            postId,
+            timestamp: parsePostTimestamp(post),
             likesCount: likes,
             commentsCount: comments,
+            postType,
             caption: post.caption || "",
-            timestamp: parsePostTimestamp(post),
-            // Firestore does not allow undefined – normalize to explicit values
             type: typeof post.type === "string" ? post.type : null,
             isVideo: !!post.isVideo,
             url: getPostUrl(post) || null,
