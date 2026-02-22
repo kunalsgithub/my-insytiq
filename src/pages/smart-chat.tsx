@@ -850,10 +850,10 @@ const SmartChat = ({ useV2 = false }: SmartChatProps) => {
     },
     {
       id: '2',
-      title: 'What are the most common used hashtags from last 45 posts',
+      title: 'What are the most used hashtags.',
       icon: BarChart3,
       color: 'text-purple-500',
-    },
+    },  
     {
       id: '3',
       title: 'Why these top 10 posts become the best performing post from last 30 Posts?',
@@ -978,6 +978,12 @@ const SmartChat = ({ useV2 = false }: SmartChatProps) => {
                       {message.sender === 'assistant' ? (
                         <div className="min-w-0 break-words md:break-normal">
                           <SimpleMarkdown text={fixSectionHeaders(message.text)} />
+                          {isLoading && message.id === messages[messages.length - 1]?.id && (
+                            <div className="mt-3 flex items-center gap-2 text-gray-500">
+                              <div className="h-4 w-4 border-2 border-[#d72989] border-t-transparent rounded-full animate-spin flex-shrink-0" />
+                              <span className="text-xs">Please wait...</span>
+                            </div>
+                          )}
                         </div>
                       ) : (
                         <p className="text-sm md:text-base whitespace-pre-wrap break-words">
@@ -999,6 +1005,20 @@ const SmartChat = ({ useV2 = false }: SmartChatProps) => {
                     </div>
                   </div>
                 ))}
+                {/* Loading bubble when waiting for response (e.g. after user sent, or while fetching data) */}
+                {isLoading && (messages.length === 0 || messages[messages.length - 1]?.sender === 'user') && (
+                  <div className="flex justify-start">
+                    <div className="max-w-[85%] md:max-w-[70%] min-w-0 px-4 py-3 rounded-3xl bg-white/70 text-gray-800 border border-white/60 shadow-lg backdrop-blur-md">
+                      <div className="flex items-center gap-3">
+                        <div className="h-6 w-6 border-2 border-[#d72989] border-t-transparent rounded-full animate-spin flex-shrink-0" />
+                        <div>
+                          <p className="text-sm font-medium text-gray-700">Fetching data...</p>
+                          <p className="text-xs text-gray-500 mt-0.5">This may take a few minutes. Please wait.</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
                 {/* Scroll anchor for auto-scroll */}
                 <div ref={messagesEndRef} />
               </>
