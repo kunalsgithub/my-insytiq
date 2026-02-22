@@ -1,11 +1,11 @@
 import React, { useEffect, useState, useMemo } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { useToast } from "@/hooks/use-toast";
-import { functions } from "@/firebase";
+import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
+import { Input } from "../components/ui/input";
+import { Button } from "../components/ui/button";
+import { useToast } from "../hooks/use-toast";
+import { functions } from "../firebase";
 import { httpsCallable } from "firebase/functions";
-import { db, getCurrentUser } from "@/services/firebaseService";
+import { db, getCurrentUser } from "../services/firebaseService";
 import {
   collection,
   doc,
@@ -18,7 +18,7 @@ import {
   getDocs,
   Timestamp,
 } from "firebase/firestore";
-import "@/components/LoadingText.css";
+import "../components/LoadingText.css";
 // NOTE: Recharts-based chart was causing an invalid hook call in this route
 // in the current environment, even though the same library works elsewhere.
 // To keep this page stable, we are temporarily not importing or rendering

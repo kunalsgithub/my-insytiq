@@ -1,23 +1,23 @@
-import Navbar from "@/components/Navbar";
-import InstagramAnalytics from "@/components/InstagramAnalytics";
-import InstagramDashboard from "@/components/InstagramDashboard";
-import DailyEngagementChart from "@/components/DailyEngagementChart";
-import { LiveFollowerCounter } from "@/components/LiveFollowerCounter";
-import InstagramUsernameInput from "@/components/InstagramUsernameInput";
+import Navbar from "../components/Navbar";
+import InstagramAnalytics from "../components/InstagramAnalytics";
+import InstagramDashboard from "../components/InstagramDashboard";
+import DailyEngagementChart from "../components/DailyEngagementChart";
+import { LiveFollowerCounter } from "../components/LiveFollowerCounter";
+import InstagramUsernameInput from "../components/InstagramUsernameInput";
 
 import { useState, useEffect } from "react";
-import { useInstagramData } from "@/hooks/useInstagramData";
-import { useUsernameManager } from "@/hooks/useUsernameManager";
-import { PLAN } from "@/utils/accessControl";
-import { useToast } from "@/hooks/use-toast";
-import { getSocialBladeAnalytics } from "@/api/getSocialBladeAnalytics";
+import { useInstagramData } from "../hooks/useInstagramData";
+import { useUsernameManager } from "../hooks/useUsernameManager";
+import { PLAN } from "../utils/accessControl";
+import { useToast } from "../hooks/use-toast";
+import { getSocialBladeAnalytics } from "../api/getSocialBladeAnalytics";
 import {
   checkAndLoadAnalytics,
   fetchAnalyticsIfNeeded,
   loadCachedAnalytics,
-} from "@/utils/loadCachedAnalytics";
+} from "../utils/loadCachedAnalytics";
 
-import { useInstagramAnalyticsStore } from "@/store/useInstagramAnalyticsStore";
+import { useInstagramAnalyticsStore } from "../store/useInstagramAnalyticsStore";
 
 const InstagramAnalyticsPage = () => {
   const [username, setUsername] = useState("");

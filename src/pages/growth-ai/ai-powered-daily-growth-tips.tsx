@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BrainCircuit, RefreshCw, Clock, MapPin, TrendingUp, Target, Users, Sparkles, Info, Lock, Calendar, Hash, BarChart3, MessageSquare, Zap, Eye, Heart, Share2, Filter } from 'lucide-react';
-import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
-import { toast } from '@/hooks/use-toast';
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "../../components/ui/tooltip";
+import { toast } from "../../hooks/use-toast";
 
 // AI Feature data
 const aiFeatures = [

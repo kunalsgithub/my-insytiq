@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { formatNumber } from "@/lib/utils";
+import { formatNumber } from "../lib/utils";
 import SplashCursor from "./SplashCursor/SplashCursor";
-import FollowerGrowthChart from "@/components/FollowerGrowthChart";
+import FollowerGrowthChart from "./FollowerGrowthChart";
 import { RefreshCw } from "lucide-react";
 
 interface LiveFollowerCounterProps {

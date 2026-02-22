@@ -1,27 +1,27 @@
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
+import { Toaster } from "./components/ui/toaster";
+import { Toaster as Sonner } from "./components/ui/sonner";
+import { TooltipProvider } from "./components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { useEffect } from "react";
-import { useDevMode } from "@/hooks/useDevMode";
-import { handleRedirectResult } from "@/services/firebaseService";
-import { useToast } from "@/hooks/use-toast";
-import Index from "@/pages/Index";
+import { useDevMode } from "./hooks/useDevMode";
+import { handleRedirectResult } from "./services/firebaseService";
+import { useToast } from "./hooks/use-toast";
+import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
-import TopInfluencer from "@/pages/top-influencers";
-import TopInfluencerCategory from "@/pages/TopInfluencerCategory";
-import Subscription from "@/pages/subscription";
-import InstagramAnalyticsPage from "@/pages/instagram-analytics";
-import CompetitorIntelligencePage from "@/pages/competitor-intelligence";
-import LoginPage from "@/pages/login";
-import Privacy from "@/pages/privacy";
-import TermsAndConditions from "@/pages/terms-and-conditions";
-import Refund from "@/pages/refund";
-import SidebarLayout from "@/components/ui/SidebarLayout";
-import Trending from '@/pages/trending';
-import TrendingNow from '@/pages/trending-now';
-import SmartChat from '@/pages/smart-chat';
+import TopInfluencer from "./pages/top-influencers";
+import TopInfluencerCategory from "./pages/TopInfluencerCategory";
+import Subscription from "./pages/subscription";
+import InstagramAnalyticsPage from "./pages/instagram-analytics";
+import CompetitorIntelligencePage from "./pages/competitor-intelligence";
+import LoginPage from "./pages/login";
+import Privacy from "./pages/privacy";
+import TermsAndConditions from "./pages/terms-and-conditions";
+import Refund from "./pages/refund";
+import SidebarLayout from "./components/ui/SidebarLayout";
+import Trending from "./pages/trending";
+import TrendingNow from "./pages/trending-now";
+import SmartChat from "./pages/smart-chat";
 
 
 const queryClient = new QueryClient({

@@ -15,8 +15,8 @@ import {
   ArrowLeft,
   Loader2,
 } from "lucide-react";
-import { useTopInfluencers } from "@/hooks/useTopInfluencers";
-import { hasAccess, PLAN } from "@/utils/accessControl";
+import { useTopInfluencers } from "../hooks/useTopInfluencers";
+import { hasAccess, PLAN } from "../utils/accessControl";
 
 const categories = [
   { id: "food", name: "Food", icon: Utensils },

@@ -1,13 +1,13 @@
 import React, { useEffect, useMemo, useState, useRef } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { useInstagramData } from '@/hooks/useInstagramData';
-import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
+import { useInstagramData } from "../hooks/useInstagramData";
+import { Button } from "./ui/button";
 import { ChevronDown, Check } from "lucide-react";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import DailyChannelMetrics from './DailyChannelMetrics';
-import SocialBladeChart from './SocialBladeChart';
-import { PLAN, hasAccess } from "@/utils/accessControl";
-import { db } from '@/services/firebaseService';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "./ui/dropdown-menu";
+import DailyChannelMetrics from "./DailyChannelMetrics";
+import SocialBladeChart from "./SocialBladeChart";
+import { PLAN, hasAccess } from "../utils/accessControl";
+import { db } from "../services/firebaseService";
 import { collection, doc, setDoc } from 'firebase/firestore';
 
 interface InstagramAnalyticsProps {

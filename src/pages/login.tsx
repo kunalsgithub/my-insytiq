@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { ToastAction } from '@/components/ui/toast';
-import { signInWithGoogle, signInWithGoogleRedirect } from '@/services/firebaseService';
-import { useToast } from '@/hooks/use-toast';
+import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
+import { ToastAction } from '../components/ui/toast';
+import { signInWithGoogle, signInWithGoogleRedirect } from '../services/firebaseService';
+import { useToast } from '../hooks/use-toast';
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
 import { Link, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff } from 'lucide-react';

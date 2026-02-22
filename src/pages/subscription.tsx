@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useDevMode } from '../hooks/useDevMode';
-import { db } from '@/services/firebaseService';
+import { db } from '../services/firebaseService';
 import { onAuthStateChanged } from 'firebase/auth';
-import { auth } from '@/services/firebaseService';
+import { auth } from '../services/firebaseService';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 
 type PlanKey = 'Free' | 'Trends+' | 'Analytics+' | 'Pro Combo';

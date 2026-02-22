@@ -1,5 +1,5 @@
 import { doc, setDoc, getDoc, collection, getDocs, query, orderBy, deleteDoc } from 'firebase/firestore';
-import { db } from '@/services/firebaseService';
+import { db } from '../services/firebaseService';
 
 export interface AnalyzedUsername {
   username: string;

@@ -1,4 +1,4 @@
-import { toast } from "@/components/ui/use-toast";
+import { toast } from "../components/ui/use-toast";
 
 // Types for Social Blade specific metrics
 export interface FollowerGrowth {

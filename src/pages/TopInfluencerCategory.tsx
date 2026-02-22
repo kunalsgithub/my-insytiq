@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from "react-router-dom";
-import { useInfluencers } from "@/hooks/useInfluencers";
+import { useInfluencers } from "../hooks/useInfluencers";
 import { Popover } from '@headlessui/react';
 
 function formatNumber(num) {

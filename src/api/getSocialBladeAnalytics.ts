@@ -1,5 +1,5 @@
 import { httpsCallable } from "firebase/functions";
-import { functions } from "@/firebase";
+import { functions } from "../firebase";
 
 export interface SocialBladeAnalytics {
   followers: number;

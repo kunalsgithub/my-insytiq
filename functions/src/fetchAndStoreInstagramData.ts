@@ -48,13 +48,11 @@ export const fetchAndStoreInstagramData = onCall(
       let postCount = 0;
       const hashtagCounts: Record<string, number> = {};
       const simplifiedPosts: {
-        postId: string;
-        timestamp: number | null;
         likesCount: number;
         commentsCount: number;
-        postType: string;
         caption: string;
-        type?: string | null;
+        timestamp: number | null;
+        type?: string;
         isVideo?: boolean;
         url?: string | null;
       }[] = [];
@@ -72,16 +70,28 @@ export const fetchAndStoreInstagramData = onCall(
 
       /** Extract Unix seconds from any common timestamp field (Apify/Instagram scrapers vary) */
       const parsePostTimestamp = (post: any): number | null => {
-        const v = post.timestamp ?? post.takenAtTimestamp ?? post.taken_at_timestamp ?? post.taken_at;
-        if (typeof v === "number" && v > 0) return v;
-        if (typeof v === "string" && /^\d+$/.test(v)) return parseInt(v, 10);
+        const v =
+          post.timestamp ?? post.takenAtTimestamp ?? post.taken_at_timestamp ?? post.taken_at
+          ?? post.createdAt ?? post.created_at ?? post.postedAt ?? post.posted_at ?? post.date
+          ?? post.node?.taken_at_timestamp ?? post.node?.timestamp ?? (post.node && (post.node as any).takenAtTimestamp);
+        if (typeof v === "number" && v > 0) {
+          return v > 1e12 ? Math.floor(v / 1000) : v;
+        }
+        if (typeof v === "string") {
+          if (/^\d+$/.test(v)) {
+            const n = parseInt(v, 10);
+            return n > 1e12 ? Math.floor(n / 1000) : n;
+          }
+          const parsed = Date.parse(v);
+          if (!Number.isNaN(parsed)) return Math.floor(parsed / 1000);
+        }
         if (v && typeof v === "object" && typeof (v as any)._seconds === "number") return (v as any)._seconds;
         return null;
       };
 
       if (profileData.media && Array.isArray(profileData.media)) {
         postCount = profileData.media.length;
-        profileData.media.forEach((post: any, index: number) => {
+        profileData.media.forEach((post: any) => {
           const likes = post.likesCount || post.likeCount || 0;
           const comments = post.commentsCount || post.commentCount || 0;
 
@@ -97,18 +107,13 @@ export const fetchAndStoreInstagramData = onCall(
             });
           }
 
-          const shortcode = post.shortcode || post.code;
-          const postId = (typeof shortcode === "string" && shortcode) ? shortcode : (post.id && String(post.id)) ? String(post.id) : `post_${index}`;
-          const postType = !!post.isVideo || (post.type && String(post.type).toLowerCase() === "video") ? "Reel" : (typeof post.type === "string" && post.type) ? post.type : "Post";
-
-          // Store a lightweight version of each post for analytics (Smart Chat, etc.): postId, timestamp, likesCount, commentsCount, postType
+          // Store a lightweight version of each post for analytics consumers (Smart Chat, etc.)
           simplifiedPosts.push({
-            postId,
-            timestamp: parsePostTimestamp(post),
             likesCount: likes,
             commentsCount: comments,
-            postType,
             caption: post.caption || "",
+            timestamp: parsePostTimestamp(post),
+            // Firestore does not allow undefined – normalize to explicit values
             type: typeof post.type === "string" ? post.type : null,
             isVideo: !!post.isVideo,
             url: getPostUrl(post) || null,

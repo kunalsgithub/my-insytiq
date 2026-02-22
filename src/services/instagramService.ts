@@ -1,5 +1,5 @@
-import { fetchHashtagsFromSheet, fetchAudioFromSheet, fetchContentFromSheet } from "@/utils/googleSheetsService";
-import { toast } from "@/hooks/use-toast";
+import { fetchHashtagsFromSheet, fetchAudioFromSheet, fetchContentFromSheet } from "../utils/googleSheetsService";
+import { toast } from "../hooks/use-toast";
 import { QueryClient } from '@tanstack/react-query';
 
 // Define interfaces for our data types

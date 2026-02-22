@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { Outlet, useNavigate } from "react-router-dom";
-import { WhoistrendSidebarMenu } from "@/components/ui/sidebar";
+import { WhoistrendSidebarMenu } from "./sidebar";
 import { Menu, X } from "lucide-react";
 import { NavLink } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { signOut, onAuthStateChangedListener, getCurrentUser } from '@/services/firebaseService';
-import { useToast } from "@/hooks/use-toast";
+import { Button } from "./button";
+import { signOut, onAuthStateChangedListener, getCurrentUser } from '../../services/firebaseService';
+import { useToast } from "../../hooks/use-toast";
 import trendLogo from '../../trendlogo.png';
 
 export default function SidebarLayout() {

@@ -1,6 +1,6 @@
 import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { db } from '@/services/firebaseService';
-import { fetchAndStoreInstagramData } from '@/api/fetchAndStoreInstagramData';
+import { db } from '../services/firebaseService';
+import { fetchAndStoreInstagramData } from '../api/fetchAndStoreInstagramData';
 
 export interface CachedAnalyticsData {
   profile: any;
@@ -12,7 +12,7 @@ export interface InstagramAnalyticsData {
   engagementRate: number;
   avgLikes: number;
   avgComments: number;
-  postingFrequency: number; 
+  postingFrequency: number;  
   topHashtags: string[];
   lastUpdated: any;
 }

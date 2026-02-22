@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { getSocialBladeAnalytics } from '@/api/getSocialBladeAnalytics';
+import { getSocialBladeAnalytics } from '../api/getSocialBladeAnalytics';
 
 interface InstagramData {
   profile: {

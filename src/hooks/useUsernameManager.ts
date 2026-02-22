@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { getCurrentUser, onAuthStateChangedListener } from '@/services/firebaseService';
-import { saveAnalyzedUsername, getLastAnalyzedUsername, getAnalyzedUsernames, updateUsernameAnalysis } from '@/utils/firestoreUsernames';
+import { getCurrentUser, onAuthStateChangedListener } from '../services/firebaseService';
+import { saveAnalyzedUsername, getLastAnalyzedUsername, getAnalyzedUsernames, updateUsernameAnalysis } from '../utils/firestoreUsernames';
 
 export const useUsernameManager = () => {
   const [userId, setUserId] = useState<string | null>(null);

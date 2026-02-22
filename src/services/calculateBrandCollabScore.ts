@@ -1,6 +1,6 @@
-import { db } from "@/lib/firebase";
+import { db } from "./firebaseService";
 import { doc, setDoc } from "firebase/firestore";
-import { analyzeBrandScoreFromApifyData } from "@/utils/analyzeLogic";
+import { analyzeBrandScoreFromApifyData } from "../utils/analyzeLogic";
 
 export async function calculateBrandCollabScore({
   userId,

@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
 import { Search } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { useToast } from "@/hooks/use-toast";
-import { signInWithGoogle, signOut, onAuthStateChangedListener, getCurrentUser } from '@/services/firebaseService';
+import { Button } from "./ui/button";
+import { Input } from "./ui/input";
+import { useToast } from "../hooks/use-toast";
+import { signInWithGoogle, signOut, onAuthStateChangedListener, getCurrentUser } from '../services/firebaseService';
 import { useNavigate } from 'react-router-dom';
 import trendLogo from '../trendlogo.png';
 

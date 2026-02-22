@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import FollowerJourneyRoadmap from '@/components/FollowerJourneyRoadmap';
-import { Button } from '@/components/ui/button';
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu';
+import FollowerJourneyRoadmap from "../../components/FollowerJourneyRoadmap";
+import { Button } from "../../components/ui/button";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "../../components/ui/dropdown-menu";
 import { ChevronDown, Check } from 'lucide-react';
 
 const dateOptions = [

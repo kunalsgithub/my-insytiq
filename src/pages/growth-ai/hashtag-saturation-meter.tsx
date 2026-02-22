@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
-import { Input } from '@/components/ui/input';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
-import { Progress } from '@/components/ui/progress';
-import { Badge } from '@/components/ui/badge';
-import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu';
-import { Switch } from '@/components/ui/switch';
-import { Search, Hash, Info } from 'lucide-react';
-import { toast } from '@/hooks/use-toast';
+import { Input } from "../../components/ui/input";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "../../components/ui/card";
+import { Progress } from "../../components/ui/progress";
+import { Badge } from "../../components/ui/badge";
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "../../components/ui/tooltip";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "../../components/ui/dropdown-menu";
+import { Switch } from "../../components/ui/switch";
+import { Search, Hash, Info } from "lucide-react";
+import { toast } from "../../hooks/use-toast";
 
 const DUMMY_HASHTAGS = [
   { tag: '#fashionreels', volume: 3400000, engagement: 'High', competition: 82, color: 'red', suggestions: ['#indiefashion', '#ootdstyle', '#fashionfinds', '#outfitideas', '#styleinspo', '#indieaesthetic', '#indiestyle'] },

@@ -1,9 +1,9 @@
 import { useState } from "react";
-import TrendingHashtags from "@/components/TrendingHashtags";
-import TrendingContent from "@/components/TrendingContent";
-import InstagramNews from "@/components/InstagramNews";
-import TopInsightsThisWeek from "@/components/TopInsightsThisWeek";
-import ScrollVelocity from "@/components/ScrollVelocity";
+import TrendingHashtags from "../components/TrendingHashtags";
+import TrendingContent from "../components/TrendingContent";
+import InstagramNews from "../components/InstagramNews";
+import TopInsightsThisWeek from "../components/TopInsightsThisWeek";
+import ScrollVelocity from "../components/ScrollVelocity";
 
 const TrendingNow = () => {
   const [selectedCategory, setSelectedCategory] = useState("all");

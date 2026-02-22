@@ -1,15 +1,15 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
+import { Input } from '../components/ui/input';
+import { Button } from '../components/ui/button';
 import { MessageCircle, Send, TrendingUp, Users, BarChart3, ArrowDown } from 'lucide-react';
 import { httpsCallable } from 'firebase/functions';
-import { functions } from '@/firebase';
-import { useToast } from '@/hooks/use-toast';
-import { onAuthStateChangedListener, getCurrentUser } from '@/services/firebaseService';
+import { functions } from '../firebase';
+import { useToast } from '../hooks/use-toast';
+import { onAuthStateChangedListener, getCurrentUser } from '../services/firebaseService';
 import { doc, getDoc, onSnapshot } from 'firebase/firestore';
-import { db } from '@/services/firebaseService';
-import { fetchAndStoreInstagramData } from '@/api/fetchAndStoreInstagramData';
+import { db } from '../services/firebaseService';
+import { fetchAndStoreInstagramData } from '../api/fetchAndStoreInstagramData';
 import { useSearchParams } from 'react-router-dom';
 
 interface Message {
@@ -41,14 +41,20 @@ function SimpleMarkdown({ text }: { text: string }) {
   let currentList: string[] = [];
   let listType: 'ul' | 'ol' | null = null;
   
-  // 3D-style solid button for all links (e.g. "Post 1", "Post 2")
-  const linkClass =
-    "inline-flex items-center px-3 py-1.5 rounded-full " +
+  // Pink pill only for "View Content" (post URL); caption or other links must not look like buttons
+  const viewContentButtonClass =
+    "inline-flex items-center px-3 py-1.5 rounded-full min-w-0 " +
     "bg-[#d72989] text-white font-semibold shadow-md hover:shadow-lg " +
     "hover:-translate-y-0.5 transform transition-all " +
-    "text-xs md:text-sm whitespace-nowrap";
+    "text-xs md:text-sm max-w-full break-words md:whitespace-nowrap";
+  const normalLinkClass = "text-[#d72989] underline break-words hover:opacity-90";
 
-  // Helper: make raw URLs clickable
+  const getLinkClass = (linkText: string): string => {
+    if (linkText.trim().toLowerCase() === "view content") return viewContentButtonClass;
+    return normalLinkClass;
+  };
+
+  // Helper: make raw URLs clickable (normal link style; not "View Content" pill)
   const linkify = (str: string): React.ReactNode[] => {
     const urlRegex = /(https?:\/\/[^\s<>"{}|\\^`[\]]+)/g;
     const parts: React.ReactNode[] = [];
@@ -60,7 +66,7 @@ function SimpleMarkdown({ text }: { text: string }) {
         parts.push(str.substring(lastIndex, match.index));
       }
       parts.push(
-        <a key={`link-${key++}`} href={match[1]} target="_blank" rel="noopener noreferrer" className={linkClass}>
+        <a key={`link-${key++}`} href={match[1]} target="_blank" rel="noopener noreferrer" className={normalLinkClass}>
           {match[1]}
         </a>
       );
@@ -70,7 +76,7 @@ function SimpleMarkdown({ text }: { text: string }) {
     return parts.length > 0 ? parts : [str];
   };
 
-  // Helper: handle both Markdown [text](url) and raw URLs
+  // Helper: handle both Markdown [text](url) and raw URLs. Only "View Content" is the button; if caption was wrongly used as link text, show View Content button + Caption as plain 4th line.
   const processLinks = (str: string): React.ReactNode[] => {
     const mdLinkRegex = /\[([^\]]*)\]\((https?:\/\/[^)\s]+)\)/g;
     const parts: React.ReactNode[] = [];
@@ -81,11 +87,25 @@ function SimpleMarkdown({ text }: { text: string }) {
       if (match.index > lastIndex) {
         parts.push(...linkify(str.substring(lastIndex, match.index)));
       }
-      parts.push(
-        <a key={`mdlink-${key++}`} href={match[2]} target="_blank" rel="noopener noreferrer" className={linkClass}>
-          {match[1] || match[2]}
-        </a>
-      );
+      const linkText = (match[1] || "").trim() || match[2];
+      const isViewContent = linkText.toLowerCase() === "view content";
+      if (isViewContent) {
+        parts.push(
+          <a key={`mdlink-${key++}`} href={match[2]} target="_blank" rel="noopener noreferrer" className={viewContentButtonClass}>
+            View Content
+          </a>
+        );
+      } else {
+        // Caption wrongly used as link: View Content on its own line, then Caption: on next line (same alignment as Likes, Comments, Engagement)
+        parts.push(
+          <span key={`mdlink-${key++}`} className="block space-y-1 my-1">
+            <a href={match[2]} target="_blank" rel="noopener noreferrer" className={viewContentButtonClass}>
+              View Content
+            </a>
+            <span className="block text-gray-800"><strong>Caption:</strong> {linkText}</span>
+          </span>
+        );
+      }
       lastIndex = mdLinkRegex.lastIndex;
     }
     if (lastIndex < str.length) {
@@ -119,6 +139,21 @@ function SimpleMarkdown({ text }: { text: string }) {
     return parts.length > 0 ? parts : [str];
   };
 
+  // Render a (possibly multi-line) list item so numbering stays 1, 2, 3...
+  const renderListItem = (item: string) => {
+    const itemLines = item.split('\n');
+    if (itemLines.length <= 1) return renderBold(item);
+    return (
+      <>
+        {itemLines.map((line, i) => (
+          <span key={i} className="block">
+            {renderBold(line)}
+          </span>
+        ))}
+      </>
+    );
+  };
+
   const flushList = () => {
     if (currentList.length > 0 && listType) {
       if (listType === 'ul') {
@@ -133,7 +168,7 @@ function SimpleMarkdown({ text }: { text: string }) {
         elements.push(
           <ol key={`list-${elements.length}`} className="list-decimal list-inside my-2 space-y-1 ml-2">
             {currentList.map((item, idx) => (
-              <li key={idx} className="ml-2">{renderBold(item)}</li>
+              <li key={idx} className="ml-2">{renderListItem(item)}</li>
             ))}
           </ol>
         );
@@ -142,11 +177,13 @@ function SimpleMarkdown({ text }: { text: string }) {
       listType = null;
     }
   };
-  
+
+  // Continuation of previous post block: Likes:, Comments:, Engagement:, Caption: (keep in same list so numbering is 1, 2, 3...)
+  const isPostMetricLine = (t: string) => /^(Likes|Comments|Engagement|Caption):\s*.+$/i.test(t);
+
   lines.forEach((line, lineIdx) => {
     const trimmed = line.trim();
     
-    // Check if it's a list item
     const ulMatch = trimmed.match(/^[-*]\s+(.+)$/);
     const olMatch = trimmed.match(/^\d+\.\s+(.+)$/);
     
@@ -162,14 +199,16 @@ function SimpleMarkdown({ text }: { text: string }) {
         listType = 'ol';
       }
       currentList.push(olMatch[1]);
+    } else if (listType === 'ol' && currentList.length > 0 && isPostMetricLine(trimmed)) {
+      // Same post block: append to last list item so the list stays one 1,2,3... list
+      currentList[currentList.length - 1] += '\n' + trimmed;
+    } else if (trimmed === '' && listType === 'ol' && currentList.length > 0) {
+      // Empty line between posts: do not flush — keep one list so numbering is 1, 2, 3... up to 30
     } else {
       flushList();
-      
       if (trimmed === '') {
-        // Empty line - add a break
         elements.push(<br key={`br-${lineIdx}`} className="my-1" />);
       } else {
-        // Regular paragraph
         elements.push(
           <p key={`p-${lineIdx}`} className="mb-2 last:mb-0">
             {renderBold(trimmed)}
@@ -930,14 +969,16 @@ const SmartChat = ({ useV2 = false }: SmartChatProps) => {
                     }`}
                   >
                     <div
-                      className={`max-w-[85%] md:max-w-[70%] px-4 py-3 rounded-3xl ${
+                      className={`max-w-[85%] md:max-w-[70%] min-w-0 px-4 py-3 rounded-3xl ${
                         message.sender === 'user'
                           ? 'bg-[#d72989]/90 text-white shadow-lg border border-white/20 backdrop-blur-md'
                           : 'bg-white/70 text-gray-800 border border-white/60 shadow-lg backdrop-blur-md'
-                      }`}
+                      } overflow-hidden md:overflow-visible`}
                     >
                       {message.sender === 'assistant' ? (
-                        <SimpleMarkdown text={fixSectionHeaders(message.text)} />
+                        <div className="min-w-0 break-words md:break-normal">
+                          <SimpleMarkdown text={fixSectionHeaders(message.text)} />
+                        </div>
                       ) : (
                         <p className="text-sm md:text-base whitespace-pre-wrap break-words">
                           {message.text}

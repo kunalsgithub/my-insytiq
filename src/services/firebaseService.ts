@@ -2,7 +2,7 @@ import { initializeApp } from 'firebase/app';
 import { getFirestore, collection, query, orderBy, getDocs, DocumentData, where, doc, setDoc, getDoc } from 'firebase/firestore';
 import { getStorage, ref, getDownloadURL } from 'firebase/storage';
 import { getAuth, signInWithPopup, signInWithRedirect, GoogleAuthProvider, signOut as firebaseSignOut, onAuthStateChanged, User, getRedirectResult } from 'firebase/auth';
-import checkEnvVariables from '@/scripts/checkEnv';
+import checkEnvVariables from "../scripts/checkEnv";
 
 // Check environment variables before initializing Firebase
 if (!checkEnvVariables()) {
