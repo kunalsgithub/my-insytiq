@@ -864,20 +864,21 @@ const SmartChat = ({ useV2 = false }: SmartChatProps) => {
 
   return (
     <div className="h-screen bg-background flex flex-col overflow-hidden">
-      <div className="flex-1 flex flex-col max-w-6xl w-full mx-auto px-4 md:px-6 md:pl-16 overflow-hidden">
-        {/* Sticky Header - Only Top Section */}
-        <div className="sticky top-0 z-20 bg-background pt-3 md:pt-8 pb-2 md:pb-6 border-b border-gray-200">
+      <div className="flex-1 flex flex-col max-w-6xl w-full mx-auto px-5 md:px-6 md:pl-16 overflow-hidden min-h-0">
+        {/* Sticky Header - Big Brain + tagline: desktop only; hidden on mobile for more space */}
+        <div className="hidden md:block sticky top-0 z-20 bg-background pt-10 pb-6 md:pt-8 md:pb-6 border-b border-gray-200 flex-shrink-0">
           <div className="flex flex-col md:flex-row md:items-start md:justify-between md:gap-6">
-            <div className="flex-1">
-              <h1 className="text-2xl md:text-4xl font-bold mb-1 md:mb-2" style={{
+            <div className="flex-1 min-w-0 min-h-[5rem] md:min-h-0">
+              <h1 className="text-2xl md:text-4xl font-bold mb-1 md:mb-2 break-words" style={{
                 background: 'linear-gradient(90deg, #f9ce34, #ee2a7b, #6228d7)',
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent',
                 backgroundClip: 'text',
+                lineHeight: '4rem',
               }}>
-                Big Brain 
+                Big Brain
               </h1>
-              <p className="text-gray-600 text-xs md:text-base">
+              <p className="hidden md:block text-gray-600 text-xs md:text-base">
                 Get instant answers to your social media and brand questions
               </p>
             </div>
@@ -900,22 +901,12 @@ const SmartChat = ({ useV2 = false }: SmartChatProps) => {
               </div>
             </div>
           </div>
-          
-          {/* AI Assistant Visual Element - Mobile (compact, optional) */}
-          <div className="md:hidden flex items-center gap-2 mt-2 pt-2 border-t border-gray-200">
-            <AIAvatar size="sm" />
-            <div className="flex-1 bg-white rounded-lg shadow-sm border border-gray-200 px-2 py-1.5">
-              <p className="text-xs font-semibold gradient-text">
-                Hey 👋 Ask me anything
-              </p>
-            </div>
-          </div>
         </div>
 
         {/* Scrollable Messages Area */}
         <div
           ref={chatContainerRef}
-          className="flex-1 overflow-y-auto min-h-0 py-2 md:py-6"
+          className="flex-1 overflow-y-auto min-h-0 py-6 md:py-6"
           onScroll={handleScroll}
         >
           {/* Most Asked Questions Section - Scrollable */}
@@ -1027,7 +1018,7 @@ const SmartChat = ({ useV2 = false }: SmartChatProps) => {
         </div>
 
         {/* Sticky Input Section */}
-        <div className="sticky bottom-0 z-20 bg-background/80 backdrop-blur-md pt-2 md:pt-4 pb-3 md:pb-8 border-t border-gray-200">
+        <div className="sticky bottom-0 z-20 bg-background/80 backdrop-blur-md pt-2 pb-3 md:pt-4 md:pb-8 border-t border-gray-200 flex-shrink-0">
           <div className="flex gap-2 max-w-3xl mx-auto">
             <div className="flex-1 relative">
               <Input

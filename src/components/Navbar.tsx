@@ -61,8 +61,8 @@ const Navbar = ({ onCategoryChange }: NavbarProps) => {
   return (
     <div className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="flex h-16 items-center px-4 relative">
-        {/* Hide logo and brand on desktop, show only on mobile */}
-        <a href="/" className="flex items-center gap-2 font-semibold hover:opacity-80 transition-opacity md:hidden">
+        {/* Logo is shown by SidebarLayout (mobile header + desktop sidebar); hide here to avoid duplicate */}
+        <a href="/" className="hidden items-center gap-2 font-semibold hover:opacity-80 transition-opacity">
           <img src={trendLogo} alt="insytiq.ai logo" className="h-10 w-10" />
           <span className="text-xs font-semibold tracking-[0.2em] text-gray-500 uppercase">
             INSYTIQ.AI

@@ -531,7 +531,7 @@ const CompetitorIntelligencePage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col items-center py-8 px-4 md:pl-16">
+    <div className="min-h-screen bg-background flex flex-col items-center pt-12 pb-8 px-4 md:py-8 md:pl-16">
       <div className="w-full md:ml-16 md:max-w-6xl space-y-8">
         <div>
           <h1 className="text-3xl md:text-4xl font-bold mb-2" style={gradientText}>

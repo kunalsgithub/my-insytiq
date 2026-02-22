@@ -74,16 +74,26 @@ export default function SidebarLayout() {
       <div className="hidden md:block">
         <WhoistrendSidebarMenu />
       </div>
-      
-      {/* Mobile Menu Button */}
-      <div className="md:hidden fixed top-4 right-4 z-50">
+
+      {/* Mobile-only header: logo left, hamburger right — visible on all pages */}
+      <div className="md:hidden fixed top-0 left-0 right-0 z-40 flex items-center justify-between h-16 min-h-[4rem] px-4 bg-background/95 backdrop-blur border-b">
+        <a href="/" className="flex items-center gap-2 font-semibold hover:opacity-80 transition-opacity">
+          <img src={trendLogo} alt="insytiq.ai logo" className="h-8 w-8" />
+          <span className="text-xs font-semibold tracking-[0.2em] text-gray-500 uppercase">
+            INSYTIQ.AI
+          </span>
+        </a>
         <button
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          className="p-2 bg-white rounded-lg shadow-lg"
+          className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+          aria-label="Open menu"
         >
-          <Menu className="w-6 h-6" />
+          <Menu className="w-6 h-6 text-gray-700" />
         </button>
       </div>
+
+      {/* Spacer so main content is not hidden under fixed mobile header — extra space after logo */}
+      <div className="md:hidden h-16 min-h-[4rem] flex-shrink-0" aria-hidden="true" />
 
       {/* Mobile Menu Overlay */}
       {mobileMenuOpen && (
@@ -210,8 +220,8 @@ export default function SidebarLayout() {
         </>
       )}
 
-      {/* Main content area */}
-      <div className="flex-1 flex flex-col">
+      {/* Main content area — extra top padding on mobile so items don't hide under logo bar */}
+      <div className="flex-1 flex flex-col pt-4 md:pt-0">
         <Outlet />
       </div>
     </div>
