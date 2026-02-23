@@ -870,14 +870,14 @@ const SmartChat = ({ useV2 = false }: SmartChatProps) => {
       }}
     >
       <div className="flex-1 flex flex-col max-w-6xl w-full mx-auto px-5 md:px-6 md:pl-16 overflow-hidden min-h-0">
-        {/* Sticky Header - Liquid glass */}
+        {/* Sticky Header - same blur treatment as typing box (no solid box, blended) */}
         <div
-          className="hidden md:block sticky top-0 z-20 pt-10 pb-6 md:pt-8 md:pb-6 flex-shrink-0 border-b border-white/40"
+          className="hidden md:block sticky top-0 z-20 pt-10 pb-6 md:pt-8 md:pb-6 flex-shrink-0 border-b border-white/30"
           style={{
-            backgroundColor: 'rgba(255,255,255,0.35)',
-            backdropFilter: 'blur(20px)',
-            WebkitBackdropFilter: 'blur(20px)',
-            boxShadow: 'inset 0 1px 0 0 rgba(255,255,255,0.6)',
+            backgroundColor: 'rgba(255,255,255,0.2)',
+            backdropFilter: 'blur(16px)',
+            WebkitBackdropFilter: 'blur(16px)',
+            boxShadow: 'none',
           }}
         >
           <div className="flex flex-col md:flex-row md:items-start md:justify-between md:gap-6">

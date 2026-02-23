@@ -25,8 +25,9 @@
     --accent: 260 84% 63%;
     --accent-foreground: 0 0% 98%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
+    /* Brand pink for errors/alerts (matches #d72989) */
+    --destructive: 330 68% 50%;
+    --destructive-foreground: 0 0% 100%;
 
     --border: 260 20% 90%;
     --input: 260 20% 90%;
@@ -57,8 +58,8 @@
     --accent: 260 20% 20%;
     --accent-foreground: 260 10% 98%;
 
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 260 10% 98%;
+    --destructive: 330 68% 45%;
+    --destructive-foreground: 0 0% 100%;
 
     --border: 260 20% 20%;
     --input: 260 20% 20%;
