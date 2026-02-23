@@ -9,7 +9,7 @@ const Trending = () => {
   const [selectedCategory, setSelectedCategory] = useState("all");
 
   return (
-    <div className="relative min-h-screen flex flex-col bg-background">
+    <div className="relative min-h-screen flex flex-col">
       {/* Headline: responsive, edge-to-edge on desktop, contained on mobile */}
       <div className="relative w-full">
         {/* Mobile/Tablet: contained headline */}
@@ -43,25 +43,25 @@ const Trending = () => {
       {/* Mobile: stacked cards layout */}
       <div className="block md:hidden w-full max-w-xl mx-auto px-2">
         {/* Top Performers Card */}
-        <section className="w-full bg-white rounded-2xl shadow p-5 mb-6">
+        <section className="w-full glass-panel rounded-2xl p-5 mb-6">
           <TopInsightsThisWeek />
         </section>
         {/* Trending Hashtags Card */}
-        <section className="w-full bg-white rounded-2xl shadow p-5 mb-6">
+        <section className="w-full glass-panel rounded-2xl p-5 mb-6">
           <h2 className="font-bold text-lg mb-3 text-center text-[#a259e6] flex items-center justify-center gap-2">
             <span className="text-2xl">🏷️</span> Trending Hashtags
           </h2>
           <TrendingHashtags selectedCategory={selectedCategory} />
         </section>
         {/* Trending Content Card */}
-        <section className="w-full bg-white rounded-2xl shadow p-5 mb-6">
+        <section className="w-full glass-panel rounded-2xl p-5 mb-6">
           <h2 className="font-bold text-lg mb-3 text-center text-[#ee2a7b] flex items-center justify-center gap-2">
             <span className="text-2xl">📸</span> Trending Content
           </h2>
           <TrendingContent selectedCategory={selectedCategory} />
         </section>
         {/* Instagram News Card */}
-        <section className="w-full bg-white rounded-2xl shadow p-5 mb-6">
+        <section className="w-full glass-panel rounded-2xl p-5 mb-6">
           <h2 className="font-bold text-lg mb-3 text-center text-[#6228d7] flex items-center justify-center gap-2">
             <span className="text-2xl">📰</span> Instagram News
           </h2>
@@ -75,19 +75,19 @@ const Trending = () => {
           <div className="flex flex-col md:grid md:grid-cols-12 gap-6 lg:gap-12 w-full max-w-screen px-0 md:px-4">
             {/* Sidebar: Hashtags + Insights side by side */}
             <div className="w-full md:col-span-3 flex flex-col gap-6 mb-6 md:mb-0">
-              <div className="bg-white rounded-2xl shadow p-4 my-4 w-full px-2 md:bg-transparent md:rounded-none md:shadow-none md:p-0 md:my-0">
+              <div className="glass-panel rounded-2xl p-4 my-4 w-full px-2 md:bg-transparent md:rounded-none md:shadow-none md:border-0 md:p-0 md:my-0">
                 <TopInsightsThisWeek />
               </div>
-              <div className="bg-white rounded-2xl shadow p-4 my-4 w-full px-2 md:bg-transparent md:rounded-none md:shadow-none md:p-0 md:my-0">
+              <div className="glass-panel rounded-2xl p-4 my-4 w-full px-2 md:bg-transparent md:rounded-none md:shadow-none md:border-0 md:p-0 md:my-0">
                 <TrendingHashtags selectedCategory={selectedCategory} />
               </div>
             </div>
             {/* Main content */}
             <div className="w-full md:col-span-9 space-y-8">
-              <div className="bg-white rounded-2xl shadow p-4 my-4 w-full px-2 md:bg-transparent md:rounded-none md:shadow-none md:p-0 md:my-0">
+              <div className="glass-panel rounded-2xl p-4 my-4 w-full px-2 md:bg-transparent md:rounded-none md:shadow-none md:border-0 md:p-0 md:my-0">
                 <TrendingContent selectedCategory={selectedCategory} />
               </div>
-              <div className="bg-white rounded-2xl shadow p-4 my-4 w-full px-2 md:bg-transparent md:rounded-none md:shadow-none md:p-0 md:my-0 mt-0 w-full">
+              <div className="glass-panel rounded-2xl p-4 my-4 w-full px-2 md:bg-transparent md:rounded-none md:shadow-none md:border-0 md:p-0 md:my-0 mt-0 w-full">
                 <InstagramNews />
               </div>
             </div>

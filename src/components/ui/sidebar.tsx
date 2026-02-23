@@ -67,7 +67,7 @@ export function WhoistrendSidebarMenu() {
   };
 
   return (
-    <div className="fixed top-0 left-0 h-screen z-30 flex flex-col bg-white border-r shadow-sm min-w-[220px] max-w-[260px] p-4 hidden md:flex">
+    <div className="fixed top-0 left-0 h-screen z-30 flex flex-col glass-panel border-r border-white/40 min-w-[220px] max-w-[260px] p-4 hidden md:flex">
       <NavLink
         to="/"
         className="flex items-center gap-2 mb-8 hover:opacity-80 transition-opacity"

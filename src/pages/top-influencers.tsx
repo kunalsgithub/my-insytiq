@@ -279,7 +279,7 @@ function OldTopInfluencerUI({ isPremium = false, userPlan = PLAN.FREE }: { isPre
 
   return (
     <>
-      <div className="min-h-screen bg-background flex flex-col items-center py-12 px-4">
+      <div className="min-h-screen flex flex-col items-center py-12 px-4">
         <h1 className="text-4xl font-bold mb-8 text-center gradient-text">Top Influencer Categories</h1>
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 w-full max-w-5xl">
           {categories.map(({ id, name, icon: Icon }) => (
@@ -287,7 +287,7 @@ function OldTopInfluencerUI({ isPremium = false, userPlan = PLAN.FREE }: { isPre
               key={id}
               onClick={() => handleCategorySelect(id)}
               onMouseEnter={() => handleCategoryHover(id)}
-              className="flex flex-col items-center justify-center p-6 bg-white rounded-xl shadow-md hover:shadow-lg border border-gray-100 hover:bg-insta-primary/10 transition-all duration-300 group focus:outline-none transform hover:scale-105"
+              className="flex flex-col items-center justify-center p-6 glass-panel rounded-xl border border-white/50 hover:bg-insta-primary/10 transition-all duration-300 group focus:outline-none transform hover:scale-105"
             >
               <Icon className="w-10 h-10 mb-3 text-insta-primary group-hover:text-insta-primary-dark transition-colors" />
               <span className="text-lg font-semibold text-gray-800 group-hover:text-insta-primary-dark transition-colors">{name}</span>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Outlet, useNavigate } from "react-router-dom";
+import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { WhoistrendSidebarMenu } from "./sidebar";
 import { Menu, X } from "lucide-react";
 import { NavLink } from "react-router-dom";
@@ -12,6 +12,7 @@ export default function SidebarLayout() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [user, setUser] = useState<any>(null);
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
   const [mobileChatHistory, setMobileChatHistory] = useState<
     { id: string; title: string; createdAt?: string; updatedAt?: string }[]
@@ -68,15 +69,16 @@ export default function SidebarLayout() {
     setMobileMenuOpen(false);
   };
 
+  const isTrendingPage = location.pathname === "/trending";
   return (
-    <div className="flex min-h-screen bg-background">
+    <div className={`flex min-h-screen ${isTrendingPage ? "bg-background" : "liquid-glass-bg"}`}>
       {/* Sidebar: always visible on desktop, collapsible on mobile */}
       <div className="hidden md:block">
         <WhoistrendSidebarMenu />
       </div>
 
       {/* Mobile-only header: logo left, hamburger right — visible on all pages */}
-      <div className="md:hidden fixed top-0 left-0 right-0 z-40 flex items-center justify-between h-16 min-h-[4rem] px-4 bg-background/95 backdrop-blur border-b">
+      <div className="md:hidden fixed top-0 left-0 right-0 z-40 flex items-center justify-between h-16 min-h-[4rem] px-4 glass-panel border-b border-white/40">
         <a href="/" className="flex items-center gap-2 font-semibold hover:opacity-80 transition-opacity">
           <img src={trendLogo} alt="insytiq.ai logo" className="h-8 w-8" />
           <span className="text-xs font-semibold tracking-[0.2em] text-gray-500 uppercase">
@@ -104,7 +106,7 @@ export default function SidebarLayout() {
             onClick={() => setMobileMenuOpen(false)}
           />
           {/* Mobile Menu */}
-          <div className="fixed top-0 left-0 w-full h-screen bg-white shadow-2xl z-[9999] flex flex-col md:hidden">
+          <div className="fixed top-0 left-0 w-full h-screen glass-panel shadow-2xl z-[9999] flex flex-col md:hidden border-r border-white/40">
             <div className="flex justify-between items-center p-4 border-b">
             <button
               type="button"
@@ -221,7 +223,7 @@ export default function SidebarLayout() {
       )}
 
       {/* Main content area — extra top padding on mobile so items don't hide under logo bar */}
-      <div className="flex-1 flex flex-col pt-4 md:pt-0">
+      <div className="flex-1 flex flex-col pt-8 md:pt-0">
         <Outlet />
       </div>
     </div>

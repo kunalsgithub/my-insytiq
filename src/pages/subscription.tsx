@@ -270,7 +270,7 @@ const Subscription = () => {
     setSub({ ...sub, ...reset });
   };
   return (
-    <div className="min-h-screen bg-background flex flex-col items-center py-12 px-4 md:pl-16">
+    <div className="min-h-screen flex flex-col items-center py-12 px-4 md:pl-16">
       <div className="w-full md:ml-16 md:max-w-6xl">
         <h1 className="text-4xl font-bold mb-8 text-center" style={gradientText}>
           Subscription Plans
@@ -290,10 +290,10 @@ const Subscription = () => {
             return (
               <div
                 key={plan.tier}
-                className={`relative bg-white rounded-2xl border p-8 flex flex-col items-center transition-transform ${
+                className={`relative glass-panel rounded-2xl border border-white/50 p-8 flex flex-col items-center transition-transform ${
                   isMostPopular
-                    ? 'shadow-xl border-[#d72989] scale-105'
-                    : 'shadow-md border-gray-100 hover:scale-105'
+                    ? 'border-[#d72989]/60 scale-105'
+                    : 'hover:scale-105'
                 }`}
               >
                 {isMostPopular && plan.badge && (

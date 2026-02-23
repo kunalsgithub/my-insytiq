@@ -96,7 +96,7 @@ export function LiveFollowerCounter({
       )}
       {/* Main Content */}
       <div className={
-        "relative z-10 flex flex-col items-center justify-center min-h-[180px] w-full bg-white rounded-xl shadow-lg border border-gray-200 p-8"
+        "relative z-10 flex flex-col items-center justify-center min-h-[180px] w-full glass-panel rounded-xl border border-white/50 p-8"
       }>
         <div className="text-lg font-medium mb-6 tracking-wide w-full flex items-center justify-between pl-2 pt-2 text-gray-700">
           <span>Live Follower Count</span>

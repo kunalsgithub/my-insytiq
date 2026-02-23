@@ -9,7 +9,7 @@ const TrendingNow = () => {
   const [selectedCategory, setSelectedCategory] = useState("all");
 
   return (
-    <div className="min-h-screen bg-background flex flex-col items-center px-2 py-4 md:px-0 md:items-stretch">
+    <div className="min-h-screen flex flex-col items-center px-2 py-4 md:px-0 md:items-stretch">
       {/* Animated Headline */}
       <div className="w-full max-w-xl mx-auto mb-2 md:max-w-[1440px] md:px-4 md:mx-auto md:mb-2">
         <div className="block lg:hidden">
@@ -43,25 +43,25 @@ const TrendingNow = () => {
       {/* Main content area: mobile = stacked cards, desktop = grid */}
       <div className="block md:hidden w-full max-w-xl mx-auto">
         {/* Top Performers Card */}
-        <section className="w-full bg-white rounded-2xl shadow p-5 mb-6">
+        <section className="w-full glass-panel rounded-2xl p-5 mb-6">
           <TopInsightsThisWeek />
         </section>
         {/* Trending Hashtags Card */}
-        <section className="w-full bg-white rounded-2xl shadow p-5 mb-6">
+        <section className="w-full glass-panel rounded-2xl p-5 mb-6">
           <h2 className="font-bold text-lg mb-3 text-center text-[#a259e6] flex items-center justify-center gap-2">
             <span className="text-2xl">🏷️</span> Trending Hashtags
           </h2>
           <TrendingHashtags selectedCategory={selectedCategory} />
         </section>
         {/* Trending Content Card */}
-        <section className="w-full bg-white rounded-2xl shadow p-5 mb-6">
+        <section className="w-full glass-panel rounded-2xl p-5 mb-6">
           <h2 className="font-bold text-lg mb-3 text-center text-[#ee2a7b] flex items-center justify-center gap-2">
             <span className="text-2xl">📸</span> Trending Content
           </h2>
           <TrendingContent selectedCategory={selectedCategory} />
         </section>
         {/* Instagram News Card */}
-        <section className="w-full bg-white rounded-2xl shadow p-5 mb-6">
+        <section className="w-full glass-panel rounded-2xl p-5 mb-6">
           <h2 className="font-bold text-lg mb-3 text-center text-[#6228d7] flex items-center justify-center gap-2">
             <span className="text-2xl">📰</span> Instagram News
           </h2>

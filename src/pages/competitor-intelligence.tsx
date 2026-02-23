@@ -531,7 +531,7 @@ const CompetitorIntelligencePage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col items-center pt-12 pb-8 px-4 md:py-8 md:pl-16">
+    <div className="min-h-screen flex flex-col items-center pt-12 pb-8 px-4 md:py-8 md:pl-16">
       <div className="w-full md:ml-16 md:max-w-6xl space-y-8">
         <div>
           <h1 className="text-3xl md:text-4xl font-bold mb-2" style={gradientText}>
@@ -543,7 +543,7 @@ const CompetitorIntelligencePage: React.FC = () => {
         </div>
 
         {/* Add Competitor */}
-        <Card>
+        <Card className="glass-panel border-white/50 bg-transparent shadow-none">
           <CardHeader>
             <CardTitle>Add Competitor</CardTitle>
           </CardHeader>
@@ -593,7 +593,7 @@ const CompetitorIntelligencePage: React.FC = () => {
         </Card>
 
         {/* Overview Table */}
-        <Card>
+        <Card className="glass-panel border-white/50 bg-transparent shadow-none">
           <CardHeader>
             <CardTitle>Competitor Overview (last 30 days)</CardTitle>
           </CardHeader>
@@ -681,7 +681,7 @@ const CompetitorIntelligencePage: React.FC = () => {
         </Card>
 
         {/* Growth Comparison */}
-        <Card>
+        <Card className="glass-panel border-white/50 bg-transparent shadow-none">
           <CardHeader>
             <CardTitle>Growth Comparison</CardTitle>
           </CardHeader>
@@ -828,7 +828,7 @@ const CompetitorIntelligencePage: React.FC = () => {
         </Card>
 
         {/* Trending Competitor Posts */}
-        <Card>
+        <Card className="glass-panel border-white/50 bg-transparent shadow-none">
           <CardHeader>
             <CardTitle>Trending Competitor Posts</CardTitle>
           </CardHeader>

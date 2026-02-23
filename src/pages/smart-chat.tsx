@@ -863,10 +863,23 @@ const SmartChat = ({ useV2 = false }: SmartChatProps) => {
   ];
 
   return (
-    <div className="h-screen bg-background flex flex-col overflow-hidden">
+    <div
+      className="h-screen flex flex-col overflow-hidden"
+      style={{
+        background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 25%, #fdf2f8 60%, #fce7f3 100%)',
+      }}
+    >
       <div className="flex-1 flex flex-col max-w-6xl w-full mx-auto px-5 md:px-6 md:pl-16 overflow-hidden min-h-0">
-        {/* Sticky Header - Big Brain + tagline: desktop only; hidden on mobile for more space */}
-        <div className="hidden md:block sticky top-0 z-20 bg-background pt-10 pb-6 md:pt-8 md:pb-6 border-b border-gray-200 flex-shrink-0">
+        {/* Sticky Header - Liquid glass */}
+        <div
+          className="hidden md:block sticky top-0 z-20 pt-10 pb-6 md:pt-8 md:pb-6 flex-shrink-0 border-b border-white/40"
+          style={{
+            backgroundColor: 'rgba(255,255,255,0.35)',
+            backdropFilter: 'blur(20px)',
+            WebkitBackdropFilter: 'blur(20px)',
+            boxShadow: 'inset 0 1px 0 0 rgba(255,255,255,0.6)',
+          }}
+        >
           <div className="flex flex-col md:flex-row md:items-start md:justify-between md:gap-6">
             <div className="flex-1 min-w-0 min-h-[5rem] md:min-h-0">
               <h1 className="text-2xl md:text-4xl font-bold mb-1 md:mb-2 break-words" style={{
@@ -878,24 +891,28 @@ const SmartChat = ({ useV2 = false }: SmartChatProps) => {
               }}>
                 Big Brain
               </h1>
-              <p className="hidden md:block text-gray-600 text-xs md:text-base">
+              <p className="hidden md:block text-gray-600 dark:text-gray-400 text-xs md:text-base">
                 Get instant answers to your social media and brand questions
               </p>
             </div>
             
-            {/* AI Assistant Visual Element - Desktop */}
+            {/* AI Assistant Visual Element - Desktop (liquid glass) */}
             <div className="hidden md:flex items-start gap-3 mt-2 flex-shrink-0 relative z-0">
-              {/* Speech Bubble */}
-              <div className="relative bg-white rounded-2xl shadow-md border border-gray-200 px-4 py-3 max-w-[220px] z-10">
+              <div
+                className="relative rounded-2xl px-4 py-3 max-w-[220px] z-10 border border-white/60"
+                style={{
+                  backgroundColor: 'rgba(255,255,255,0.4)',
+                  backdropFilter: 'blur(20px)',
+                  WebkitBackdropFilter: 'blur(20px)',
+                  boxShadow: '0 8px 32px rgba(0,0,0,0.08)',
+                }}
+              >
                 <p className="text-sm font-semibold gradient-text">
                   Hey 👋 Ask me anything about Instagram growth.
                 </p>
-                {/* Speech bubble tail */}
-                <div className="absolute -right-2 top-6 w-0 h-0 border-t-[8px] border-t-transparent border-l-[12px] border-l-white border-b-[8px] border-b-transparent z-10"></div>
-                <div className="absolute -right-3 top-[23px] w-0 h-0 border-t-[9px] border-t-transparent border-l-[13px] border-l-gray-200 border-b-[9px] border-b-transparent z-0"></div>
+                <div className="absolute -right-2 top-6 w-0 h-0 border-t-[8px] border-t-transparent border-l-[12px] border-l-white/80 border-b-[8px] border-b-transparent z-10"></div>
+                <div className="absolute -right-3 top-[23px] w-0 h-0 border-t-[9px] border-t-transparent border-l-[13px] border-l-white/30 border-b-[9px] border-b-transparent z-0"></div>
               </div>
-              
-              {/* AI Avatar */}
               <div className="relative z-10">
                 <AIAvatar />
               </div>
@@ -903,15 +920,15 @@ const SmartChat = ({ useV2 = false }: SmartChatProps) => {
           </div>
         </div>
 
-        {/* Scrollable Messages Area */}
+        {/* Scrollable Messages Area - extra top padding on mobile so "Most Asked Questions of the Day" is visible */}
         <div
           ref={chatContainerRef}
-          className="flex-1 overflow-y-auto min-h-0 py-6 md:py-6"
+          className="flex-1 overflow-y-auto min-h-0 pt-16 pb-6 md:py-6"
           onScroll={handleScroll}
         >
           {/* Most Asked Questions Section - Scrollable */}
           <div className="mb-3 md:mb-8">
-            <h2 className="text-base md:text-xl font-semibold text-gray-800 mb-2 md:mb-4">
+            <h2 className="text-base md:text-xl font-semibold text-gray-800 dark:text-gray-200 mb-2 md:mb-4 scroll-mt-4 mt-4 md:mt-0">
               Most Asked Questions of the Day
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-2 md:gap-4 mb-3 md:mb-8">
@@ -920,21 +937,26 @@ const SmartChat = ({ useV2 = false }: SmartChatProps) => {
                 return (
                   <Card
                     key={question.id}
-                    className="hover:shadow-lg transition-all cursor-pointer border-gray-200 hover:border-[#d72989] active:scale-[0.98]"
+                    className="border border-white/60 shadow-[0_8px_32px_rgba(0,0,0,0.08)] hover:shadow-[0_12px_40px_rgba(0,0,0,0.12)] transition-all duration-300 cursor-pointer hover:border-[#d72989]/50 active:scale-[0.98] rounded-2xl bg-transparent"
+                    style={{
+                      backgroundColor: 'rgba(255,255,255,0.35)',
+                      backdropFilter: 'blur(20px)',
+                      WebkitBackdropFilter: 'blur(20px)',
+                    }}
                     onClick={() => handleQuestionClick(question.title)}
                   >
                     <CardHeader className="pb-2 md:pb-3 px-3 md:px-6 pt-3 md:pt-6">
                       <div className="flex items-start gap-2 md:gap-3">
-                        <div className={`p-1.5 md:p-2 rounded-lg bg-gray-50 ${question.color} flex-shrink-0`}>
+                        <div className={`p-1.5 md:p-2 rounded-xl bg-white/60 dark:bg-white/20 ${question.color} flex-shrink-0`}>
                           <Icon className="h-4 w-4 md:h-5 md:w-5" />
                         </div>
-                        <CardTitle className="text-sm md:text-lg font-semibold text-gray-900 leading-tight">
+                        <CardTitle className="text-sm md:text-lg font-semibold text-gray-900 dark:text-gray-100 leading-tight">
                           {question.title}
                         </CardTitle>
                       </div>
                     </CardHeader>
                     <CardContent className="pt-0 px-3 md:px-6 pb-3 md:pb-6">
-                      <CardDescription className="text-xs md:text-sm text-gray-600 hidden md:block">
+                      <CardDescription className="text-xs md:text-sm text-gray-600 dark:text-gray-400 hidden md:block">
                         {question.description}
                       </CardDescription>
                     </CardContent>
@@ -947,7 +969,7 @@ const SmartChat = ({ useV2 = false }: SmartChatProps) => {
           {/* Messages */}
           <div className="space-y-4 max-w-3xl mx-auto px-1 md:px-0">
             {messages.length === 0 ? (
-              <div className="flex items-center justify-center h-full text-gray-400">
+              <div className="flex items-center justify-center h-full text-gray-500 dark:text-gray-400">
                 <p className="text-sm">Start a conversation by asking a question or clicking on a card above</p>
               </div>
             ) : (
@@ -960,11 +982,24 @@ const SmartChat = ({ useV2 = false }: SmartChatProps) => {
                     }`}
                   >
                     <div
-                      className={`max-w-[85%] md:max-w-[70%] min-w-0 px-4 py-3 rounded-3xl ${
+                      className={`max-w-[85%] md:max-w-[70%] min-w-0 px-4 py-3 rounded-3xl overflow-hidden md:overflow-visible ${
                         message.sender === 'user'
-                          ? 'bg-[#d72989]/90 text-white shadow-lg border border-white/20 backdrop-blur-md'
-                          : 'bg-white/70 text-gray-800 border border-white/60 shadow-lg backdrop-blur-md'
-                      } overflow-hidden md:overflow-visible`}
+                          ? 'text-white border border-white/30 shadow-[0_8px_32px_rgba(215,41,137,0.3)]'
+                          : 'text-gray-800 dark:text-gray-200 border border-white/60 shadow-[0_8px_32px_rgba(0,0,0,0.08)]'
+                      }`}
+                      style={
+                        message.sender === 'user'
+                          ? {
+                              backgroundColor: 'rgba(215,41,137,0.75)',
+                              backdropFilter: 'blur(20px)',
+                              WebkitBackdropFilter: 'blur(20px)',
+                            }
+                          : {
+                              backgroundColor: 'rgba(255,255,255,0.4)',
+                              backdropFilter: 'blur(20px)',
+                              WebkitBackdropFilter: 'blur(20px)',
+                            }
+                      }
                     >
                       {message.sender === 'assistant' ? (
                         <div className="min-w-0 break-words md:break-normal">
@@ -999,7 +1034,14 @@ const SmartChat = ({ useV2 = false }: SmartChatProps) => {
                 {/* Loading bubble when waiting for response (e.g. after user sent, or while fetching data) */}
                 {isLoading && (messages.length === 0 || messages[messages.length - 1]?.sender === 'user') && (
                   <div className="flex justify-start">
-                    <div className="max-w-[85%] md:max-w-[70%] min-w-0 px-4 py-3 rounded-3xl bg-white/70 text-gray-800 border border-white/60 shadow-lg backdrop-blur-md">
+                    <div
+                      className="max-w-[85%] md:max-w-[70%] min-w-0 px-4 py-3 rounded-3xl text-gray-800 dark:text-gray-200 border border-white/60 shadow-[0_8px_32px_rgba(0,0,0,0.08)]"
+                      style={{
+                        backgroundColor: 'rgba(255,255,255,0.4)',
+                        backdropFilter: 'blur(20px)',
+                        WebkitBackdropFilter: 'blur(20px)',
+                      }}
+                    >
                       <div className="flex items-center gap-3">
                         <div className="h-6 w-6 border-2 border-[#d72989] border-t-transparent rounded-full animate-spin flex-shrink-0" />
                         <div>
@@ -1017,8 +1059,8 @@ const SmartChat = ({ useV2 = false }: SmartChatProps) => {
           </div>
         </div>
 
-        {/* Sticky Input Section */}
-        <div className="sticky bottom-0 z-20 bg-background/80 backdrop-blur-md pt-2 pb-3 md:pt-4 md:pb-8 border-t border-gray-200 flex-shrink-0">
+        {/* Sticky Input Section - blends with UI, no background box */}
+        <div className="sticky bottom-0 z-20 pt-2 pb-3 md:pt-4 md:pb-8 flex-shrink-0">
           <div className="flex gap-2 max-w-3xl mx-auto">
             <div className="flex-1 relative">
               <Input
@@ -1028,14 +1070,14 @@ const SmartChat = ({ useV2 = false }: SmartChatProps) => {
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
                 onKeyPress={handleKeyPress}
-                className="pr-12 rounded-3xl border border-white/60 bg-white/70 backdrop-blur-md shadow-lg focus:border-[#d72989] focus:ring-[#d72989] transition-all"
+                className="pr-12 rounded-3xl border border-gray-200/80 bg-white/90 focus:border-[#d72989] focus:ring-2 focus:ring-[#d72989]/20 focus:bg-white transition-all shadow-sm"
               />
               <MessageCircle className="absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
             </div>
             <Button
               onClick={handleSend}
               disabled={!inputValue.trim() || isLoading}
-              className="bg-[#d72989] hover:bg-[#c0257a] text-white rounded-lg px-4 md:px-6 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="bg-[#d72989]/90 hover:bg-[#d72989] text-white rounded-2xl px-4 md:px-6 shadow-[0_4px_20px_rgba(215,41,137,0.35)] border border-white/20 backdrop-blur-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all"
             >
               {isLoading ? (
                 <>
@@ -1058,8 +1100,14 @@ const SmartChat = ({ useV2 = false }: SmartChatProps) => {
         <button
           type="button"
           onClick={scrollToBottom}
-          className="fixed z-30 flex items-center justify-center w-10 h-10 rounded-full bg-[#d72989] text-white shadow-md hover:shadow-lg hover:bg-[#c0257a] transition-all"
-          style={{ bottom: '80px', right: '20px' }}
+          className="fixed z-30 flex items-center justify-center w-10 h-10 rounded-full text-gray-700 dark:text-gray-200 border border-white/60 shadow-[0_8px_32px_rgba(0,0,0,0.12)] hover:shadow-[0_12px_40px_rgba(0,0,0,0.18)] transition-all"
+          style={{
+            bottom: '80px',
+            right: '20px',
+            backgroundColor: 'rgba(255,255,255,0.5)',
+            backdropFilter: 'blur(20px)',
+            WebkitBackdropFilter: 'blur(20px)',
+          }}
           aria-label="Scroll to latest message"
         >
           <ArrowDown className="w-4 h-4" />

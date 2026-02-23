@@ -97,6 +97,24 @@
     @apply bg-gradient-to-r from-[#f9ce34] via-[#ee2a7b] to-[#6228d7] bg-clip-text text-transparent;
   }
 
+  /* Liquid glass: app-wide gradient background */
+  .liquid-glass-bg {
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 25%, #fdf2f8 60%, #fce7f3 100%);
+  }
+
+  /* Liquid glass: frosted panel (cards, sections) */
+  .glass-panel {
+    background-color: rgba(255, 255, 255, 0.35);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.06);
+  }
+  .glass-panel:hover {
+    background-color: rgba(255, 255, 255, 0.45);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.08);
+  }
+
   .chat-user-bubble {
     @apply bg-gradient-to-r from-[#fde68a] via-[#f9a8d4] to-[#c4b5fd] text-[#3b0764];
   }

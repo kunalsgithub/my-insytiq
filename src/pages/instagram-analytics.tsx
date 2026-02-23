@@ -190,7 +190,7 @@ const InstagramAnalyticsPage = () => {
   const dailyMetrics = instagramData.insights?.dailyMetrics || [];
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
+    <div className="min-h-screen flex flex-col">
       <Navbar />
 
       <main className="flex-1 w-full max-w-6xl mx-auto px-4 py-8 md:px-6">
@@ -198,7 +198,7 @@ const InstagramAnalyticsPage = () => {
           Instagram Analytics
         </h1>
 
-        <div className="bg-white rounded-xl shadow p-6 mb-8">
+        <div className="glass-panel rounded-xl p-6 mb-8">
           <InstagramUsernameInput onAnalyze={handleAnalyzeUsername} />
           {saving && (
             <p className="text-sm text-gray-500 mt-3 text-center">
@@ -220,7 +220,7 @@ const InstagramAnalyticsPage = () => {
         )}
 
         {username && !instagramData.loading && !instagramData.error && (
-          <>
+          <div className="space-y-8">
             <InstagramDashboard
               username={username}
               profilePictureUrl={instagramData.profile.profile_picture_url}
@@ -243,7 +243,7 @@ const InstagramAnalyticsPage = () => {
             )}
 
             <InstagramAnalytics username={username} />
-          </>
+          </div>
         )}
       </main>
     </div>

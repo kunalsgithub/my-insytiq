@@ -263,10 +263,10 @@ const InstagramAnalytics: React.FC<InstagramAnalyticsProps & { userPlan?: string
   const analyticsAllowed = hasAccess("analytics", userPlan);
 
   return (
-    <div className="w-full space-y-8 relative">
-      <div>
+    <div className="w-full relative">
+      <div className="space-y-8">
       {/* Followers Growth Chart */}
-        <Card>
+        <Card className="glass-panel border-white/50 bg-transparent shadow-none">
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
               <CardTitle className="font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-[#f9ce34] via-[#ee2a7b] to-[#6228d7]">Followers Growth</CardTitle>
@@ -310,7 +310,7 @@ const InstagramAnalytics: React.FC<InstagramAnalyticsProps & { userPlan?: string
         </CardContent>
       </Card>
       {/* Projections Chart */}
-        <Card>
+        <Card className="glass-panel border-white/50 bg-transparent shadow-none">
           <CardHeader>
             <CardTitle className="font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-[#f9ce34] via-[#ee2a7b] to-[#6228d7]">Fanbase Forecast</CardTitle>
             <CardDescription className="text-gray-700">Future Projected Follower Count (5 Years, Monthly) - Created using Holt's Linear method</CardDescription>
@@ -330,7 +330,7 @@ const InstagramAnalytics: React.FC<InstagramAnalyticsProps & { userPlan?: string
         </CardContent>
       </Card>
         {/* Daily Channel Metrics */}
-        <Card>
+        <Card className="glass-panel border-white/50 bg-transparent shadow-none">
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
               <CardTitle className="font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-[#f9ce34] via-[#ee2a7b] to-[#6228d7]">Daily Channel Metrics</CardTitle>
