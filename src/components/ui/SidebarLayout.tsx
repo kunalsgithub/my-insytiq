@@ -69,16 +69,16 @@ export default function SidebarLayout() {
     setMobileMenuOpen(false);
   };
 
-  const isTrendingPage = location.pathname === "/trending";
+  const isSmartChatPage = location.pathname.startsWith("/smart-chat");
   return (
-    <div className={`flex min-h-screen ${isTrendingPage ? "bg-background" : "liquid-glass-bg"}`}>
+    <div className={`flex min-h-screen ${isSmartChatPage ? "liquid-glass-bg" : "bg-background"}`}>
       {/* Sidebar: always visible on desktop, collapsible on mobile */}
       <div className="hidden md:block">
         <WhoistrendSidebarMenu />
       </div>
 
       {/* Mobile-only header: logo left, hamburger right — visible on all pages */}
-      <div className="md:hidden fixed top-0 left-0 right-0 z-40 flex items-center justify-between h-16 min-h-[4rem] px-4 glass-panel border-b border-white/40">
+      <div className="md:hidden fixed top-0 left-0 right-0 z-40 flex items-center justify-between h-16 min-h-[4rem] px-4 bg-background/95 backdrop-blur border-b">
         <a href="/" className="flex items-center gap-2 font-semibold hover:opacity-80 transition-opacity">
           <img src={trendLogo} alt="insytiq.ai logo" className="h-8 w-8" />
           <span className="text-xs font-semibold tracking-[0.2em] text-gray-500 uppercase">
@@ -106,7 +106,7 @@ export default function SidebarLayout() {
             onClick={() => setMobileMenuOpen(false)}
           />
           {/* Mobile Menu */}
-          <div className="fixed top-0 left-0 w-full h-screen glass-panel shadow-2xl z-[9999] flex flex-col md:hidden border-r border-white/40">
+          <div className="fixed top-0 left-0 w-full h-screen bg-white shadow-2xl z-[9999] flex flex-col md:hidden">
             <div className="flex justify-between items-center p-4 border-b">
             <button
               type="button"

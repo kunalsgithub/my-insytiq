@@ -1,7 +1,7 @@
 import React from 'react';
 
 const Refund = () => (
-  <div className="max-w-3xl mx-auto py-12 px-4 glass-panel rounded-2xl">
+  <div className="max-w-3xl mx-auto py-12 px-4 bg-white rounded-2xl shadow-md">
     <h1 className="text-4xl font-extrabold mb-2 gradient-text">Refund Policy</h1>
     <p className="text-sm text-muted-foreground mb-8">Effective Date: <span className="font-semibold">27/June/2025</span></p>
     <p className="mb-6 text-lg">Thank you for subscribing to <span className="font-semibold">insytiq.ai</span>. We are committed to delivering value through our trend and influencer analytics tools. However, due to the nature of digital products and data-based services, we have the following refund policy in place:</p>

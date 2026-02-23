@@ -543,7 +543,7 @@ const CompetitorIntelligencePage: React.FC = () => {
         </div>
 
         {/* Add Competitor */}
-        <Card className="glass-panel border-white/50 bg-transparent shadow-none">
+        <Card>
           <CardHeader>
             <CardTitle>Add Competitor</CardTitle>
           </CardHeader>
@@ -593,7 +593,7 @@ const CompetitorIntelligencePage: React.FC = () => {
         </Card>
 
         {/* Overview Table */}
-        <Card className="glass-panel border-white/50 bg-transparent shadow-none">
+        <Card>
           <CardHeader>
             <CardTitle>Competitor Overview (last 30 days)</CardTitle>
           </CardHeader>
@@ -681,7 +681,7 @@ const CompetitorIntelligencePage: React.FC = () => {
         </Card>
 
         {/* Growth Comparison */}
-        <Card className="glass-panel border-white/50 bg-transparent shadow-none">
+        <Card>
           <CardHeader>
             <CardTitle>Growth Comparison</CardTitle>
           </CardHeader>
@@ -828,7 +828,7 @@ const CompetitorIntelligencePage: React.FC = () => {
         </Card>
 
         {/* Trending Competitor Posts */}
-        <Card className="glass-panel border-white/50 bg-transparent shadow-none">
+        <Card>
           <CardHeader>
             <CardTitle>Trending Competitor Posts</CardTitle>
           </CardHeader>

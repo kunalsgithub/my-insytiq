@@ -1,7 +1,7 @@
 import React from 'react';
 
 const Privacy = () => (
-  <div className="max-w-3xl mx-auto py-12 px-4 glass-panel rounded-2xl">
+  <div className="max-w-3xl mx-auto py-12 px-4 bg-white rounded-2xl shadow-md">
     <h1 className="text-4xl font-extrabold mb-2 gradient-text">Privacy Policy</h1>
     <p className="text-sm text-muted-foreground mb-8">Effective Date: <span className="font-semibold">27/June/2025</span></p>
     <p className="mb-6 text-lg">Welcome to <span className="font-semibold">insytiq.ai</span> (“we,” “our,” or “us”). We are committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you visit our website <span className="text-insta-primary font-semibold">insytiq.ai</span>, use our analytics platform, or subscribe to our services.</p>

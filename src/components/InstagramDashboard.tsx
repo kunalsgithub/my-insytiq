@@ -30,7 +30,7 @@ const InstagramDashboard: React.FC<InstagramDashboardProps> = ({
   const displayUsername = username ? `@${username}` : "@username";
   return (
     <section className="w-full mt-8">
-      <div className="glass-panel rounded-xl border border-white/50 p-6 flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+      <div className="bg-white rounded-xl shadow border p-6 flex flex-col md:flex-row md:items-center md:justify-between gap-6">
         {/* Profile summary */}
         <div className="flex flex-col md:flex-row md:items-center gap-6 flex-1">
           {profilePictureUrl ? (

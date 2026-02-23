@@ -290,10 +290,10 @@ const Subscription = () => {
             return (
               <div
                 key={plan.tier}
-                className={`relative glass-panel rounded-2xl border border-white/50 p-8 flex flex-col items-center transition-transform ${
+                className={`relative bg-white rounded-2xl border p-8 flex flex-col items-center transition-transform ${
                   isMostPopular
-                    ? 'border-[#d72989]/60 scale-105'
-                    : 'hover:scale-105'
+                    ? 'shadow-xl border-[#d72989] scale-105'
+                    : 'shadow-md border-gray-100 hover:scale-105'
                 }`}
               >
                 {isMostPopular && plan.badge && (

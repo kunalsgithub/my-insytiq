@@ -30,7 +30,7 @@ const Index = () => {
   return (
     <div className="max-w-5xl mx-auto py-12 px-2 md:px-0">
       {/* Hero Section */}
-      <section className="w-full py-16 px-4 flex flex-col items-center text-center glass-panel rounded-2xl mb-12">
+      <section className="w-full py-16 px-4 flex flex-col items-center text-center bg-gradient-to-br from-[#f9ce34]/10 via-[#ee2a7b]/10 to-[#6228d7]/10 rounded-2xl mb-12">
         <h1 className="text-4xl md:text-5xl font-extrabold mb-4 bg-gradient-to-r from-[#f9ce34] via-[#ee2a7b] to-[#6228d7] bg-clip-text text-transparent">
           Unlock Instagram Growth with AI
         </h1>
@@ -48,7 +48,7 @@ const Index = () => {
       {/* Highlights/Features Section */}
       <section className="w-full py-12 px-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
         {highlights.map((feature, i) => (
-          <div key={i} className="glass-panel rounded-2xl p-6 flex flex-col items-center text-center transition-all">
+          <div key={i} className="bg-white rounded-2xl shadow p-6 flex flex-col items-center text-center hover:shadow-lg transition-shadow">
             <div className="text-4xl mb-3">{feature.icon}</div>
             <h3 className="font-bold text-lg mb-2 text-gray-900">{feature.title}</h3>
             <p className="text-gray-600 text-base">{feature.description}</p>
@@ -58,7 +58,7 @@ const Index = () => {
       </section>
 
       {/* Call to Action */}
-      <section className="w-full py-12 flex flex-col items-center glass-panel rounded-2xl mb-12">
+      <section className="w-full py-12 flex flex-col items-center bg-gradient-to-r from-[#f9ce34]/10 via-[#ee2a7b]/10 to-[#6228d7]/10 rounded-2xl mb-12">
         <h2 className="text-2xl md:text-3xl font-bold mb-4">Ready to get started?</h2>
         <Link
           to="/subscription"

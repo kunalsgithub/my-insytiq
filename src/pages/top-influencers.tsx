@@ -287,7 +287,7 @@ function OldTopInfluencerUI({ isPremium = false, userPlan = PLAN.FREE }: { isPre
               key={id}
               onClick={() => handleCategorySelect(id)}
               onMouseEnter={() => handleCategoryHover(id)}
-              className="flex flex-col items-center justify-center p-6 glass-panel rounded-xl border border-white/50 hover:bg-insta-primary/10 transition-all duration-300 group focus:outline-none transform hover:scale-105"
+              className="flex flex-col items-center justify-center p-6 bg-white rounded-xl shadow-md hover:shadow-lg border border-gray-100 hover:bg-insta-primary/10 transition-all duration-300 group focus:outline-none transform hover:scale-105"
             >
               <Icon className="w-10 h-10 mb-3 text-insta-primary group-hover:text-insta-primary-dark transition-colors" />
               <span className="text-lg font-semibold text-gray-800 group-hover:text-insta-primary-dark transition-colors">{name}</span>

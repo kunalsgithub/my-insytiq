@@ -1,7 +1,7 @@
 import React from 'react';
 
 const TermsAndConditions = () => (
-  <div className="max-w-3xl mx-auto py-12 px-4 glass-panel rounded-2xl">
+  <div className="max-w-3xl mx-auto py-12 px-4 bg-white rounded-2xl shadow-md">
     <h1 className="text-4xl font-extrabold mb-2 gradient-text">Terms & Conditions</h1>
     <p className="text-sm text-muted-foreground mb-8">Effective Date: <span className="font-semibold">27/June/2025</span></p>
     <p className="mb-6 text-lg">Welcome to <span className="font-semibold">insytiq.ai</span> (“we,” “our,” or “us”). These Terms & Conditions (“Terms”) govern your access to and use of our website and services located at <span className='text-insta-primary font-semibold'>insytiq.ai</span> (the “Platform”).</p>

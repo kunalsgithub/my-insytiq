@@ -198,7 +198,7 @@ const InstagramAnalyticsPage = () => {
           Instagram Analytics
         </h1>
 
-        <div className="glass-panel rounded-xl p-6 mb-8">
+        <div className="bg-white rounded-xl shadow p-6 mb-8">
           <InstagramUsernameInput onAnalyze={handleAnalyzeUsername} />
           {saving && (
             <p className="text-sm text-gray-500 mt-3 text-center">
