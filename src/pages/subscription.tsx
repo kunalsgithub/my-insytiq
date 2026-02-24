@@ -294,33 +294,72 @@ const Subscription = () => {
           </div>
         )}
 
-        {/* Billing cycle toggle */}
-        <div className="mt-6 flex justify-center items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setBillingCycle('monthly')}
-            className={`px-4 py-1.5 rounded-full text-xs font-semibold border ${
-              billingCycle === 'monthly'
-                ? 'bg-white text-[#d72989] border-[#d72989]'
-                : 'bg-white/70 text-gray-600 border-gray-200 hover:bg-white'
-            }`}
-          >
-            Monthly
-          </button>
-          <button
-            type="button"
-            onClick={() => setBillingCycle('yearly')}
-            className={`px-4 py-1.5 rounded-full text-xs font-semibold border flex items-center gap-2 ${
-              billingCycle === 'yearly'
-                ? 'bg-[#d72989] text-white border-[#d72989]'
-                : 'bg-white/70 text-gray-600 border-gray-200 hover:bg-white'
-            }`}
-          >
-            <span>Yearly</span>
-            <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/90 text-[#d72989] font-semibold">
+        {/* Billing cycle toggle (solid colors, no rgb/opacity) */}
+        <div className="mt-8 flex flex-col items-center gap-2">
+          <div className="relative">
+            <div
+              role="switch"
+              aria-checked={billingCycle === 'yearly'}
+              aria-label="Toggle billing cycle between monthly and yearly"
+              onClick={() =>
+                setBillingCycle((prev) => (prev === 'monthly' ? 'yearly' : 'monthly'))
+              }
+              className="relative flex items-center w-64 h-12 cursor-pointer rounded-full bg-white border border-gray-200 shadow-md overflow-hidden"
+            >
+              {/* Sliding solid pill */}
+              <div
+                className={`absolute top-1 left-1 h-10 w-[calc(50%-0.25rem)] rounded-full bg-[#d72989] shadow-lg transition-transform duration-300 ease-out ${
+                  billingCycle === 'yearly' ? 'translate-x-full' : 'translate-x-0'
+                }`}
+              />
+
+              {/* Labels */}
+              <div className="relative z-10 flex w-full h-full text-[11px] font-semibold">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setBillingCycle('monthly');
+                  }}
+                  className="flex-1 flex items-center justify-center"
+                >
+                  <span
+                    className={
+                      billingCycle === 'monthly'
+                        ? 'text-white'
+                        : 'text-gray-600'
+                    }
+                  >
+                    Monthly
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setBillingCycle('yearly');
+                  }}
+                  className="flex-1 flex items-center justify-center"
+                >
+                  <span
+                    className={
+                      billingCycle === 'yearly'
+                        ? 'text-white'
+                        : 'text-gray-600'
+                    }
+                  >
+                    Yearly
+                  </span>
+                </button>
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-1 text-[11px] text-gray-700">
+            <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-green-50 text-green-700 font-semibold">
               2 Months Free
             </span>
-          </button>
+            <span>when you choose yearly billing.</span>
+          </div>
         </div>
 
         <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 w-full">
@@ -434,7 +473,7 @@ const Subscription = () => {
           <h2 className="text-2xl font-bold mb-4" style={gradientText}>
             Why Creators Upgrade
           </h2>
-          <ul className="text-sm md:text-base text-gray-700 space-y-2 text-left md:text-center list-disc list-inside md:list-none md:space-y-1">
+          <ul className="text-sm md:text-base text-gray-700 space-y-1 text-center list-none">
             <li>Identify growth leaks</li>
             <li>Increase engagement 20–40%</li>
             <li>Know best posting time using real data</li>
