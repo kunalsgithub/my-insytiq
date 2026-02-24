@@ -105,6 +105,69 @@ const getSampleNewsData = (): NewsItem[] => {
       url: "https://about.instagram.com/blog",
       publishedAt: new Date().toISOString(),
       imageUrl: "https://picsum.photos/seed/instagram3/300/200"
+    },
+    {
+      id: "sample-4",
+      title: "How Creators Are Using Reels to Grow in 2026",
+      description: "Case studies from creators who scaled their audiences using short-form video on Instagram Reels.",
+      source: "Creator Stories",
+      url: "https://about.instagram.com/blog",
+      publishedAt: new Date().toISOString(),
+      imageUrl: "https://picsum.photos/seed/instagram4/300/200"
+    },
+    {
+      id: "sample-5",
+      title: "New Instagram Insights for Reels and Stories",
+      description: "Instagram rolls out deeper analytics so creators can understand exactly what content is working.",
+      source: "Instagram Blog",
+      url: "https://about.instagram.com/blog",
+      publishedAt: new Date().toISOString(),
+      imageUrl: "https://picsum.photos/seed/instagram5/300/200"
+    },
+    {
+      id: "sample-6",
+      title: "Building a Brand on Instagram in 2026",
+      description: "Best practices for brands that want to stand out in a crowded Instagram feed.",
+      source: "Meta for Business",
+      url: "https://www.facebook.com/business/help",
+      publishedAt: new Date().toISOString(),
+      imageUrl: "https://picsum.photos/seed/instagram6/300/200"
+    },
+    {
+      id: "sample-7",
+      title: "Instagram Safety Updates for Teens",
+      description: "An overview of new tools designed to keep younger users safer on the platform.",
+      source: "Meta Newsroom",
+      url: "https://about.meta.com/news/",
+      publishedAt: new Date().toISOString(),
+      imageUrl: "https://picsum.photos/seed/instagram7/300/200"
+    },
+    {
+      id: "sample-8",
+      title: "Five Ways to Refresh Your Instagram Content Strategy",
+      description: "Practical tips on testing new formats, hooks, and posting cadences.",
+      source: "Social Media Today",
+      url: "https://www.socialmediatoday.com/",
+      publishedAt: new Date().toISOString(),
+      imageUrl: "https://picsum.photos/seed/instagram8/300/200"
+    },
+    {
+      id: "sample-9",
+      title: "Optimizing Hashtags for Discovery on Instagram",
+      description: "Guidance on how many hashtags to use and where to place them for maximum reach.",
+      source: "Later Blog",
+      url: "https://later.com/blog/",
+      publishedAt: new Date().toISOString(),
+      imageUrl: "https://picsum.photos/seed/instagram9/300/200"
+    },
+    {
+      id: "sample-10",
+      title: "Collaborations: Working with Other Creators on Instagram",
+      description: "How collaboration posts and Reels can help you tap into new audiences.",
+      source: "Instagram for Creators",
+      url: "https://about.instagram.com/creators",
+      publishedAt: new Date().toISOString(),
+      imageUrl: "https://picsum.photos/seed/instagram10/300/200"
     }
   ];
 };
