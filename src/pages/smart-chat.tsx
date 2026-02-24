@@ -11,6 +11,7 @@ import { doc, getDoc, onSnapshot } from 'firebase/firestore';
 import { db } from '../services/firebaseService';
 import { fetchAndStoreInstagramData } from '../api/fetchAndStoreInstagramData';
 import { useSearchParams } from 'react-router-dom';
+import { getMaxGrowthTrackingDays, getUpgradeMessageForFeature } from '../utils/accessControl';
 
 interface Message {
   id: string;
@@ -663,6 +664,32 @@ const SmartChat = ({ useV2 = false }: SmartChatProps) => {
 
       if (analyzeDaysMatch) {
         const days = Math.min(365, Math.max(1, parseInt(analyzeDaysMatch[1], 10)));
+        let userPlan: string | null = 'Free';
+        try {
+          const userSnap = await getDoc(doc(db, 'users', userId!));
+          userPlan = (userSnap.data()?.currentPlan as string) || 'Free';
+        } catch {
+          userPlan = 'Free';
+        }
+        const maxDays = getMaxGrowthTrackingDays(userPlan);
+        if (days > maxDays) {
+          const upgradeMsg = getUpgradeMessageForFeature('growth_days', days, userPlan)
+            ?? `Your current plan includes up to ${maxDays}-day growth tracking. Upgrade to PRO or ELITE for 90 or 365 days.`;
+          const errMsg: Message = {
+            id: generateMessageId(),
+            text: upgradeMsg,
+            sender: 'assistant',
+            timestamp: new Date(),
+          };
+          setMessages((prev) => [...prev, errMsg]);
+          toast({
+            title: 'Upgrade your plan',
+            description: upgradeMsg,
+            variant: 'destructive',
+          });
+          setIsLoading(false);
+          return;
+        }
         onlyPostsNewerThan = `${days} days`;
         limit = 200; // fetch up to 200 posts from that period
         description = `posts from the last ${days} days`;

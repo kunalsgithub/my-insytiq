@@ -6,17 +6,29 @@ import { ChevronDown, Check } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "./ui/dropdown-menu";
 import DailyChannelMetrics from "./DailyChannelMetrics";
 import SocialBladeChart from "./SocialBladeChart";
-import { PLAN, hasAccess } from "../utils/accessControl";
+import { PLAN, hasAccess, getMaxGrowthTrackingDays, getUpgradeMessageForFeature } from "../utils/accessControl";
 import { db } from "../services/firebaseService";
+import { useToast } from "../hooks/use-toast";
 import { collection, doc, setDoc } from 'firebase/firestore';
 
 interface InstagramAnalyticsProps {
   username: string;
 }
 
+const DAY_OPTIONS = [
+  { label: "Last 14 Days", value: 14 },
+  { label: "Last 30 Days", value: 30 },
+  { label: "Last 60 Days", value: 60 },
+  { label: "Last 180 Days", value: 180 },
+  { label: "Last 365 Days", value: 365 },
+  { label: "Last 3 Years", value: 1095 },
+];
+
 const InstagramAnalytics: React.FC<InstagramAnalyticsProps & { userPlan?: string }> = ({ username, userPlan = PLAN.FREE }) => {
   const [data, analyzeUsername] = useInstagramData();
-  const [selectedDays, setSelectedDays] = useState(30);
+  const { toast } = useToast();
+  const maxDays = getMaxGrowthTrackingDays(userPlan);
+  const [selectedDays, setSelectedDays] = useState(() => Math.min(30, maxDays));
   const [showUpgrade, setShowUpgrade] = useState(false);
   const [growthView, setGrowthView] = useState('daily'); // 'daily', 'weekly', 'monthly'
   const hasSyncedHistory = useRef(false);
@@ -27,14 +39,16 @@ const InstagramAnalytics: React.FC<InstagramAnalyticsProps & { userPlan?: string
     }
   }, [username, analyzeUsername]);
 
-  const filterOptions = [
-    { label: "Last 14 Days", value: 14, enabled: true },
-    { label: "Last 30 Days", value: 30, enabled: true },
-    { label: "Last 60 Days", value: 60, enabled: false },
-    { label: "Last 180 Days", value: 180, enabled: false },
-    { label: "Last 365 Days", value: 365, enabled: false },
-    { label: "Last 3 Years", value: 1095, enabled: false },
-  ];
+  useEffect(() => {
+    if (selectedDays > maxDays) {
+      setSelectedDays(maxDays);
+    }
+  }, [maxDays, selectedDays]);
+
+  const filterOptions = useMemo(() => DAY_OPTIONS.map(opt => ({
+    ...opt,
+    enabled: opt.value <= maxDays,
+  })), [maxDays]);
 
   const weeklyGrowthData = useMemo(() => {
     if (data.insights?.followers?.growth && data.insights.followers.growth.length > 0) {
@@ -345,9 +359,26 @@ const InstagramAnalytics: React.FC<InstagramAnalyticsProps & { userPlan?: string
               </DropdownMenuTrigger>
               <DropdownMenuContent>
                 {filterOptions.map(option => (
-                  <DropdownMenuItem key={option.value} onSelect={() => setSelectedDays(option.value)}>
+                  <DropdownMenuItem
+                    key={option.value}
+                    onSelect={() => {
+                      if (option.enabled) {
+                        setSelectedDays(option.value);
+                      } else {
+                        const msg = getUpgradeMessageForFeature('growth_days', option.value, userPlan);
+                        toast({
+                          title: 'Upgrade your plan',
+                          description: msg ?? `Your plan includes up to ${maxDays}-day growth tracking. Upgrade for more.`,
+                          variant: 'destructive',
+                        });
+                      }
+                    }}
+                  >
                     {option.label}
-                    {selectedDays === option.value && <Check className="ml-auto h-4 w-4 text-green-500" />}
+                    {!option.enabled && (
+                      <span className="ml-auto text-xs text-muted-foreground">Upgrade for more</span>
+                    )}
+                    {option.enabled && selectedDays === option.value && <Check className="ml-auto h-4 w-4 text-green-500" />}
                   </DropdownMenuItem>
                 ))}
               </DropdownMenuContent>

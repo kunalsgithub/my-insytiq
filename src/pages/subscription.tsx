@@ -54,13 +54,13 @@ const plans: Array<{
     subtitle: "Our most popular plan for growth",
     price: "$19",
     features: [
-      "50 profile analyses per month",
-      "90-day historical data",
+      "30 profile analyses per month",
+      "90-day growth tracking",
       "Competitor comparison (compare up to 5 usernames)",
       "Engagement leak detection",
       "AI Growth Suggestions (data-backed)",
       "Advanced hashtag analysis",
-      "SmartChat Pro (analytics + APIFY)",
+      "SmartChat Pro (Analytics + GROWTH)",
       "CSV exports",
     ],
     mostPopular: true,
@@ -94,7 +94,7 @@ type SubscriptionDoc = {
 const planUsageText: Record<PlanKey, string> = {
   'Free': '1 profile analysis per day',
   'Trends+': 'Analyze up to 10 profiles per month',
-  'Analytics+': 'Analyze up to 50 profiles per month',
+  'Analytics+': 'Analyze up to 30 profiles per month',
   'Pro Combo': 'Analyze up to 200 profiles per month',
 };
 

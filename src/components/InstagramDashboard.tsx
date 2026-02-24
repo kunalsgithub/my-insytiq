@@ -69,15 +69,6 @@ const InstagramDashboard: React.FC<InstagramDashboardProps> = ({
             </div>
           </div>
         </div>
-        {/* Download/Copy buttons */}
-        <div className="flex flex-col gap-2 md:items-end">
-          <button className="px-4 py-2 rounded border bg-gray-50 hover:bg-gray-100 text-gray-700 flex items-center gap-2">
-            <span>&#8681;</span> Download profile
-          </button>
-          <button className="px-4 py-2 rounded border bg-gray-50 hover:bg-gray-100 text-gray-700 flex items-center gap-2">
-            <span>&#128279;</span> Copy profile URL
-          </button>
-        </div>
       </div>
       {/* Metrics */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-6 mt-8">

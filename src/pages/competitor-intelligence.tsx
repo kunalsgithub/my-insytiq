@@ -18,6 +18,7 @@ import {
   getDocs,
   Timestamp,
 } from "firebase/firestore";
+import { getMaxCompetitors, getUpgradeMessageForFeature } from "../utils/accessControl";
 import "../components/LoadingText.css";
 // NOTE: Recharts-based chart was causing an invalid hook call in this route
 // in the current environment, even though the same library works elsewhere.
@@ -269,29 +270,18 @@ const CompetitorIntelligencePage: React.FC = () => {
     };
   }, [accountStats?.username, competitors]);
 
-  const maxCompetitorsForPlan = useMemo(() => {
-    if (!currentPlan) return 0;
-    const plan = currentPlan.toLowerCase();
-    if (plan.includes("creator") || plan.includes("trends+")) {
-      return 2;
-    }
-    if (plan.includes("pro – growth accelerator") || plan.includes("analytics+")) {
-      return 5;
-    }
-    if (plan.includes("pro combo") || plan.includes("elite") || plan.includes("agency")) {
-      return 10;
-    }
-    return 0;
-  }, [currentPlan]);
+  const maxCompetitorsForPlan = getMaxCompetitors(currentPlan);
 
   const handleAddCompetitor = async () => {
     const trimmed = inputUsername.trim();
     if (!trimmed || !userId) return;
-    const limit = maxCompetitorsForPlan || 0;
+    const limit = maxCompetitorsForPlan;
     if (limit > 0 && competitors.length >= limit) {
+      const upgradeMsg = getUpgradeMessageForFeature('competitors', limit + 1, currentPlan)
+        ?? `You can track up to ${limit} competitor(s) on your current plan. Upgrade for more.`;
       toast({
-        title: "Limit reached",
-        description: `You can track up to ${limit} competitors on your current plan.`,
+        title: "Upgrade your plan",
+        description: upgradeMsg,
         variant: "destructive",
       });
       return;

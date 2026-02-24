@@ -6,6 +6,8 @@ import { LiveFollowerCounter } from "../components/LiveFollowerCounter";
 import InstagramUsernameInput from "../components/InstagramUsernameInput";
 
 import { useState, useEffect } from "react";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "../services/firebaseService";
 import { useInstagramData } from "../hooks/useInstagramData";
 import { useUsernameManager } from "../hooks/useUsernameManager";
 import { PLAN } from "../utils/accessControl";
@@ -41,7 +43,21 @@ const InstagramAnalyticsPage = () => {
     clearForUser,
   } = useInstagramAnalyticsStore();
 
-  const userPlan = PLAN.FREE;
+  const [userPlan, setUserPlan] = useState<string>(PLAN.FREE);
+
+  useEffect(() => {
+    if (!userId) return;
+    const loadPlan = async () => {
+      try {
+        const userDoc = await getDoc(doc(db, "users", userId));
+        const plan = (userDoc.data()?.currentPlan as string) || PLAN.FREE;
+        setUserPlan(plan);
+      } catch {
+        setUserPlan(PLAN.FREE);
+      }
+    };
+    loadPlan();
+  }, [userId]);
 
   // Restore last username
   useEffect(() => {
@@ -242,7 +258,7 @@ const InstagramAnalyticsPage = () => {
               <DailyEngagementChart data={dailyMetrics} />
             )}
 
-            <InstagramAnalytics username={username} />
+            <InstagramAnalytics username={username} userPlan={userPlan} />
           </div>
         )}
       </main>

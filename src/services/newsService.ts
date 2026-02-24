@@ -75,7 +75,7 @@ export const fetchInstagramNews = async (): Promise<NewsItem[]> => {
   }
 };
 
-// Sample news data as fallback
+// Sample news data as fallback (real URLs so "Read more" never goes to example.com)
 const getSampleNewsData = (): NewsItem[] => {
   console.log("Generating sample news data");
   return [
@@ -83,8 +83,8 @@ const getSampleNewsData = (): NewsItem[] => {
       id: "sample-1",
       title: "Instagram Launches New Reels Feature for Creators",
       description: "Instagram has introduced a powerful new set of tools for Reels creators, aiming to boost engagement and discoverability.",
-      source: "Tech Today",
-      url: "https://example.com/instagram-news-1",
+      source: "Instagram Blog",
+      url: "https://about.instagram.com/blog",
       publishedAt: new Date().toISOString(),
       imageUrl: "https://picsum.photos/seed/instagram1/300/200"
     },
@@ -92,8 +92,8 @@ const getSampleNewsData = (): NewsItem[] => {
       id: "sample-2",
       title: "Instagram Shopping Updates: What You Need to Know",
       description: "The platform is rolling out significant changes to its shopping features, making it easier for businesses to sell products directly.",
-      source: "Business Insider",
-      url: "https://example.com/instagram-news-2",
+      source: "Meta for Business",
+      url: "https://www.facebook.com/business/help",
       publishedAt: new Date().toISOString(),
       imageUrl: "https://picsum.photos/seed/instagram2/300/200"
     },
@@ -101,8 +101,8 @@ const getSampleNewsData = (): NewsItem[] => {
       id: "sample-3",
       title: "Top Instagram Influencers of 2025 Revealed",
       description: "A new report shows surprising shifts in the Instagram influencer landscape, with new creators dominating engagement metrics.",
-      source: "Social Media Today",
-      url: "https://example.com/instagram-news-3",
+      source: "Instagram",
+      url: "https://about.instagram.com/blog",
       publishedAt: new Date().toISOString(),
       imageUrl: "https://picsum.photos/seed/instagram3/300/200"
     }
