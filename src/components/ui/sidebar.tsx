@@ -155,16 +155,6 @@ export function WhoistrendSidebarMenu() {
         </div>
         <nav className="flex flex-col gap-1 mb-4">
           <NavLink
-            to="/subscription"
-            className={({ isActive }) =>
-              isActive
-                ? "text-[#d72989] font-bold bg-gray-100 rounded px-2 py-1 transition-colors"
-                : "text-gray-900 font-medium rounded px-2 py-1 hover:bg-gray-50 hover:text-[#d72989] transition-colors"
-            }
-          >
-            Subscriptions
-          </NavLink>
-          <NavLink
             to="/smart-chat"
             className={({ isActive }) =>
               isActive
@@ -244,6 +234,25 @@ export function WhoistrendSidebarMenu() {
             </div>
           </div>
         )}
+      </div>
+
+      {/* Subscription Section */}
+      <div className="mt-4">
+        <div className="uppercase text-xs font-semibold text-gray-500 tracking-wider mb-2">
+          Subscription
+        </div>
+        <nav className="flex flex-col gap-1">
+          <NavLink
+            to="/subscription"
+            className={({ isActive }) =>
+              isActive
+                ? "text-[#d72989] font-bold bg-gray-100 rounded px-2 py-1 transition-colors"
+                : "text-gray-900 font-medium rounded px-2 py-1 hover:bg-gray-50 hover:text-[#d72989] transition-colors"
+            }
+          >
+            Subscriptions
+          </NavLink>
+        </nav>
       </div>
     </div>
   );
