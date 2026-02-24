@@ -194,7 +194,7 @@ export function WhoistrendSidebarMenu() {
                   >
                     <button
                       type="button"
-                      onClick={() => navigate(`/smart-chat-v2?chatId=${item.id}`)}
+                      onClick={() => navigate(`/smart-chat?chatId=${item.id}`)}
                       className="flex-1 text-left px-1 py-0.5 rounded truncate text-[11px] text-gray-800"
                       title={item.title}
                     >
