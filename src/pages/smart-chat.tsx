@@ -674,7 +674,7 @@ const SmartChat = ({ useV2 = false }: SmartChatProps) => {
         const maxDays = getMaxGrowthTrackingDays(userPlan);
         if (days > maxDays) {
           const upgradeMsg = getUpgradeMessageForFeature('growth_days', days, userPlan)
-            ?? `Your current plan includes up to ${maxDays}-day growth tracking. Upgrade to PRO or ELITE for 90 or 365 days.`;
+            ?? `Your current plan includes up to ${maxDays}-day growth tracking. Upgrade to PRO – Growth Accelerator for longer history.`;
           const errMsg: Message = {
             id: generateMessageId(),
             text: upgradeMsg,

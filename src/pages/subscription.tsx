@@ -5,7 +5,9 @@ import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '../services/firebaseService';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 
-type PlanKey = 'Free' | 'Trends+' | 'Analytics+' | 'Pro Combo';
+type PlanKey = 'Free' | 'Trends+' | 'Analytics+';
+
+type BillingCycle = 'monthly' | 'yearly';
 
 const plans: Array<{
   tier: PlanKey;
@@ -67,21 +69,6 @@ const plans: Array<{
     badge: "⭐ MOST POPULAR",
     usageLimit: 50,
   },
-  {
-    tier: "Pro Combo",
-    label: "ELITE – Agency",
-    subtitle: "For agencies & power users",
-    price: "$39",
-    features: [
-      "200 profile analyses per month",
-      "Multi-account dashboard",
-      "Downloadable brand reports",
-      "Priority data processing",
-      "AI forecasting (coming soon)",
-      "Future API access",
-    ],
-    usageLimit: 200,
-  },
 ];
 
 type SubscriptionDoc = {
@@ -95,15 +82,21 @@ const planUsageText: Record<PlanKey, string> = {
   'Free': '1 profile analysis per day',
   'Trends+': 'Analyze up to 10 profiles per month',
   'Analytics+': 'Analyze up to 30 profiles per month',
-  'Pro Combo': 'Analyze up to 200 profiles per month',
 };
 
-// Paddle Billing price IDs (from .env)
+// Paddle / Stripe Billing price IDs (from .env)
 const env = (import.meta as unknown as { env: Record<string, string | undefined> }).env;
 const PADDLE_PRICE_IDS: Partial<Record<PlanKey, string>> = {
   'Trends+': env.VITE_PADDLE_PRICE_ID_CREATOR,
   'Analytics+': env.VITE_PADDLE_PRICE_ID_PRO,
-  'Pro Combo': env.VITE_PADDLE_PRICE_ID_ELITE,
+};
+
+// Stripe price IDs structured by plan + billing cycle
+const STRIPE_PRICE_IDS: Record<string, string | undefined> = {
+  creator_monthly: env.VITE_STRIPE_PRICE_ID_CREATOR_MONTHLY,
+  creator_yearly: env.VITE_STRIPE_PRICE_ID_CREATOR_YEARLY,
+  pro_monthly: env.VITE_STRIPE_PRICE_ID_PRO_MONTHLY,
+  pro_yearly: env.VITE_STRIPE_PRICE_ID_PRO_YEARLY,
 };
 
 const gradientText = {
@@ -126,6 +119,7 @@ const Subscription = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [limitReached, setLimitReached] = useState<boolean>(false);
   const [paddleReady, setPaddleReady] = useState<boolean>(false);
+  const [billingCycle, setBillingCycle] = useState<BillingCycle>('yearly'); // default yearly
 
   const currentPlan = sub?.currentPlan || 'Free';
   const currentPlanConfig = useMemo(() => plans.find(p => p.tier === currentPlan)!, [currentPlan]);
@@ -237,8 +231,24 @@ const Subscription = () => {
     setSub(base);
   };
 
-  const openPaddleCheckout = (plan: PlanKey) => {
+  const getStripePriceKeyForPlan = (plan: PlanKey, cycle: BillingCycle): string | null => {
+    if (plan === 'Trends+') {
+      return cycle === 'monthly' ? 'creator_monthly' : 'creator_yearly';
+    }
+    if (plan === 'Analytics+') {
+      return cycle === 'monthly' ? 'pro_monthly' : 'pro_yearly';
+    }
+    return null;
+  };
+
+  const openPaddleCheckout = (plan: PlanKey, cycle: BillingCycle) => {
     const priceId = PADDLE_PRICE_IDS[plan];
+    // Select matching Stripe price ID (for Stripe-based billing flows)
+    const stripeKey = getStripePriceKeyForPlan(plan, cycle);
+    const stripePriceId = stripeKey ? STRIPE_PRICE_IDS[stripeKey] : undefined;
+    if (devMode) {
+      console.log('Selected billing cycle:', cycle, 'Stripe price ID:', stripePriceId);
+    }
     const paddle = (window as unknown as {
       Paddle?: {
         Checkout: {
@@ -283,10 +293,69 @@ const Subscription = () => {
             You’ve reached your analysis limit for this plan. Renew to continue.
           </div>
         )}
-        <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 w-full">
+
+        {/* Billing cycle toggle */}
+        <div className="mt-6 flex justify-center items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setBillingCycle('monthly')}
+            className={`px-4 py-1.5 rounded-full text-xs font-semibold border ${
+              billingCycle === 'monthly'
+                ? 'bg-white text-[#d72989] border-[#d72989]'
+                : 'bg-white/70 text-gray-600 border-gray-200 hover:bg-white'
+            }`}
+          >
+            Monthly
+          </button>
+          <button
+            type="button"
+            onClick={() => setBillingCycle('yearly')}
+            className={`px-4 py-1.5 rounded-full text-xs font-semibold border flex items-center gap-2 ${
+              billingCycle === 'yearly'
+                ? 'bg-[#d72989] text-white border-[#d72989]'
+                : 'bg-white/70 text-gray-600 border-gray-200 hover:bg-white'
+            }`}
+          >
+            <span>Yearly</span>
+            <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/90 text-[#d72989] font-semibold">
+              2 Months Free
+            </span>
+          </button>
+        </div>
+
+        <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 w-full">
           {plans.map((plan) => {
             const isCurrent = currentPlan === plan.tier;
             const isMostPopular = !!plan.mostPopular;
+
+            // Pricing logic per plan + billing cycle
+            let displayPrice = plan.price;
+            let priceSuffix = plan.isFree ? '' : '/month';
+            let billingSubtext: string | null = null;
+            let savingsBadge: string | null = null;
+
+            if (plan.tier === 'Trends+') {
+              if (billingCycle === 'monthly') {
+                displayPrice = '$9';
+                priceSuffix = '/month';
+              } else {
+                displayPrice = '$79';
+                priceSuffix = '/year';
+                billingSubtext = '$6.5/month billed annually';
+                savingsBadge = 'Save $29';
+              }
+            } else if (plan.tier === 'Analytics+') {
+              if (billingCycle === 'monthly') {
+                displayPrice = '$19';
+                priceSuffix = '/month';
+              } else {
+                displayPrice = '$149';
+                priceSuffix = '/year';
+                billingSubtext = '$12.4/month billed annually';
+                savingsBadge = 'Save $79';
+              }
+            }
+
             return (
               <div
                 key={plan.tier}
@@ -305,10 +374,22 @@ const Subscription = () => {
                   {plan.label}
                 </h2>
                 <p className="text-xs text-gray-500 mb-4 text-center">{plan.subtitle}</p>
-                <div className="flex items-baseline gap-1 mb-4">
-                  <span className="text-3xl font-extrabold text-black">{plan.price}</span>
-                  <span className="text-sm text-gray-500">{plan.isFree ? '' : '/month'}</span>
+                <div className="flex items-baseline gap-1 mb-1">
+                  <span className="text-3xl font-extrabold text-black">{displayPrice}</span>
+                  <span className="text-sm text-gray-500">{plan.isFree ? '' : priceSuffix}</span>
                 </div>
+                {billingSubtext && (
+                  <p className="text-xs text-gray-500 mb-2 text-center">
+                    {billingSubtext}
+                  </p>
+                )}
+                {billingCycle === 'yearly' && savingsBadge && (
+                  <div className="mb-2">
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-green-50 text-[11px] font-semibold text-green-700">
+                      {savingsBadge}
+                    </span>
+                  </div>
+                )}
                 <ul className="text-gray-700 text-left mb-6 list-disc list-inside space-y-2 w-full">
                 {plan.features.map((feature, idx) => (
                   <li key={idx}>{feature}</li>
@@ -338,7 +419,7 @@ const Subscription = () => {
               ) : (
                 <button
                   className="mt-auto px-8 py-3 rounded-lg font-semibold transition-colors w-full text-lg shadow-md bg-[#8b5cf6] text-white hover:bg-[#7c3aed]"
-                  onClick={() => openPaddleCheckout(plan.tier)}
+                  onClick={() => openPaddleCheckout(plan.tier, billingCycle)}
                 >
                   Upgrade
                 </button>
