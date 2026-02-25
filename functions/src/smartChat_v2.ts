@@ -677,12 +677,50 @@ export const smartChatV2 = onCall(
         throw new HttpsError("unauthenticated", "You must be signed in to use Smart Chat");
       }
 
-      const userDoc = await db.collection("users").doc(userId).get();
+      const userRef = db.collection("users").doc(userId);
+      const userDoc = await userRef.get();
       if (!userDoc.exists) {
         throw new HttpsError("failed-precondition", "Please add an Instagram account in Analytics to use Smart Chat.");
       }
 
-      const selectedAccount = userDoc.data()?.selectedInstagramAccount;
+      const userData = userDoc.data() || {};
+
+      // Plan-aware daily Smart Chat limit: Free plan gets 5 queries/day
+      const currentPlan = (userData.currentPlan as string) || "Free";
+      const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD (UTC)
+      const usage = (userData as any).smartChatUsage || {};
+      let usageDate: string | null = typeof usage.date === "string" ? usage.date : null;
+      let usageCount: number = typeof usage.count === "number" ? usage.count : 0;
+
+      if (usageDate !== today) {
+        usageDate = today;
+        usageCount = 0;
+      }
+
+      if (currentPlan === "Free" && usageCount >= 5) {
+        throw new HttpsError(
+          "resource-exhausted",
+          "You have used your 5 free Smart Chat queries for today on the FREE – Explorer plan. Upgrade your plan to unlock more daily Smart Chat questions."
+        );
+      }
+
+      // Best-effort update of Smart Chat usage (non-blocking if it fails)
+      try {
+        await userRef.set(
+          {
+            currentPlan,
+            smartChatUsage: {
+              date: today,
+              count: usageCount + 1,
+            },
+          },
+          { merge: true }
+        );
+      } catch (err) {
+        console.error("Failed to update smartChatUsage for user", userId, err);
+      }
+
+      const selectedAccount = (userData as any)?.selectedInstagramAccount;
       if (!selectedAccount) {
         throw new HttpsError("failed-precondition", "Please add an Instagram account in Analytics to use Smart Chat.");
       }

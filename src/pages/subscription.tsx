@@ -36,34 +36,37 @@ const plans: Array<{
   },
   {
     tier: "Trends+",
-    label: "CREATOR – Growth Builder",
-    subtitle: "For serious individual creators",
+    label: "Creator",
+    subtitle: "For individual creators building consistent growth.",
     price: "$9",
     features: [
-      "10 profile analyses per month",
-      "30-day growth tracking",
-      "Best time to post (data-based)",
-      "Content performance insights",
-      "Basic SmartChat (analytics only)",
-      "Limited hashtag intelligence",
-      "Competitor comparison (compare up to 2 usernames)",
+      "Analytics",
+      "10 Profile Analyses per month",
+      "30-Day Growth Tracking",
+      "Competitor Comparison (up to 2 profiles)",
+      "Content Performance Insights",
+      "Basic Hashtag & Post Intelligence",
+      "Core Hashtag Intelligence",
+      "SmartChat (up to 600 queries/month)",
     ],
     usageLimit: 10,
   },
   {
     tier: "Analytics+",
-    label: "PRO – Growth Accelerator",
-    subtitle: "Our most popular plan for growth",
+    label: "Pro",
+    subtitle: "For serious creators, brands, and growth-focused teams.",
     price: "$19",
     features: [
-      "30 profile analyses per month",
-      "90-day growth tracking",
-      "Competitor comparison (compare up to 5 usernames)",
-      "Engagement leak detection",
-      "AI Growth Suggestions (data-backed)",
-      "Advanced hashtag analysis",
-      "SmartChat Pro (Analytics + GROWTH)",
-      "CSV exports",
+      "Advanced Analytics",
+      "30 Profile Analyses per month",
+      "90-Day Growth Tracking",
+      "Competitor Comparison (up to 5 profiles)",
+      "Engagement Drop Detection",
+      "AI & Advanced Insights",
+      "AI-Powered Growth Intelligence",
+      "Advanced Hashtag Analysis",
+      "SmartChat (1,200+ queries/month)",
+      "CSV Data Exports",
     ],
     mostPopular: true,
     badge: "⭐ MOST POPULAR",
@@ -460,7 +463,7 @@ const Subscription = () => {
                   className="mt-auto px-8 py-3 rounded-lg font-semibold transition-colors w-full text-lg shadow-md bg-[#8b5cf6] text-white hover:bg-[#7c3aed]"
                   onClick={() => openPaddleCheckout(plan.tier, billingCycle)}
                 >
-                  Upgrade
+                  {plan.tier === 'Trends+' ? 'Get Started' : 'Start Pro Plan'}
                 </button>
               )}
               </div>
