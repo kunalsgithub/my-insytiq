@@ -45,7 +45,7 @@ const plans: Array<{
       "30-Day Growth Tracking",
       "Competitor Comparison (up to 2 profiles)",
       "Content Performance Insights",
-      "Basic Hashtag & Post Intelligence",
+      "Basic Post Level Intelligence",
       "Core Hashtag Intelligence",
       "SmartChat (up to 600 queries/month)",
     ],
