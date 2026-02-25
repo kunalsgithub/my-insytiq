@@ -38,7 +38,7 @@ const plans: Array<{
     tier: "Trends+",
     label: "Creator",
     subtitle: "For individual creators building consistent growth.",
-    price: "$9",
+    price: "$19",
     features: [
       "Analytics",
       "10 Profile Analyses per month",
@@ -55,7 +55,7 @@ const plans: Array<{
     tier: "Analytics+",
     label: "Pro",
     subtitle: "For serious creators, brands, and growth-focused teams.",
-    price: "$19",
+    price: "$29",
     features: [
       "Advanced Analytics",
       "30 Profile Analyses per month",
@@ -378,23 +378,24 @@ const Subscription = () => {
 
             if (plan.tier === 'Trends+') {
               if (billingCycle === 'monthly') {
-                displayPrice = '$9';
-                priceSuffix = '/month';
-              } else {
-                displayPrice = '$79';
-                priceSuffix = '/year';
-                billingSubtext = '$6.5/month billed annually';
-                savingsBadge = 'Save $29';
-              }
-            } else if (plan.tier === 'Analytics+') {
-              if (billingCycle === 'monthly') {
                 displayPrice = '$19';
                 priceSuffix = '/month';
               } else {
-                displayPrice = '$149';
+                displayPrice = '$189';
                 priceSuffix = '/year';
-                billingSubtext = '$12.4/month billed annually';
-                savingsBadge = 'Save $79';
+                billingSubtext = '$15.75/month billed annually';
+                savingsBadge = 'Save $39';
+              }
+            
+            } else if (plan.tier === 'Analytics+') {
+              if (billingCycle === 'monthly') {
+                displayPrice = '$29';
+                priceSuffix = '/month';
+              } else {
+                displayPrice = '$289';
+                priceSuffix = '/year';
+                billingSubtext = '$24.08/month billed annually';
+                savingsBadge = 'Save $59';
               }
             }
 
