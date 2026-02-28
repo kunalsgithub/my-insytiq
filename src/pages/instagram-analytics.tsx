@@ -10,7 +10,7 @@ import { doc, getDoc } from "firebase/firestore";
 import { db } from "../services/firebaseService";
 import { useInstagramData } from "../hooks/useInstagramData";
 import { useUsernameManager } from "../hooks/useUsernameManager";
-import { PLAN } from "../utils/accessControl";
+import { PLAN, PLAN_PROFILE_ANALYSES_LIMIT } from "../utils/accessControl";
 import { useToast } from "../hooks/use-toast";
 import { getSocialBladeAnalytics } from "../api/getSocialBladeAnalytics";
 import {
@@ -25,7 +25,7 @@ const InstagramAnalyticsPage = () => {
   const [username, setUsername] = useState("");
   const [isRestoringFromCache, setIsRestoringFromCache] = useState(false);
 
-  const [instagramData, analyzeUsername, setDataFromFirestore] =
+  const [instagramData, analyzeUsername, setDataFromFirestore, setAnalysisError] =
     useInstagramData();
 
   const {
@@ -44,19 +44,28 @@ const InstagramAnalyticsPage = () => {
   } = useInstagramAnalyticsStore();
 
   const [userPlan, setUserPlan] = useState<string>(PLAN.FREE);
+  const [profileAnalysisLimitReached, setProfileAnalysisLimitReached] = useState(false);
 
   useEffect(() => {
     if (!userId) return;
-    const loadPlan = async () => {
+    const loadPlanAndUsage = async () => {
       try {
         const userDoc = await getDoc(doc(db, "users", userId));
-        const plan = (userDoc.data()?.currentPlan as string) || PLAN.FREE;
+        const data = userDoc.data();
+        const plan = (data?.currentPlan as string) || PLAN.FREE;
         setUserPlan(plan);
+        const usage = (data as any)?.profileAnalysisUsage || {};
+        const usageMonth = typeof usage.month === "string" ? usage.month : null;
+        const usageCount = typeof usage.count === "number" ? usage.count : 0;
+        const thisMonth = new Date().toISOString().slice(0, 7);
+        const limit = PLAN_PROFILE_ANALYSES_LIMIT[plan] ?? PLAN_PROFILE_ANALYSES_LIMIT[PLAN.ANALYTICS_PLUS];
+        setProfileAnalysisLimitReached(usageMonth === thisMonth && usageCount >= limit);
       } catch {
         setUserPlan(PLAN.FREE);
+        setProfileAnalysisLimitReached(false);
       }
     };
-    loadPlan();
+    loadPlanAndUsage();
   }, [userId]);
 
   // Restore last username
@@ -165,12 +174,50 @@ const InstagramAnalyticsPage = () => {
 
         // 🔥 ONLY PLACE Apify CAN RUN
         if (result.needsFetch) {
+          if (profileAnalysisLimitReached) {
+            const limit = PLAN_PROFILE_ANALYSES_LIMIT[userPlan] ?? PLAN_PROFILE_ANALYSES_LIMIT[PLAN.ANALYTICS_PLUS];
+            const msg = `Your plan allows ${limit} profile analyses per month. You've reached that limit this month. Upgrade your plan to analyze more accounts.`;
+            toast({ title: "Limit reached", description: msg, variant: "destructive" });
+            setAnalysisError(msg);
+            markLoaded(loadKey);
+            return;
+          }
           await fetchAnalyticsIfNeeded(userId, username);
+          {
+            const userDoc = await getDoc(doc(db, "users", userId));
+            const data = userDoc.data();
+            const usage = (data as any)?.profileAnalysisUsage || {};
+            const usageMonth = typeof usage.month === "string" ? usage.month : null;
+            const usageCount = typeof usage.count === "number" ? usage.count : 0;
+            const thisMonth = new Date().toISOString().slice(0, 7);
+            const limit = PLAN_PROFILE_ANALYSES_LIMIT[userPlan] ?? PLAN_PROFILE_ANALYSES_LIMIT[PLAN.ANALYTICS_PLUS];
+            setProfileAnalysisLimitReached(usageMonth === thisMonth && usageCount >= limit);
+          }
           markLoaded(loadKey);
         }
 
         analyzeUsername(username);
-      } catch {
+      } catch (err: any) {
+        const code = err?.code || "";
+        const message = err?.message || "";
+        const isLimitReached =
+          code === "functions/resource-exhausted" ||
+          message.includes("profile analyses per month");
+        if (isLimitReached) {
+          toast({
+            title: "Limit reached",
+            description:
+              message ||
+              "You've reached your profile analysis limit for this month. Upgrade to analyze more accounts.",
+            variant: "destructive",
+          });
+          setAnalysisError(
+            message ||
+              "You've reached your profile analysis limit for this month. Upgrade to analyze more accounts."
+          );
+          markLoaded(loadKey);
+          return;
+        }
         analyzeUsername(username);
         markLoaded(loadKey);
       }
@@ -213,6 +260,25 @@ const InstagramAnalyticsPage = () => {
         <h1 className="text-4xl font-bold text-center gradient-text mb-10">
           Instagram Analytics
         </h1>
+
+        {profileAnalysisLimitReached && (
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6 text-center">
+            <p className="text-amber-800 font-medium">
+              You've used your {PLAN_PROFILE_ANALYSES_LIMIT[userPlan] ?? 0} profile analyses for this month.
+            </p>
+            <p className="text-sm text-amber-700 mt-1">
+              {userPlan === PLAN.FREE ? "Upgrade your plan to analyze more accounts per month." : "Your limit resets next month."}
+            </p>
+            {userPlan === PLAN.FREE && (
+              <a
+                href="/subscription"
+                className="inline-block mt-3 text-sm font-semibold text-amber-800 underline"
+              >
+                View plans →
+              </a>
+            )}
+          </div>
+        )}
 
         <div className="bg-white rounded-xl shadow p-6 mb-8">
           <InstagramUsernameInput onAnalyze={handleAnalyzeUsername} />

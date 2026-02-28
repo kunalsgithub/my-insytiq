@@ -20,9 +20,16 @@ interface Post {
   commentsCount?: number;
   caption?: string;
   timestamp?: number | null;
-  type?: string;
+  type?: string | null;
   isVideo?: boolean;
   url?: string | null;
+  // Optional post-level metrics (may be absent for older data)
+  reach?: number | null;
+  impressions?: number | null;
+  savesCount?: number | null;
+  sharesCount?: number | null;
+  // For Reels/videos: public views metric when available
+  viewsCount?: number | null;
 }
 
 interface DataSnapshot {
@@ -198,15 +205,62 @@ async function getDataSnapshot(
     const postsList = (d as any)?.posts;
     const rawPosts = Array.isArray(postsList) ? postsList : [];
     // Normalize so every post has .timestamp (from any common field) for POSTING_FREQUENCY / dates
-    const posts: Post[] = rawPosts.map((p: any) => ({
-      likesCount: p.likesCount ?? p.likeCount,
-      commentsCount: p.commentsCount ?? p.commentCount,
-      caption: p.caption ?? "",
-      timestamp: parsePostTimestamp(p),
-      type: p.type,
-      isVideo: p.isVideo,
-      url: p.url ?? null,
-    }));
+    const posts: Post[] = rawPosts.map((p: any) => {
+      const reach =
+        typeof p.reach === "number"
+          ? p.reach
+          : typeof p.reachCount === "number"
+          ? p.reachCount
+          : typeof p.impressions === "number"
+          ? p.impressions
+          : null;
+      const saves =
+        typeof p.savesCount === "number"
+          ? p.savesCount
+          : typeof p.saveCount === "number"
+          ? p.saveCount
+          : typeof p.saved === "number"
+          ? p.saved
+          : typeof p.saves === "number"
+          ? p.saves
+          : null;
+      const shares =
+        typeof p.sharesCount === "number"
+          ? p.sharesCount
+          : typeof p.shareCount === "number"
+          ? p.shareCount
+          : null;
+      const views =
+        typeof p.viewsCount === "number"
+          ? p.viewsCount
+          : typeof p.videoViewCount === "number"
+          ? p.videoViewCount
+          : typeof p.viewCount === "number"
+          ? p.viewCount
+          : typeof p.playCount === "number"
+          ? p.playCount
+          : typeof p.videoPlayCount === "number"
+          ? p.videoPlayCount
+          : typeof p.plays === "number"
+          ? p.plays
+          : typeof p.views === "number"
+          ? p.views
+          : null;
+      return {
+        likesCount: p.likesCount ?? p.likeCount,
+        commentsCount: p.commentsCount ?? p.commentCount,
+        caption: p.caption ?? "",
+        timestamp: parsePostTimestamp(p),
+        type: typeof p.type === "string" ? p.type : null,
+        isVideo: !!p.isVideo,
+        url: p.url ?? null,
+        reach,
+        impressions: reach,
+        savesCount: saves,
+        sharesCount: shares,
+        viewsCount: views,
+      };
+    });
     const postCount = posts.length;
     const dataWindowMode = (d as any)?.dataWindowMode as "days" | "posts" | undefined;
     const dataWindowLabel = (d as any)?.dataWindowLabel as string | undefined;
@@ -264,15 +318,62 @@ async function getDataSnapshot(
       if (shortcode && typeof shortcode === "string") return `https://www.instagram.com/p/${shortcode}/`;
       return null;
     };
-    const posts: Post[] = media.map((p: any) => ({
-      likesCount: p.likesCount ?? p.likeCount,
-      commentsCount: p.commentsCount ?? p.commentCount,
-      caption: p.caption ?? "",
-      timestamp: parsePostTimestamp(p),
-      type: p.type,
-      isVideo: p.isVideo,
-      url: getPostUrl(p) || null,
-    }));
+    const posts: Post[] = media.map((p: any) => {
+      const reach =
+        typeof p.reach === "number"
+          ? p.reach
+          : typeof p.reachCount === "number"
+          ? p.reachCount
+          : typeof p.impressions === "number"
+          ? p.impressions
+          : null;
+      const saves =
+        typeof p.savesCount === "number"
+          ? p.savesCount
+          : typeof p.saveCount === "number"
+          ? p.saveCount
+          : typeof p.saved === "number"
+          ? p.saved
+          : typeof p.saves === "number"
+          ? p.saves
+          : null;
+      const shares =
+        typeof p.sharesCount === "number"
+          ? p.sharesCount
+          : typeof p.shareCount === "number"
+          ? p.shareCount
+          : null;
+      const views =
+        typeof p.viewsCount === "number"
+          ? p.viewsCount
+          : typeof p.videoViewCount === "number"
+          ? p.videoViewCount
+          : typeof p.viewCount === "number"
+          ? p.viewCount
+          : typeof p.playCount === "number"
+          ? p.playCount
+          : typeof p.videoPlayCount === "number"
+          ? p.videoPlayCount
+          : typeof p.plays === "number"
+          ? p.plays
+          : typeof p.views === "number"
+          ? p.views
+          : null;
+      return {
+        likesCount: p.likesCount ?? p.likeCount,
+        commentsCount: p.commentsCount ?? p.commentCount,
+        caption: p.caption ?? "",
+        timestamp: parsePostTimestamp(p),
+        type: typeof p.type === "string" ? p.type : null,
+        isVideo: !!p.isVideo,
+        url: getPostUrl(p) || null,
+        reach,
+        impressions: reach,
+        savesCount: saves,
+        sharesCount: shares,
+        viewsCount: views,
+      };
+    });
 
     return {
       hasPosts: postCount > 0,
@@ -331,6 +432,22 @@ const POSTING_TIME_THRESHOLD = 10;
 
 function classifyIntent(message: string): string {
   const m = message.toLowerCase();
+  // ─── Community / analytics-knowledge intents (answer from factual block + optional user data) ───
+  if (/\breach\s+vs\.?\s+impressions?\b|\bimpressions?\s+vs\.?\s+reach\b|what does reach vs impressions tell|interpret reach and impressions/.test(m)) return "REACH_VS_IMPRESSIONS";
+  if (/\bstory\s+analytics\b|story metrics|taps.*exits|exits.*navigation|interpret.*story|story exit rate/.test(m)) return "STORY_ANALYTICS";
+  if (/\bsaves?\s+and\s+profile\s+visits?\b|focus on saves|saves vs likes|saves or likes|profile visits vs likes|enough.*likes.*or.*saves/.test(m)) return "SAVES_VS_LIKES";
+  if (/\bmetrics?\s+to\s+measure\s+business\b|measure business growth|business growth.*instagram|tie.*engagement.*business|lead signups|outcomes/.test(m)) return "BUSINESS_METRICS";
+  if (/\bwhich\s+hashtags?\s+help\b|hashtags?.*help.*reach|hashtags?.*actually\s+help/.test(m)) return "HASHTAG_REACH";
+  if (/\bengagement\s+patterns?\s+weekday|weekday.*weekend|weekend.*engagement|different.*weekday/.test(m) && !m.includes("best time")) return "WEEKDAY_WEEKEND";
+  if (/\balgorithm\s+changes?\b|content quality|growth slowing|algorithm or content/.test(m)) return "ALGORITHM_VS_CONTENT";
+  if (/\buse\s+analytics\s+to\s+test\s+posting\s+times?\b|optimize posting times? using analytics|test posting times/.test(m)) return "POSTING_TIME_TEST";
+  if (/\bengagement\s+trends?\s+suggest\b|what do my engagement trends|content strategy.*engagement/.test(m)) return "ENGAGEMENT_TRENDS";
+  if (/\breal\s+audience\s+vs\b|random users|real vs random|measure.*real.*audience|interactions.*from\s+real/.test(m)) return "REAL_VS_RANDOM";
+  if (/\bgraph\s+api\b|pull.*analytics.*api|instagram.*api.*analytics/.test(m)) return "GRAPH_API";
+  if (/\binstagram\s+insights\s+give\b|what metrics.*insights|insights.*actually\s+give/.test(m)) return "INSIGHTS_METRICS";
+  if (/\bthird[- ]?party\s+analytics\b|third-party.*vs.*native|compare.*insights.*tools/.test(m)) return "THIRD_PARTY_TOOLS";
+  if (/\bhigh\s+engagement\s+but\s+no\s+profile\s+visits\b|why.*profile visits|engagement.*no profile visits/.test(m)) return "PROFILE_VISITS_WHY";
+
   if (
     m.includes("hashtag") || m.includes("hashtags") || m.includes("tag suggestions") ||
     /\bhashtags?\b/.test(m) || /\btags?\b/.test(m)
@@ -350,11 +467,30 @@ function classifyIntent(message: string): string {
     /\bpost\s+more\s+in\s+(the\s+)?afternoon\b/.test(m) || /\btime\s+slot\s+has\s+(the\s+)?lowest\b/.test(m) ||
     m.includes("which weekday") || m.includes("which day") && m.includes("engagement")
   ) return "POSTING_TIME";
+  // Content format / post types questions: Reels vs carousels vs static, "what types of posts work best"
+  if (
+    /\b(types?\s+of\s+posts?|post\s+types?|content\s+types?|content\s+formats?)\b/.test(m) ||
+    m.includes("reels vs") ||
+    m.includes("reels versus") ||
+    m.includes("reel vs") ||
+    m.includes("carousel vs") ||
+    m.includes("carousel versus") ||
+    m.includes("static vs") ||
+    m.includes("photo vs") ||
+    (m.includes("reels") && (m.includes("carousels") || m.includes("static") || m.includes("photos"))) ||
+    (m.includes("which") && m.includes("posts") && m.includes("work best"))
+  ) return "CONTENT_FORMAT";
   // Posts per month / posting frequency / average posts
   if (
     m.includes("posts per month") || m.includes("post per month") || m.includes("posting frequency") ||
-    m.includes("average number of posts") || m.includes("how many posts") && (m.includes("month") || m.includes("monthly")) ||
-    m.includes("monthly average") || m.includes("posts in monthly") || m.includes("analyze") && m.includes("posts") && m.includes("month")
+    m.includes("average number of posts") ||
+    (m.includes("how many posts") && (m.includes("month") || m.includes("monthly"))) ||
+    m.includes("monthly average") || m.includes("posts in monthly") ||
+    (m.includes("analyze") && m.includes("posts") && m.includes("month")) ||
+    (m.includes("how often") && m.includes("post")) ||
+    (m.includes("how frequently") && m.includes("post")) ||
+    (m.includes("how often") && m.includes("should i post")) ||
+    (m.includes("how frequently") && m.includes("should i post"))
   ) return "POSTING_FREQUENCY";
   // Follower growth / followers this month (we only have current count, not history)
   if (
@@ -414,6 +550,16 @@ function decideResponseMode(intent: string, snapshot: DataSnapshot): ResponseMod
     const hasTimestamps = snapshot.posts?.some((p) => p.timestamp != null) ?? false;
     return snapshot.postCount >= 3 && hasTimestamps ? "ANALYTICS" : "LIMITATION";
   }
+  if (intent === "CONTENT_FORMAT") {
+    const hasPosts = snapshot.posts?.length && snapshot.posts.length >= ANALYTICS_POST_THRESHOLD;
+    return hasPosts ? "ANALYTICS" : "LIMITATION";
+  }
+  const analyticsKnowledgeIntents = [
+    "REACH_VS_IMPRESSIONS", "STORY_ANALYTICS", "SAVES_VS_LIKES", "BUSINESS_METRICS", "HASHTAG_REACH",
+    "WEEKDAY_WEEKEND", "ALGORITHM_VS_CONTENT", "POSTING_TIME_TEST", "ENGAGEMENT_TRENDS", "REAL_VS_RANDOM",
+    "GRAPH_API", "INSIGHTS_METRICS", "THIRD_PARTY_TOOLS", "PROFILE_VISITS_WHY",
+  ];
+  if (analyticsKnowledgeIntents.includes(intent)) return "STRATEGY";
   if (intent === "GENERATION" || intent === "DIAGNOSIS") return "STRATEGY";
   if (intent === "POSTING_TIME" || intent === "BEST_POST" || intent === "HASHTAGS" || intent === "WHY_ABOUT_POSTS" || intent === "CAPTIONS_OR_PAID_POSTS") {
     if (snapshot.postCount === 0) return "LIMITATION";
@@ -513,6 +659,41 @@ function buildStrategyDataBlock(snapshot: DataSnapshot, selectedAccount: string)
   return "Account data (use these numbers to tailor your advice):\n" + parts.join("\n");
 }
 
+/** Factual, data-based answers for community-style analytics questions. Used to keep SmartChat accurate and consistent. */
+function getAnalyticsKnowledgeBlock(intent: string): string {
+  const blocks: Record<string, string> = {
+    REACH_VS_IMPRESSIONS:
+      "Reach = unique accounts that saw the post. Impressions = total number of times it was seen (repeat views count). If impressions are much higher than reach, the same people are seeing it multiple times (good for recall; can mean you are not reaching new people). Compare reach and impressions per format (Reels vs carousels vs single image) to see which expands audience vs which gets repeat views.",
+    STORY_ANALYTICS:
+      "Taps forward = next (people skipping). Exits = left Stories. Replies = direct engagement. High exit rate on a specific Story = drop-off point; test different content or length there. Compare exit rate by position (e.g. Story 1 vs 5) to see where you lose people; use that to decide length and order.",
+    SAVES_VS_LIKES:
+      "Likes and comments = engagement signal. Saves = intent to return or perceived value. Profile visits = interest in you, not just one post. For growth and algorithm, saves and profile visits often correlate more with reach over time than likes alone. Compare in your own data: posts with high saves vs high likes; if high-save posts get more reach in the next days, prioritize content that gets saved.",
+    BUSINESS_METRICS:
+      "Awareness: reach, impressions, non-follower reach. Consideration: profile visits, website clicks, DMs, saves. Conversion: track link clicks, promo codes, or UTM to sales or signups. Tie to business by defining one primary outcome (e.g. link clicks or signups) and see which content types and time windows drive that metric in Insights.",
+    HASHTAG_REACH:
+      "In Insights, check Reach or Accounts reached by post; note which posts used which hashtags. Compare same format and similar content with different hashtag sets: which had higher reach? Repeating the same hashtags across many posts and comparing reach over time shows if they are still working or saturated.",
+    WEEKDAY_WEEKEND:
+      "Audiences behave differently on weekdays vs weekends. Use your data: group posts by weekday vs weekend and compare avg engagement (or reach) per post. If weekend posts consistently underperform, that is a data-backed pattern; then test content type or time on weekends. If you have analyzed posts, we can compare weekday vs weekend from your stored data.",
+    ALGORITHM_VS_CONTENT:
+      "You cannot isolate algorithm directly; you can test content and consistency. Compare: (1) your posting frequency and format mix over the last 3 months, (2) reach and engagement trends. If you posted less or changed format mix when growth slowed, that is a candidate cause. Run controlled tests: same format and style, different times or hashtags, and see if reach or engagement change.",
+    POSTING_TIME_TEST:
+      "Export or use last 30+ posts with timestamps; group by hour or time slot (e.g. morning, afternoon, evening). For each slot compute avg engagement (or reach) per post and number of posts. Best time = slot with highest avg performance and enough posts (e.g. 5+) to be meaningful. In this chat you can ask for best posting time and we use your analyzed posts to compute time slots.",
+    ENGAGEMENT_TRENDS:
+      "Plot engagement rate (or reach) over time by week. If rising: keep format and posting rhythm. If falling: check frequency, format mix, and whether recent posts underperform by format. Compare engagement by format over time to see if one format is trending up or down.",
+    REAL_VS_RANDOM:
+      "Follower vs non-follower: in Insights, Accounts reached often breaks down followers vs non-followers. Quality of engagement: profile visits and saves are stronger intent than one-off likes from Explore. Compare % of reach from followers and ratio of saves (or profile visits) to likes; if many likes but few saves or profile visits, a larger share may be casual viewers.",
+    GRAPH_API:
+      "Instagram Graph API is only available for Business or Creator accounts connected to a Facebook App. Metrics (e.g. insights on reach, impressions, engagement) depend on the endpoint and permissions (e.g. instagram_business_insights). Official docs: developers.facebook.com/docs/instagram-api; use the Insights endpoints for the metrics you need.",
+    INSIGHTS_METRICS:
+      "Account: reach, impressions, profile visits, website clicks, follower count and growth. Per post: reach, impressions, likes, comments, saves, shares, profile visits, follows (for some surfaces). Stories: reach, impressions, exits, replies, navigation (forward/back). Reels: plays (views), reach, likes, comments, saves, shares. Native Insights does not give unlimited historical export; third-party tools often aggregate and retain history.",
+    THIRD_PARTY_TOOLS:
+      "Native Insights: free, official, but limited history and no cross-account comparison. Third-party: often longer history, benchmarking, scheduling, and sometimes estimated or scraped metrics (e.g. reach when API does not expose it). Compare on: (1) which metrics they show, (2) whether data is from API vs scraping, (3) retention and export. For strict accuracy, prefer tools that use the official API where possible.",
+    PROFILE_VISITS_WHY:
+      "High engagement (likes, comments) with low profile visits usually means the content was engaging in-feed but did not create a who is this moment. Common pattern: entertaining Reels get lots of engagement from non-followers; educational or clearly you content gets more profile visits. In your analytics, compare profile visits per post type and caption style to see what drives visits.",
+  };
+  return blocks[intent] || "";
+}
+
 function buildAnalyticsContext(snapshot: DataSnapshot, selectedAccount: string, requestedTopN: number = 10): string {
   // Prefer a days-based label when available (from analytics metadata), otherwise
   // fall back to a simple "last N posts" description.
@@ -579,7 +760,7 @@ function buildAnalyticsContext(snapshot: DataSnapshot, selectedAccount: string, 
   parts.push(
     "",
     "LOCK: Use ONLY these numbers. Never invent, diagnose, or guess.",
-    "RESPONSE FORMAT (required — use these section headers WITHOUT numbers):",
+    "RESPONSE FORMAT (required — use these section headers WITHOUT numbers and WITHOUT any leading '#', '##', or '###' markdown):",
     "DATA ANALYZED: [what we checked]",
     "FACTS (numbers only): [metrics; when referencing specific posts, use the post format below]",
     "WHAT CANNOT BE CONCLUDED: [limitations if any]",
@@ -610,6 +791,327 @@ function buildAnalyticsContext(snapshot: DataSnapshot, selectedAccount: string, 
 }
 
 type ChatMessage = { role: "system" | "user" | "assistant"; content: string };
+
+/** Strip markdown heading hashes (# ## ###) from the start of lines so they never appear in the UI. */
+function stripMarkdownHeadings(text: string): string {
+  if (!text || typeof text !== "string") return text;
+  // Strip leading #+ at line start (e.g. "### 2. Carousels" -> "2. Carousels")
+  let out = text.replace(/^\s*#+\s*/gm, "");
+  // Strip #+ that appears after leading ** (e.g. "**### 2. Carousels**" -> "**2. Carousels**")
+  out = out.replace(/^(\s*\*\*)#+\s*/gm, "$1");
+  return out.trim();
+}
+
+// ─── 4. FORMAT & FREQUENCY ANALYSIS HELPERS (DETERMINISTIC, NO OPENAI) ─────
+
+type NormalizedFormat = "Reels" | "Carousels" | "Static";
+
+interface FormatAggregate {
+  format: NormalizedFormat;
+  count: number;
+  avgReach: number | null;
+  avgEngagementRate: number | null;
+  avgSaves: number | null;
+   // For Reels: average views; null for others
+  avgViews: number | null;
+}
+
+function classifyPostFormat(post: Post): NormalizedFormat {
+  const t = (post.type || "").toLowerCase();
+  // Carousel/sidecar/album first (multi-slide content)
+  if (t.includes("carousel") || t.includes("sidecar") || t.includes("album")) return "Carousels";
+  // Reels: explicit reel type, any video type (Video, GraphVideo, etc.), or isVideo flag from scraper
+  if (t.includes("reel") || t.includes("video") || t.includes("graphvideo") || post.isVideo === true) return "Reels";
+  return "Static";
+}
+
+function pctDiff(a: number | null | undefined, b: number | null | undefined): number | null {
+  if (a == null || b == null || b === 0) return null;
+  return parseFloat((((a - b) / b) * 100).toFixed(1));
+}
+
+function formatNumber(value: number | null | undefined): string {
+  if (value == null || Number.isNaN(value)) return "N/A";
+  return Math.round(value).toLocaleString();
+}
+
+function formatPercent(value: number | null | undefined): string {
+  if (value == null || Number.isNaN(value)) return "N/A";
+  return `${parseFloat(value.toFixed(1))}%`;
+}
+
+function analyzeFormats(snapshot: DataSnapshot): { formats: FormatAggregate[]; baseFormat: NormalizedFormat | null; totalPosts: number } | null {
+  const posts = snapshot.posts;
+  if (!posts || posts.length < 5) return null;
+
+  // Use last 30 posts (or fewer if less available)
+  const sorted = [...posts].sort((a, b) => {
+    const ta = a.timestamp ?? 0;
+    const tb = b.timestamp ?? 0;
+    return ta - tb;
+  });
+  const window = sorted.slice(-30);
+  if (window.length < 5) return null;
+
+  const totals: Record<NormalizedFormat, { posts: number; reachSum: number; reachCount: number; erSum: number; erCount: number; savesSum: number; savesCount: number; viewsSum: number; viewsCount: number }> = {
+    Reels: { posts: 0, reachSum: 0, reachCount: 0, erSum: 0, erCount: 0, savesSum: 0, savesCount: 0, viewsSum: 0, viewsCount: 0 },
+    Carousels: { posts: 0, reachSum: 0, reachCount: 0, erSum: 0, erCount: 0, savesSum: 0, savesCount: 0, viewsSum: 0, viewsCount: 0 },
+    Static: { posts: 0, reachSum: 0, reachCount: 0, erSum: 0, erCount: 0, savesSum: 0, savesCount: 0, viewsSum: 0, viewsCount: 0 },
+  };
+
+  const followers = snapshot.followers && snapshot.followers > 0 ? snapshot.followers : null;
+
+  window.forEach((p) => {
+    const format = classifyPostFormat(p);
+    const likes = p.likesCount ?? 0;
+    const comments = p.commentsCount ?? 0;
+    const engagement = likes + comments;
+    const reach = typeof p.reach === "number" && p.reach > 0 ? p.reach : typeof p.impressions === "number" && p.impressions > 0 ? p.impressions : null;
+    const saves = typeof p.savesCount === "number" && p.savesCount >= 0 ? p.savesCount : null;
+    const views = typeof p.viewsCount === "number" && p.viewsCount > 0 ? p.viewsCount : null;
+
+    totals[format].posts += 1;
+    if (reach != null) {
+      totals[format].reachSum += reach;
+      totals[format].reachCount += 1;
+    }
+    if (followers && followers > 0 && engagement > 0) {
+      const er = (engagement / followers) * 100;
+      totals[format].erSum += er;
+      totals[format].erCount += 1;
+    }
+    if (saves != null) {
+      totals[format].savesSum += saves;
+      totals[format].savesCount += 1;
+    }
+    if (views != null) {
+      totals[format].viewsSum += views;
+      totals[format].viewsCount += 1;
+    }
+  });
+
+  // Always return all three formats (include 0-post formats so Reels/Carousels/Static always appear)
+  const formats: FormatAggregate[] = (["Reels", "Carousels", "Static"] as NormalizedFormat[]).map((f) => {
+    const t = totals[f];
+    const avgReach = t.reachCount > 0 ? t.reachSum / t.reachCount : null;
+    const avgEng =
+      t.posts > 0 && followers && followers > 0
+        ? t.erCount > 0
+          ? t.erSum / t.erCount
+          : 0
+        : null;
+    const avgSaves = t.savesCount > 0 ? t.savesSum / t.savesCount : null;
+    const avgViews = t.viewsCount > 0 ? t.viewsSum / t.viewsCount : null;
+    return {
+      format: f,
+      count: t.posts,
+      avgReach,
+      avgEngagementRate: avgEng,
+      avgSaves,
+      avgViews,
+    };
+  });
+
+  const base = formats.find((f) => f.format === "Static" && f.count > 0) ? "Static" : formats.find((f) => f.count > 0)?.format ?? "Static";
+  return { formats, baseFormat: base, totalPosts: window.length };
+}
+
+function buildFormatPerformanceReply(snapshot: DataSnapshot): string {
+  const analysis = analyzeFormats(snapshot);
+  if (!analysis) {
+    return "Insufficient historical data to compute reliable recommendation.";
+  }
+  const { formats, baseFormat, totalPosts } = analysis;
+
+  const base = baseFormat ? formats.find((f) => f.format === baseFormat) || null : null;
+
+  const lines: string[] = [];
+  lines.push(`Format Performance Analysis (Last ${totalPosts} Posts)`);
+  lines.push("");
+
+  formats.forEach((f) => {
+    const reachAdv =
+      base && f.format !== base.format && f.avgReach != null && base.avgReach != null
+        ? pctDiff(f.avgReach, base.avgReach)
+        : null;
+    lines.push(`${f.format}${f.count === 0 ? " (0 posts in sample)" : ""}:`);
+    lines.push(`- Posts in sample: ${f.count}`);
+    // For Reels, use views when available instead of reach
+    if (f.format === "Reels") {
+      if (f.avgViews != null) {
+        lines.push(`- Avg Views: ${formatNumber(f.avgViews)}`);
+      }
+    } else {
+      lines.push(`- Avg Reach: ${formatNumber(f.avgReach)}`);
+    }
+    lines.push(`- Avg Engagement Rate: ${formatPercent(f.avgEngagementRate)}`);
+    lines.push(`- Avg Saves: ${formatNumber(f.avgSaves)}`);
+    if (f.format === "Static" || reachAdv == null) {
+      lines.push(`- % Advantage vs Static: N/A`);
+    } else {
+      const sign = reachAdv >= 0 ? "+" : "";
+      lines.push(`- % Advantage vs Static: ${sign}${reachAdv}%`);
+    }
+    lines.push("");
+  });
+
+  // Rankings (use engagement rate when reach/saves missing)
+  const byReach = [...formats].filter((f) => f.avgReach != null && f.count > 0).sort((a, b) => (b.avgReach! - a.avgReach!));
+  const bySaves = [...formats].filter((f) => f.avgSaves != null && f.count > 0).sort((a, b) => (b.avgSaves! - a.avgSaves!));
+  const byEr = [...formats].filter((f) => f.count > 0 && (f.avgEngagementRate != null || f.avgEngagementRate === 0)).sort((a, b) => (b.avgEngagementRate ?? -1) - (a.avgEngagementRate ?? -1));
+
+  function orderToString(list: FormatAggregate[]): string {
+    if (list.length === 0) return "No data in dataset.";
+    return list.map((f, idx) => `${idx + 1}. ${f.format}`).join("  ");
+  }
+
+  const hasReachOrSaves = byReach.length > 0 || bySaves.length > 0;
+
+  lines.push("Recommendation");
+  if (!hasReachOrSaves && byEr.length > 0) {
+    lines.push("(Reach and saves are not in the analyzed dataset; ranking uses engagement rate only.)");
+  }
+  lines.push(`- Growth (reach): ${orderToString(byReach)}`);
+  lines.push(`- Retention (saves): ${orderToString(bySaves)}`);
+  lines.push(`- Engagement rate: ${orderToString(byEr)}`);
+
+  // Allocation: use engagement-rate order when reach/saves missing; only allocate among formats that have posts
+  const formatsWithPosts = formats.filter((f) => f.count > 0);
+  const alloc: Record<NormalizedFormat, number> = { Reels: 0, Carousels: 0, Static: 0 };
+  if (formatsWithPosts.length === 1) {
+    alloc[formatsWithPosts[0].format] = 100;
+  } else if (formatsWithPosts.length === 2) {
+    const primary = byEr[0]?.format ?? formatsWithPosts[0].format;
+    const secondary = formatsWithPosts.find((f) => f.format !== primary)!.format;
+    alloc[primary] = 70;
+    alloc[secondary] = 30;
+  } else if (formatsWithPosts.length === 3) {
+    const primary = byEr[0]?.format ?? "Reels";
+    const secondary = byEr[1]?.format ?? "Carousels";
+    const tertiary = (["Reels", "Carousels", "Static"] as NormalizedFormat[]).find((f) => f !== primary && f !== secondary)!;
+    alloc[primary] = 60;
+    alloc[secondary] = 30;
+    alloc[tertiary] = 10;
+  }
+  // If a format has 0 posts, show 0% and note it
+  const reelsNote = formats.find((f) => f.format === "Reels")?.count === 0 ? " (0% — no Reels in sample)" : "";
+  const carouselsNote = formats.find((f) => f.format === "Carousels")?.count === 0 ? " (0% — no Carousels in sample)" : "";
+  const staticNote = formats.find((f) => f.format === "Static")?.count === 0 ? " (0% — no Static in sample)" : "";
+
+  lines.push("");
+  lines.push(
+    `- If goal = Growth → ${alloc.Reels}% Reels${reelsNote}, ${alloc.Carousels}% Carousels${carouselsNote}, ${alloc.Static}% Static${staticNote}`
+  );
+  lines.push(
+    `- If goal = Authority → ${alloc.Carousels}% Carousels, ${alloc.Reels}% Reels, keep Static at ${alloc.Static}%.`
+  );
+  lines.push(`- Static limited to ${alloc.Static}% of total output.`);
+
+  return lines.join("\n");
+}
+
+function buildPostingFrequencyReply(snapshot: DataSnapshot, selectedAccount: string): string {
+  const posts = snapshot.posts?.filter((p) => p.timestamp != null) ?? [];
+  if (posts.length < 5) {
+    return "Insufficient historical data to compute reliable recommendation.";
+  }
+  const sorted = [...posts].sort((a, b) => (a.timestamp! - b.timestamp!));
+  const lastTs = sorted[sorted.length - 1].timestamp!;
+  const cutoff = lastTs - 90 * 24 * 60 * 60; // last 90 days
+  const window = sorted.filter((p) => (p.timestamp as number) >= cutoff);
+  if (window.length < 5) {
+    return "Insufficient historical data to compute reliable recommendation.";
+  }
+
+  const firstTs = window[0].timestamp!;
+  const daysRange = Math.max((lastTs - firstTs) / (24 * 60 * 60), 1);
+  const postsPerWeek = (window.length / daysRange) * 7;
+
+  // Weekly buckets from firstTs
+  const weekStats: Record<string, { posts: number; totalEngagement: number }> = {};
+  window.forEach((p) => {
+    const ts = p.timestamp as number;
+    const weekIndex = Math.floor((ts - firstTs) / (7 * 24 * 60 * 60));
+    const key = String(weekIndex);
+    if (!weekStats[key]) weekStats[key] = { posts: 0, totalEngagement: 0 };
+    const eng = (p.likesCount ?? 0) + (p.commentsCount ?? 0);
+    weekStats[key].posts += 1;
+    weekStats[key].totalEngagement += eng;
+  });
+
+  const weeks = Object.values(weekStats);
+  if (weeks.length < 2) {
+    return "Insufficient historical data to compute reliable recommendation.";
+  }
+
+  const lowWeeks = weeks.filter((w) => w.posts <= 2);
+  const highWeeks = weeks.filter((w) => w.posts >= 4);
+
+  const avgEngPerPost = (arr: { posts: number; totalEngagement: number }[]): number | null => {
+    const totalPosts = arr.reduce((s, w) => s + w.posts, 0);
+    if (totalPosts === 0) return null;
+    const totalEng = arr.reduce((s, w) => s + w.totalEngagement, 0);
+    return totalEng / totalPosts;
+  };
+
+  const lowEng = avgEngPerPost(lowWeeks);
+  const highEng = avgEngPerPost(highWeeks);
+  const impact =
+    lowEng != null && highEng != null && lowEng > 0
+      ? parseFloat((((highEng - lowEng) / lowEng) * 100).toFixed(1))
+      : null;
+
+  const overallEng = avgEngPerPost(weeks);
+  const suggestedPostsPerWeek = Math.max(3, Math.min(7, Math.round(postsPerWeek)));
+  const baselineWeeklyEng =
+    overallEng != null ? overallEng * postsPerWeek : null;
+  const projectedWeeklyEng =
+    overallEng != null ? overallEng * suggestedPostsPerWeek : null;
+  const projectedIncrease =
+    baselineWeeklyEng != null && projectedWeeklyEng != null && baselineWeeklyEng > 0
+      ? parseFloat((((projectedWeeklyEng - baselineWeeklyEng) / baselineWeeklyEng) * 100).toFixed(1))
+      : null;
+
+  const lines: string[] = [];
+  lines.push(
+    `Posting Frequency Analysis (Last ${Math.round(daysRange)} Days for @${selectedAccount})`
+  );
+  lines.push("");
+  lines.push(`- Posts analyzed: ${window.length}`);
+  lines.push(`- Average posts per week: ${postsPerWeek.toFixed(1)}`);
+  if (lowEng != null) {
+    lines.push(`- Avg engagement/post in low-frequency weeks (0–2 posts): ${Math.round(lowEng).toLocaleString()}`);
+  }
+  if (highEng != null) {
+    lines.push(`- Avg engagement/post in higher-frequency weeks (4+ posts): ${Math.round(highEng).toLocaleString()}`);
+  }
+  if (impact != null) {
+    const sign = impact >= 0 ? "+" : "";
+    lines.push(`- Engagement per post change from low → high frequency weeks: ${sign}${impact}%`);
+  } else {
+    lines.push(`- Engagement trend vs posting density: not enough variance in weekly posting to estimate a pattern.`);
+  }
+
+  lines.push("");
+  lines.push("Recommendation");
+  lines.push(`- Suggested baseline: ${suggestedPostsPerWeek} posts per week.`);
+  if (baselineWeeklyEng != null && projectedWeeklyEng != null && projectedIncrease != null) {
+    const sign = projectedIncrease >= 0 ? "+" : "";
+    lines.push(
+      `- If you move from ~${postsPerWeek.toFixed(
+        1
+      )} → ${suggestedPostsPerWeek} posts/week and engagement per post stays similar, total weekly engagement would scale from ~${Math.round(
+        baselineWeeklyEng
+      ).toLocaleString()} → ~${Math.round(projectedWeeklyEng).toLocaleString()} (${sign}${projectedIncrease}%).`
+    );
+  } else {
+    lines.push(
+      "- Data does not show a strong pattern between posting more or less often and engagement per post. Use the baseline above as a starting point and monitor changes."
+    );
+  }
+
+  return lines.join("\n");
+}
 
 async function callOpenAI(
   systemPrompt: string,
@@ -739,10 +1241,20 @@ export const smartChatV2 = onCall(
       const intent = classifyIntent(message);
       const mode = decideResponseMode(intent, snapshot);
 
+      // Deterministic, data-only handlers for format and posting frequency questions
+      if (intent === "CONTENT_FORMAT") {
+        const reply = stripMarkdownHeadings(buildFormatPerformanceReply(snapshot));
+        return { success: true, reply };
+      }
+      if (intent === "POSTING_FREQUENCY") {
+        const reply = stripMarkdownHeadings(buildPostingFrequencyReply(snapshot, selectedAccount));
+        return { success: true, reply };
+      }
+
       if (mode === "LIMITATION") {
         return {
           success: true,
-          reply: buildLimitationReply(intent, snapshot, selectedAccount),
+          reply: stripMarkdownHeadings(buildLimitationReply(intent, snapshot, selectedAccount)),
         };
       }
 
@@ -751,22 +1263,39 @@ export const smartChatV2 = onCall(
 
       if (mode === "STRATEGY") {
         const dataBlock = buildStrategyDataBlock(snapshot, selectedAccount);
-        const systemPrompt = `You are Smart Chat, an Instagram growth advisor. Answer with ideas, how-to, and strategy. Be specific and actionable.
+        const knowledgeBlock = getAnalyticsKnowledgeBlock(intent);
+        const hasKnowledge = knowledgeBlock.length > 0;
+        const hasUserData = snapshot.hasAccountMetrics && snapshot.postCount > 0;
+        const dataDisclaimer = hasKnowledge && !hasUserData
+          ? "\nCRITICAL: We do NOT have this user's data for this question. You MUST say clearly at the start: \"This answer is not based on your account data\" or \"We don't have your data for this; here's the general explanation.\" Then give the knowledge-based answer. Do not imply we analyzed their account for this."
+          : hasKnowledge && hasUserData
+          ? "\nWe have some account data above. You may add one short line tying it in if relevant (e.g. \"For your account, from your last N posts...\"). If the question is not about something we have data for (e.g. Stories, reach/impressions breakdown), still say clearly: \"We don't have your data for this metric; below is the general explanation.\""
+          : "";
+        const systemPrompt = `You are Smart Chat. We are a DATA AND ANALYTICS ONLY AI system. We do not give opinions, motivational advice, or generic growth tips. We answer only from: (1) the user's actual account or post data when we have it, or (2) factual analytics definitions and metrics explanations when we don't have their data—and we always say clearly when we don't have their data.
 
 ${dataBlock}
+${hasKnowledge ? `
 
-CRITICAL: When account data is provided above, USE IT. Reference their actual followers, engagement rate, and post count. Tailor advice to their scale. Do NOT give generic advice when you have their numbers.
-When no data is provided, give concrete steps anyway—but never say "run analytics" as the main answer.
+ANALYTICS KNOWLEDGE (answer from this; do not invent or contradict):
+${knowledgeBlock}${dataDisclaimer}` : ""}
+${!hasKnowledge ? `
+When we have NO analytics knowledge block for this question and no or minimal user data: Say clearly "We don't have data to answer this in a data-based way." or "This is not something we can answer from your analytics data." Then briefly suggest they run Instagram Analytics (or ask a question we can answer from their data, e.g. best posting time, format performance, top posts). Do NOT invent strategies or generic advice.` : ""}
 
-NEVER use: typically, usually, generally, best practices, your content isn't compelling, motivational filler.
-ALWAYS use: concrete steps, specific tactics, testable actions.
+CRITICAL: When account data is provided above, USE IT. Reference their actual followers, engagement rate, and post count. Do NOT give generic advice when you have their numbers.
+When we have no data for the question, say so first; then only give the factual knowledge if we have it, or tell them we cannot answer from data.
 
-CONVERSATIONAL: Use prior messages for context. If the user refers to "these", "those", "among these", answer directly from what you previously said—do NOT give generic how-to instructions.`;
-        const reply = await callOpenAI(
-          systemPrompt,
-          `User question: "${message}"`,
-          apiKey,
-          conversationHistory
+NEVER use: typically, usually, generally, best practices, your content isn't compelling, motivational filler, or any advice not grounded in data or the provided knowledge.
+ALWAYS: be data-led or explicitly disclaim that we don't have data.
+
+CONVERSATIONAL: Use prior messages for context. If the user refers to "these", "those", "among these", answer directly from what you previously said.
+FORMATTING: Do NOT prefix headings or section titles with '#', '##', or '###'. Output headings as plain text lines without markdown hashes.`;
+        const reply = stripMarkdownHeadings(
+          await callOpenAI(
+            systemPrompt,
+            `User question: "${message}"`,
+            apiKey,
+            conversationHistory
+          )
         );
         return { success: true, reply };
       }
@@ -797,16 +1326,17 @@ CONVERSATIONAL: Use prior messages for context. If the user refers to "these", "
         }
         context += `\n\nDATA_SUFFICIENCY: postsWithTimestamps=${postsWithTs}, totalPosts=${snapshot.postCount}, timeSlotsWithAtLeast5Posts=${slotsWithAtLeast5}. Use this for 'enough data to determine best time' or 'is there enough data'.`;
       }
-      const systemPrompt = `You are Smart Chat, a data analyst for Instagram. Explain facts from the data. Do NOT diagnose, judge, or invent problems.
+      const systemPrompt = `You are Smart Chat. We are a DATA AND ANALYTICS ONLY AI system. We answer only from the user's actual data. We do not give opinions, generic advice, or non-data-based recommendations.
 
 ${context}
 
-CRITICAL: We HAVE the user's data above. NEVER reply with "to find this, do X" or "you can do this by..." or "follow these steps to...". Always answer FROM THE DATA. If the data is above, use it and give the direct answer (numbers, list of posts, averages). Do NOT give generic instructions.
+CRITICAL: We HAVE the user's data above. Answer ONLY from that data. Give the direct answer (numbers, list of posts, averages). Do NOT say "to find this, do X" or give generic instructions. Do NOT diagnose, judge, or invent reasons not in the data.
 
 CONVERSATIONAL: Use prior messages for context. If the user refers to "these", "those", "among these", "from above", they mean data YOU provided. Answer directly from your previous response—do NOT give "how to find" instructions.
 
 WHY QUESTIONS (when user asks why posts are top): Use ONLY the numbers in the data. Explain using: (1) engagement breakdown—e.g. "Post 2 had the most comments (1,030)—suggesting it drove discussion"; (2) content type if available; (3) posting time if available.
-BANNED (never use): "Content Appeal", "Effective Captions", "engaging content", "captivating visuals", "compelling narratives", "visually stunning", "resonated with your audience", "high engagement" (as a reason—circular). If you cannot explain from data, say: "We couldn't determine the exact reasons—we only have engagement numbers. From the numbers: [list specific facts]."`;
+BANNED (never use): "Content Appeal", "Effective Captions", "engaging content", "captivating visuals", "compelling narratives", "visually stunning", "resonated with your audience", "high engagement" (as a reason—circular). If you cannot explain from data, say: "We couldn't determine the exact reasons—we only have engagement numbers. From the numbers: [list specific facts]."
+FORMATTING: Do NOT prefix headings or section titles with '#', '##', or '###'. Output headings as plain text lines without markdown hashes.`;
       const intentHint = intent === "ACCOUNT_METRICS"
         ? "User asked for their metrics. Lead with the numbers. Answer directly: e.g. 'Your engagement rate is X%. You have Y followers.'"
         : intent === "WHY_ABOUT_POSTS"
@@ -831,7 +1361,9 @@ BANNED (never use): "Content Appeal", "Effective Captions", "engaging content", 
 - Post more in afternoon: Use TIME_SLOTS Afternoon; say whether data supports it (e.g. if Afternoon has highest avgEngagement, yes).`
         : `Intent: ${intent}`;
       const userContent = `${intentHint}\n\nUser question: "${message}"`;
-      const reply = await callOpenAI(systemPrompt, userContent, apiKey, conversationHistory);
+      const reply = stripMarkdownHeadings(
+        await callOpenAI(systemPrompt, userContent, apiKey, conversationHistory)
+      );
       return { success: true, reply };
     } catch (e) {
       if (e instanceof HttpsError) throw e;

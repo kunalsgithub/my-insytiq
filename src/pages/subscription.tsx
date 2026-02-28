@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useDevMode } from '../hooks/useDevMode';
+import { useToast } from '../hooks/use-toast';
 import { db } from '../services/firebaseService';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '../services/firebaseService';
@@ -26,8 +27,8 @@ const plans: Array<{
     subtitle: "Get started with core insights",
     price: "$0",
     features: [
-      "Top 3 daily trending Reels",
-      "1 profile analysis per day",
+      "Top 5 daily trending Reels",
+      "2 profile analyses per month",
       "7-day snapshot view",
       "Limited SmartChat (5 queries/day)",
     ],
@@ -41,7 +42,7 @@ const plans: Array<{
     price: "$19",
     features: [
       "Analytics",
-      "10 Profile Analyses per month",
+      "12 Profile Analyses per month",
       "30-Day Growth Tracking",
       "Competitor Comparison (up to 2 profiles)",
       "Content Performance Insights",
@@ -49,7 +50,7 @@ const plans: Array<{
       "Core Hashtag Intelligence",
       "SmartChat (up to 600 queries/month)",
     ],
-    usageLimit: 10,
+    usageLimit: 12,
   },
   {
     tier: "Analytics+",
@@ -74,16 +75,19 @@ const plans: Array<{
   },
 ];
 
+type ProfileAnalysisUsage = { month: string; count: number };
+
 type SubscriptionDoc = {
   currentPlan: PlanKey;
   usageCount: number;
   usageResetAt?: string | null; // ISO string for the next reset moment (used for Free plan daily reset)
+  profileAnalysisUsage?: ProfileAnalysisUsage | null;
   updatedAt?: any;
 };
 
 const planUsageText: Record<PlanKey, string> = {
-  'Free': '1 profile analysis per day',
-  'Trends+': 'Analyze up to 10 profiles per month',
+  'Free': '2 profile analyses per month',
+  'Trends+': 'Analyze up to 12 profiles per month',
   'Analytics+': 'Analyze up to 30 profiles per month',
 };
 
@@ -117,6 +121,7 @@ const gradientBtn = {
 
 const Subscription = () => {
   const devMode = useDevMode();
+  const { toast } = useToast();
   const [uid, setUid] = useState<string | null>(null);
   const [sub, setSub] = useState<SubscriptionDoc | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
@@ -173,11 +178,15 @@ const Subscription = () => {
       const ref = doc(db, 'users', user.uid);
       const snap = await getDoc(ref);
       if (snap.exists()) {
-        const data = snap.data() as SubscriptionDoc;
+        const data = snap.data() as SubscriptionDoc & { profileAnalysisUsage?: { month?: string; count?: number } };
+        const rawUsage = data.profileAnalysisUsage;
         const normalized: SubscriptionDoc = {
           currentPlan: (data.currentPlan as PlanKey) || 'Free',
           usageCount: typeof data.usageCount === 'number' ? data.usageCount : 0,
           usageResetAt: data.usageResetAt || null,
+          profileAnalysisUsage: rawUsage && typeof rawUsage.month === 'string' && typeof rawUsage.count === 'number'
+            ? { month: rawUsage.month, count: rawUsage.count }
+            : null,
           updatedAt: data.updatedAt,
         };
         // Handle daily reset for Free plan
@@ -213,10 +222,15 @@ const Subscription = () => {
       return;
     }
     const usageLimit = currentPlanConfig.usageLimit;
+    const thisMonth = new Date().toISOString().slice(0, 7);
+    const usage = sub.profileAnalysisUsage;
+    const usageMonth = usage?.month ?? null;
+    const usageCount = usage?.count ?? 0;
+    const isSameMonth = usageMonth === thisMonth;
     if (usageLimit === 'per-day-1') {
-      setLimitReached(sub.usageCount >= 1);
+      setLimitReached(isSameMonth && usageCount >= 2);
     } else if (typeof usageLimit === 'number') {
-      setLimitReached(sub.usageCount >= usageLimit);
+      setLimitReached(isSameMonth && usageCount >= usageLimit);
     } else {
       setLimitReached(false);
     }
@@ -245,6 +259,15 @@ const Subscription = () => {
   };
 
   const openPaddleCheckout = (plan: PlanKey, cycle: BillingCycle) => {
+    if (!paddleReady) {
+      toast({
+        title: 'Checkout loading',
+        description: 'Payment is still loading. Please wait a moment and try again.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     // Base fallback price per plan (kept for backward compatibility)
     let priceId = PADDLE_PRICE_IDS[plan];
 
@@ -285,13 +308,38 @@ const Subscription = () => {
         };
       };
     }).Paddle;
-    if (!priceId || !paddle?.Checkout) return;
+
+    if (!paddle?.Checkout) {
+      toast({
+        title: 'Checkout unavailable',
+        description: 'Payment script did not load. Refresh the page or try again later.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    if (!priceId?.trim()) {
+      toast({
+        title: 'Checkout not configured',
+        description: 'Subscription prices are not set for this environment. If you see this on the live site, add Paddle env vars in Vercel (Settings → Environment Variables).',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     const user = auth.currentUser;
-    paddle.Checkout.open({
-      items: [{ priceId, quantity: 1 }],
-      successUrl: `${window.location.origin}/subscription`,
-      ...(user?.email ? { customer: { email: user.email } } : {}),
-    });
+    try {
+      paddle.Checkout.open({
+        items: [{ priceId: priceId.trim(), quantity: 1 }],
+        successUrl: `${window.location.origin}/subscription`,
+        ...(user?.email ? { customer: { email: user.email } } : {}),
+      });
+    } catch (err) {
+      toast({
+        title: 'Checkout error',
+        description: err instanceof Error ? err.message : 'Something went wrong. Try again.',
+        variant: 'destructive',
+      });
+    }
   };
 
   const renewPlan = async () => {

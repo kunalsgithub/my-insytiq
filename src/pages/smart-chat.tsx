@@ -718,14 +718,25 @@ const SmartChat = ({ useV2 = false }: SmartChatProps) => {
         setMessages((prev) => [...prev, successMsg]);
         toast({ title: 'Analysis complete', description: `${description} analyzed.` });
       } catch (err: any) {
+        const msg = err?.message || "";
+        const isMonthlyLimit =
+          err?.code === "functions/resource-exhausted" ||
+          msg.includes("profile analyses per month");
+        const text = isMonthlyLimit
+          ? msg || "You've reached your profile analysis limit for this month. Upgrade your plan to analyze more accounts."
+          : `Failed to fetch ${description}: ${msg || "Please try again."} Larger requests may take longer—try again or use a smaller number.`;
         const errMsg: Message = {
           id: generateMessageId(),
-          text: `Failed to fetch ${description}: ${err?.message || 'Please try again.'} Larger requests may take longer—try again or use a smaller number.`,
+          text,
           sender: 'assistant',
           timestamp: new Date(),
         };
         setMessages((prev) => [...prev, errMsg]);
-        toast({ title: 'Analysis failed', description: err?.message, variant: 'destructive' });
+        toast({
+          title: isMonthlyLimit ? 'Limit reached' : 'Analysis failed',
+          description: msg || (isMonthlyLimit ? "Upgrade to analyze more accounts." : undefined),
+          variant: 'destructive',
+        });
       } finally {
         setIsLoading(false);
       }

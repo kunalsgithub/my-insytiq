@@ -58,6 +58,10 @@ export function useInstagramData() {
 
   // Allow setting data directly from Firestore (for cached data)
   // This ensures data persists when component remounts after tab switch
+  const setAnalysisError = useCallback((message: string) => {
+    setData((prev) => ({ ...prev, loading: false, error: message }));
+  }, []);
+
   const setDataFromFirestore = useCallback((username: string, firestoreData: {
     followers: number;
     engagementRate: number;
@@ -174,5 +178,5 @@ export function useInstagramData() {
     }
   }, []);
 
-  return [data, analyzeUsername, setDataFromFirestore] as const;
+  return [data, analyzeUsername, setDataFromFirestore, setAnalysisError] as const;
 } 

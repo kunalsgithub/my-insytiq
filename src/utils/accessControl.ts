@@ -19,6 +19,13 @@ export const PLAN_MAX_COMPETITORS: Record<string, number> = {
   [PLAN.ANALYTICS_PLUS]: 5,
 };
 
+/** Profile analyses per month (must match backend PROFILE_ANALYSES_LIMIT) */
+export const PLAN_PROFILE_ANALYSES_LIMIT: Record<string, number> = {
+  [PLAN.FREE]: 2,
+  [PLAN.TRENDS_PLUS]: 12,
+  [PLAN.ANALYTICS_PLUS]: 50,
+};
+
 export function getMaxGrowthTrackingDays(plan: string | null): number {
   if (!plan) return PLAN_MAX_GROWTH_DAYS[PLAN.FREE];
   const normalized = plan.trim();
