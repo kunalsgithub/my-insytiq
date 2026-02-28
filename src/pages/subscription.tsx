@@ -245,7 +245,29 @@ const Subscription = () => {
   };
 
   const openPaddleCheckout = (plan: PlanKey, cycle: BillingCycle) => {
-    const priceId = PADDLE_PRICE_IDS[plan];
+    // Base fallback price per plan (kept for backward compatibility)
+    let priceId = PADDLE_PRICE_IDS[plan];
+
+    // If specific monthly/yearly prices exist in .env, prefer them so
+    // Paddle checkout matches the toggle selection.
+    if (plan === 'Trends+') {
+      const monthly = env.VITE_PADDLE_PRICE_ID_CREATOR_MONTHLY;
+      const yearly = env.VITE_PADDLE_PRICE_ID_CREATOR_YEARLY;
+      if (cycle === 'monthly' && monthly) {
+        priceId = monthly;
+      } else if (cycle === 'yearly' && yearly) {
+        priceId = yearly;
+      }
+    } else if (plan === 'Analytics+') {
+      const monthly = env.VITE_PADDLE_PRICE_ID_PRO_MONTHLY;
+      const yearly = env.VITE_PADDLE_PRICE_ID_PRO_YEARLY;
+      if (cycle === 'monthly' && monthly) {
+        priceId = monthly;
+      } else if (cycle === 'yearly' && yearly) {
+        priceId = yearly;
+      }
+    }
+
     // Select matching Stripe price ID (for Stripe-based billing flows)
     const stripeKey = getStripePriceKeyForPlan(plan, cycle);
     const stripePriceId = stripeKey ? STRIPE_PRICE_IDS[stripeKey] : undefined;
