@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { Navigate } from 'react-router-dom';
 import { useDevMode } from '../hooks/useDevMode';
 import { useToast } from '../hooks/use-toast';
-import { db } from '../services/firebaseService';
+import { db, auth } from '../services/firebaseService';
 import { onAuthStateChanged } from 'firebase/auth';
-import { auth } from '../services/firebaseService';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 
 type PlanKey = 'Free' | 'Trends+' | 'Analytics+';
@@ -30,6 +30,8 @@ const plans: Array<{
       "Top 5 daily trending Reels",
       "2 profile analyses per month",
       "7-day snapshot view",
+      "Competitor Overview only (1 profile)",
+      "Brand Collab Score: 1 lifetime full score",
       "Limited SmartChat (5 queries/day)",
     ],
     isFree: true,
@@ -44,7 +46,9 @@ const plans: Array<{
       "Analytics",
       "12 Profile Analyses per month",
       "30-Day Growth Tracking",
-      "Competitor Comparison (up to 2 profiles)",
+      "Competitor Comparison (up to 3 profiles)",
+      "Trending Competitor Posts",
+      "Brand Collab Score: No access",
       "Content Performance Insights",
       "Basic Post Level Intelligence",
       "Core Hashtag Intelligence",
@@ -61,7 +65,9 @@ const plans: Array<{
       "Advanced Analytics",
       "30 Profile Analyses per month",
       "90-Day Growth Tracking",
+      "Growth Comparison chart (Pro only)",
       "Competitor Comparison (up to 5 profiles)",
+      "Brand Collab Score: 50/month + premium features",
       "Engagement Drop Detection",
       "AI & Advanced Insights",
       "AI-Powered Growth Intelligence",
@@ -130,7 +136,14 @@ const Subscription = () => {
   const [billingCycle, setBillingCycle] = useState<BillingCycle>('yearly'); // default yearly
 
   const currentPlan = sub?.currentPlan || 'Free';
-  const currentPlanConfig = useMemo(() => plans.find(p => p.tier === currentPlan)!, [currentPlan]);
+  const currentPlanConfig = useMemo(() => {
+    let normalized: PlanKey = 'Free';
+    const p = typeof currentPlan === 'string' ? currentPlan.trim() : '';
+    if (p === 'Analytics+' || p === 'Pro' || p.toLowerCase().includes('pro')) normalized = 'Analytics+';
+    else if (p === 'Trends+' || p === 'Creator' || p.toLowerCase().includes('creator')) normalized = 'Trends+';
+    else if (p === 'Free') normalized = 'Free';
+    return plans.find(pl => pl.tier === normalized) ?? plans[0];
+  }, [currentPlan]);
 
   // Initialize Paddle when client token is present (script may load after app)
   useEffect(() => {
@@ -217,7 +230,7 @@ const Subscription = () => {
   }, []);
 
   useEffect(() => {
-    if (!sub) {
+    if (!sub || !currentPlanConfig) {
       setLimitReached(false);
       return;
     }
@@ -259,6 +272,15 @@ const Subscription = () => {
   };
 
   const openPaddleCheckout = (plan: PlanKey, cycle: BillingCycle) => {
+    if (!uid) {
+      toast({
+        title: 'Sign in required',
+        description: 'Please sign in to upgrade your plan.',
+        variant: 'destructive',
+      });
+      window.location.href = '/auth?from=subscription&message=upgrade';
+      return;
+    }
     if (!paddleReady) {
       toast({
         title: 'Checkout loading',
@@ -304,6 +326,7 @@ const Subscription = () => {
             items: { priceId: string; quantity: number }[];
             successUrl: string;
             customer?: { email: string };
+            customData?: Record<string, string>;
           }) => void;
         };
       };
@@ -327,11 +350,17 @@ const Subscription = () => {
     }
 
     const user = auth.currentUser;
+    const userEmail = user?.email ?? '';
     try {
       paddle.Checkout.open({
         items: [{ priceId: priceId.trim(), quantity: 1 }],
         successUrl: `${window.location.origin}/subscription`,
-        ...(user?.email ? { customer: { email: user.email } } : {}),
+        ...(userEmail ? { customer: { email: userEmail } } : {}),
+        customData: {
+          userId: uid,
+          email: userEmail,
+          selectedPlan: plan,
+        },
       });
     } catch (err) {
       toast({
@@ -352,6 +381,10 @@ const Subscription = () => {
     await setDoc(ref, { ...reset, updatedAt: serverTimestamp() }, { merge: true });
     setSub({ ...sub, ...reset });
   };
+  if (!loading && uid === null) {
+    return <Navigate to="/auth?from=subscription" replace />;
+  }
+
   return (
     <div className="min-h-screen flex flex-col items-center py-12 px-4 md:pl-16">
       <div className="w-full md:ml-16 md:max-w-6xl">

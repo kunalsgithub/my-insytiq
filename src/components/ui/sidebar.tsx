@@ -144,6 +144,16 @@ export function WhoistrendSidebarMenu() {
           >
             Competitor Intelligence
           </NavLink>
+          <NavLink
+            to="/brand-collab-score"
+            className={({ isActive }) =>
+              isActive
+                ? "text-[#d72989] font-bold bg-gray-100 rounded px-2 py-1 transition-colors"
+                : "text-gray-900 font-medium rounded px-2 py-1 hover:bg-gray-50 hover:text-[#d72989] transition-colors"
+            }
+          >
+            Brand Collab Score
+          </NavLink>
         </nav>
         <div className="border-t border-gray-200 my-2" />
       </div>

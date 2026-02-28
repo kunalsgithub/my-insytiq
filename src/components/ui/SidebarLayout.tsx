@@ -135,6 +135,7 @@ export default function SidebarLayout() {
               <div className="uppercase text-xs font-semibold text-gray-500 tracking-wider mb-2 px-6">Analytics</div>
               <NavLink to="/instagram-analytics" className={({ isActive }) => isActive ? "bg-[#f9e6f3] text-[#d72989] font-bold rounded px-2 py-2 mx-4 my-1" : "text-gray-900 font-medium rounded px-2 py-2 mx-4 my-1 hover:bg-gray-50 hover:text-[#d72989] transition-colors"} onClick={() => setMobileMenuOpen(false)}>Instagram Analytics</NavLink>
               <NavLink to="/analytics/competitor-intelligence" className={({ isActive }) => isActive ? "bg-[#f9e6f3] text-[#d72989] font-bold rounded px-2 py-2 mx-4 my-1" : "text-gray-900 font-medium rounded px-2 py-2 mx-4 my-1 hover:bg-gray-50 hover:text-[#d72989] transition-colors"} onClick={() => setMobileMenuOpen(false)}>Competitor Intelligence</NavLink>
+              <NavLink to="/brand-collab-score" className={({ isActive }) => isActive ? "bg-[#f9e6f3] text-[#d72989] font-bold rounded px-2 py-2 mx-4 my-1" : "text-gray-900 font-medium rounded px-2 py-2 mx-4 my-1 hover:bg-gray-50 hover:text-[#d72989] transition-colors"} onClick={() => setMobileMenuOpen(false)}>Brand Collab Score</NavLink>
               <div className="border-t border-gray-200 my-2 mx-4" />
               {/* Insights Section */}
               <div className="uppercase text-xs font-semibold text-gray-500 tracking-wider mb-2 px-6">Insights</div>

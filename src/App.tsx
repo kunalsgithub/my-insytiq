@@ -22,6 +22,7 @@ import SidebarLayout from "./components/ui/SidebarLayout";
 import Trending from "./pages/trending";
 import TrendingNow from "./pages/trending-now";
 import SmartChat from "./pages/smart-chat";
+import BrandCollabScorePage from "./pages/brand-collab-score";
 
 
 const queryClient = new QueryClient({
@@ -95,6 +96,7 @@ function App() {
               <Route path="/" element={<Index />} />
               <Route path="/instagram-analytics" element={<InstagramAnalyticsPage />} />
               <Route path="/analytics/competitor-intelligence" element={<CompetitorIntelligencePage />} />
+              <Route path="/brand-collab-score" element={<BrandCollabScorePage />} />
               <Route path="/top-influencers" element={<TopInfluencer />} />
               <Route path="/top-influencers/:category" element={<TopInfluencerCategory />} />
               <Route path="/subscription" element={<Subscription />} />

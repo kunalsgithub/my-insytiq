@@ -39,6 +39,26 @@
   animation-delay: 0.5s;
 }
 
+.loading-text-inline .loading-char:nth-child(7) {
+  animation-delay: 0.6s;
+}
+
+.loading-text-inline .loading-char:nth-child(8) {
+  animation-delay: 0.7s;
+}
+
+.loading-text-inline .loading-char:nth-child(9) {
+  animation-delay: 0.8s;
+}
+
+.loading-text-inline .loading-char:nth-child(10) {
+  animation-delay: 0.9s;
+}
+
+.loading-text-inline .loading-char:nth-child(11) {
+  animation-delay: 1s;
+}
+
 @keyframes loading-blur {
   0% {
     filter: blur(0px);

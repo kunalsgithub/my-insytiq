@@ -12,6 +12,7 @@ import { useInstagramData } from "../hooks/useInstagramData";
 import { useUsernameManager } from "../hooks/useUsernameManager";
 import { PLAN, PLAN_PROFILE_ANALYSES_LIMIT } from "../utils/accessControl";
 import { useToast } from "../hooks/use-toast";
+import { ErrorBoundary } from "../components/ErrorBoundary";
 import { getSocialBladeAnalytics } from "../api/getSocialBladeAnalytics";
 import {
   checkAndLoadAnalytics,
@@ -234,18 +235,35 @@ const InstagramAnalyticsPage = () => {
         title: "Login required",
         description: "Please login to analyze Instagram accounts.",
         variant: "destructive",
+        action: (
+          <button
+            type="button"
+            onClick={() => { window.location.href = "/auth"; }}
+            className="inline-flex h-8 shrink-0 cursor-pointer items-center justify-center rounded-md border border-white/30 bg-white/10 px-3 text-sm font-semibold text-white hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/50 focus:ring-offset-2 focus:ring-offset-[#d72989] md:relative md:z-10 md:min-w-[88px]"
+          >
+            Sign in
+          </button>
+        ),
       });
       return;
     }
 
-    clearForUser(userId);
-
-    const success = await saveUsername(newUsername);
-    if (success) {
-      setUsername(newUsername);
+    try {
+      clearForUser(userId);
+      const success = await saveUsername(newUsername);
+      if (success) {
+        setUsername(newUsername);
+        toast({
+          title: "Username saved",
+          description: `@${newUsername} is being analyzed`,
+        });
+      }
+    } catch (err) {
+      console.error("Analyze username error:", err);
       toast({
-        title: "Username saved",
-        description: `@${newUsername} is being analyzed`,
+        title: "Something went wrong",
+        description: "Could not start analysis. Please try again.",
+        variant: "destructive",
       });
     }
   };
@@ -255,7 +273,7 @@ const InstagramAnalyticsPage = () => {
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar />
-
+      <ErrorBoundary>
       <main className="flex-1 w-full max-w-6xl mx-auto px-4 py-8 md:px-6">
         <h1 className="text-4xl font-bold text-center gradient-text mb-10">
           Instagram Analytics
@@ -301,22 +319,22 @@ const InstagramAnalyticsPage = () => {
           </div>
         )}
 
-        {username && !instagramData.loading && !instagramData.error && (
+        {username && !instagramData.loading && !instagramData.error && instagramData.profile && instagramData.username === username && (
           <div className="space-y-8">
             <InstagramDashboard
               username={username}
-              profilePictureUrl={instagramData.profile.profile_picture_url}
-              followers={instagramData.profile.followers_count}
-              following={instagramData.profile.follows_count}
-              posts={instagramData.profile.media_count}
-              averageLikes={instagramData.insights.engagement.likes}
-              averageComments={instagramData.insights.engagement.comments}
-              engagementRate={instagramData.insights.engagement.rate}
+              profilePictureUrl={instagramData.profile?.profile_picture_url}
+              followers={instagramData.profile?.followers_count ?? 0}
+              following={instagramData.profile?.follows_count ?? 0}
+              posts={instagramData.profile?.media_count ?? 0}
+              averageLikes={instagramData.insights?.engagement?.likes ?? 0}
+              averageComments={instagramData.insights?.engagement?.comments ?? 0}
+              engagementRate={instagramData.insights?.engagement?.rate ?? 0}
             />
 
             <LiveFollowerCounter
               username={username}
-              initialCount={instagramData.currentFollowerCount}
+              initialCount={instagramData.currentFollowerCount ?? 0}
               onRefresh={() => analyzeUsername(username)}
             />
 
@@ -328,6 +346,7 @@ const InstagramAnalyticsPage = () => {
           </div>
         )}
       </main>
+      </ErrorBoundary>
     </div>
   );
 };

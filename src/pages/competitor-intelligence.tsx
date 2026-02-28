@@ -12,10 +12,7 @@ import {
   getDoc,
   onSnapshot,
   deleteDoc,
-  query,
-  where,
   orderBy,
-  getDocs,
   Timestamp,
 } from "firebase/firestore";
 import { getMaxCompetitors, getUpgradeMessageForFeature } from "../utils/accessControl";
@@ -219,38 +216,20 @@ const CompetitorIntelligencePage: React.FC = () => {
 
     const loadHistory = async () => {
       setHistoryLoading(true);
-
-      const historyCol = collection(db, "followerHistory");
-      const result: Record<string, FollowerHistoryPoint[]> = {};
-
       try {
-        await Promise.all(
-          usernames.map(async (uname) => {
-            const q = query(historyCol, where("username", "==", uname));
-            const snap = await getDocs(q);
-            const rawPoints: FollowerHistoryPoint[] = snap.docs.map((docSnap) => {
-              const data: any = docSnap.data();
-              const ts = data.date;
-              const jsDate =
-                ts && typeof ts.toDate === "function" ? ts.toDate() : new Date();
-              return {
-                date: jsDate,
-                followers:
-                  typeof data.followers === "number" ? data.followers : 0,
-              };
-            });
-            // Keep only last 30 days and sort ascending
-            const since = new Date();
-            since.setDate(since.getDate() - 29);
-            since.setHours(0, 0, 0, 0);
-            const filtered = rawPoints.filter(
-              (p) => p.date.getTime() >= since.getTime()
-            );
-            filtered.sort((a, b) => a.date.getTime() - b.date.getTime());
-            result[uname] = filtered;
-          })
+        const fn = httpsCallable<{ usernames: string[] }, { data: Record<string, Array<{ date: string; followers: number }>> }>(
+          functions,
+          "getFollowerHistory"
         );
-
+        const res = await fn({ usernames });
+        const payload = res.data?.data ?? {};
+        const result: Record<string, FollowerHistoryPoint[]> = {};
+        Object.keys(payload).forEach((uname) => {
+          result[uname] = (payload[uname] || []).map((p) => ({
+            date: new Date(p.date),
+            followers: p.followers,
+          }));
+        });
         if (!cancelled) {
           setHistoryData(result);
           setHistoryLoading(false);
@@ -807,22 +786,28 @@ const CompetitorIntelligencePage: React.FC = () => {
               </div>
             )}
             {!historyLoading && hasEnoughHistory && !isProPlan && (
-              <div className="absolute inset-0 flex items-center justify-center bg-white/70 backdrop-blur-sm rounded-lg">
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-white/70 backdrop-blur-sm rounded-lg">
                 <p className="text-sm font-medium text-gray-700 text-center max-w-sm">
                   Upgrade to PRO – Growth Accelerator to unlock competitor growth
                   intelligence.
                 </p>
+                <a
+                  href="/subscription"
+                  className="text-xs font-medium text-white bg-[#d72989] hover:bg-[#c0257a] px-3 py-1.5 rounded-lg transition-colors"
+                >
+                  View plans
+                </a>
               </div>
             )}
           </CardContent>
         </Card>
 
-        {/* Trending Competitor Posts */}
-        <Card>
+        {/* Trending Competitor Posts – blurred for Free plan */}
+        <Card className="relative">
           <CardHeader>
             <CardTitle>Trending Competitor Posts</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-6">
+          <CardContent className="space-y-6 relative">
             {competitors.length === 0 ? (
               <p className="text-sm text-gray-500">
                 Add competitors to see their top performing posts.
@@ -880,6 +865,13 @@ const CompetitorIntelligencePage: React.FC = () => {
                   </div>
                 );
               })
+            )}
+            {currentPlan === "Free" && (
+              <div className="absolute inset-0 flex items-center justify-center bg-white/70 backdrop-blur-sm rounded-lg">
+                <p className="text-sm font-medium text-gray-700 text-center max-w-sm">
+                  Upgrade to Creator or Pro to unlock Trending Competitor Posts.
+                </p>
+              </div>
             )}
           </CardContent>
         </Card>

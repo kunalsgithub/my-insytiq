@@ -24,12 +24,19 @@ const InstagramUsernameInput: React.FC<InstagramUsernameInputProps> = ({ onAnaly
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
+      e.preventDefault();
+      e.stopPropagation();
       handleAnalyze();
     }
   };
 
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    handleAnalyze();
+  };
+
   return (
-    <div className="flex flex-col md:flex-row items-center gap-4 mb-8">
+    <form onSubmit={handleSubmit} className="flex flex-col md:flex-row items-center gap-4 mb-8">
       <Input
         type="text"
         placeholder="Enter Instagram username"
@@ -39,12 +46,12 @@ const InstagramUsernameInput: React.FC<InstagramUsernameInputProps> = ({ onAnaly
         className="w-full md:w-1/2"
       />
       <Button
-        onClick={handleAnalyze}
+        type="submit"
         className="w-full md:w-auto bg-[rgb(192,37,122)] text-white border-0 hover:brightness-110"
       >
         Analyze
       </Button>
-    </div>
+    </form>
   );
 };
 

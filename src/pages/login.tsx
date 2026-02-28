@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { ToastAction } from '../components/ui/toast';
 import { signInWithGoogle, signInWithGoogleRedirect } from '../services/firebaseService';
 import { useToast } from '../hooks/use-toast';
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Eye, EyeOff } from 'lucide-react';
 
 export default function LoginPage() {
@@ -16,6 +16,18 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const fromSubscription = searchParams.get('from') === 'subscription' || searchParams.get('message') === 'upgrade';
+
+  useEffect(() => {
+    if (fromSubscription) {
+      toast({
+        title: 'Sign in to upgrade',
+        description: 'Please sign in to upgrade your plan.',
+        variant: 'destructive',
+      });
+    }
+  }, [fromSubscription, toast]);
 
   const showAuthErrorToast = (title: string, description: string) => {
     toast({
@@ -41,7 +53,7 @@ export default function LoginPage() {
         description: 'Welcome to Insytiq!',
       });
 
-      navigate('/');
+      navigate(fromSubscription ? '/subscription' : '/');
     } catch (error) {
       console.error('Google sign-in error in login page:', error);
       const code = (error as any)?.code as string | undefined;
@@ -90,7 +102,7 @@ export default function LoginPage() {
         await createUserWithEmailAndPassword(auth, email, password);
         toast({ title: 'Account created and signed in' });
       }
-      navigate('/');
+      navigate(fromSubscription ? '/subscription' : '/');
     } catch (error: any) {
       const code = error?.code as string | undefined;
       let title = mode === 'login' ? 'Login failed' : 'Signup failed';
@@ -160,9 +172,11 @@ export default function LoginPage() {
                 {isSignup ? 'Create an account' : 'Welcome back'}
               </h1>
               <p className="text-sm md:text-base text-gray-500">
-                {isSignup
-                  ? 'Sign up and get a 30 day free trial of our Instagram analytics.'
-                  : 'Sign in to continue tracking and growing your Instagram.'}
+                {fromSubscription
+                  ? 'Please sign in to upgrade your plan.'
+                  : isSignup
+                    ? 'Sign up and get a 30 day free trial of our Instagram analytics.'
+                    : 'Sign in to continue tracking and growing your Instagram.'}
               </p>
             </div>
 

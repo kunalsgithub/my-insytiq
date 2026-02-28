@@ -12,10 +12,10 @@ export const PLAN_MAX_GROWTH_DAYS: Record<string, number> = {
   [PLAN.ANALYTICS_PLUS]: 90,
 };
 
-/** Max competitors allowed per plan */
+/** Max competitors allowed per plan (Free: 1 = Overview only; paid: full comparison) */
 export const PLAN_MAX_COMPETITORS: Record<string, number> = {
-  [PLAN.FREE]: 0,
-  [PLAN.TRENDS_PLUS]: 2,
+  [PLAN.FREE]: 1,
+  [PLAN.TRENDS_PLUS]: 3,
   [PLAN.ANALYTICS_PLUS]: 5,
 };
 
