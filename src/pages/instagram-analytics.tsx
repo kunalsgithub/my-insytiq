@@ -319,7 +319,7 @@ const InstagramAnalyticsPage = () => {
           </div>
         )}
 
-        {username && !instagramData.loading && !instagramData.error && instagramData.profile && instagramData.username === username && (
+        {username && !instagramData.loading && !instagramData.error && instagramData.profile && instagramData.username === username && !profileAnalysisLimitReached && (
           <div className="space-y-8">
             <InstagramDashboard
               username={username}

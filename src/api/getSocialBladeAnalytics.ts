@@ -68,6 +68,8 @@ export async function getSocialBladeAnalytics(
 
     if (error.code === "unauthenticated" || error.code === "permission-denied") {
       errorMessage = "Please sign in to fetch analytics data.";
+    } else if (error.code === "not-found") {
+      errorMessage = "Username not found. Please check the username and try again.";
     } else if (error.code === "internal" || error.code === "unavailable" || error.code === "failed-precondition") {
       const serverMsg = error.message && !error.message.includes("internal") ? error.message : "";
       errorMessage =

@@ -119,6 +119,9 @@ export const getSocialBladeAnalytics = onCall(
         const data = axiosError?.response?.data;
         const msg = data?.message || axiosError?.message || "Social Blade API request failed";
         console.error("Social Blade API request failed:", { status, statusText: axiosError?.response?.statusText, data, message: axiosError?.message });
+        if (status === 404) {
+          throw new HttpsError("not-found", "Username not found. Please check the username and try again.");
+        }
         if (status === 401 || status === 403) {
           throw new HttpsError("permission-denied", `Social Blade API auth failed (${status}). Check SB_CLIENT_ID and SB_API_TOKEN.`);
         }
