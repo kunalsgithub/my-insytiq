@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { animate } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
@@ -102,13 +103,54 @@ function pillarFillClass(pct: number): string {
   return "bg-red-500";
 }
 
+const BRAND_SCORE_STORAGE_KEY = "insytiq_brandScoreResult";
+
+function loadBrandScoreFromStorage(): { result: SuccessResult; username: string } | null {
+  try {
+    const raw = localStorage.getItem(BRAND_SCORE_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { result: SuccessResult; username: string };
+    if (parsed?.result?.success && parsed?.username) return parsed;
+  } catch {
+    // ignore
+  }
+  return null;
+}
+
+function saveBrandScoreToStorage(result: SuccessResult, username: string) {
+  try {
+    localStorage.setItem(BRAND_SCORE_STORAGE_KEY, JSON.stringify({ result, username }));
+  } catch {
+    // ignore
+  }
+}
+
 export default function BrandCollabScorePage() {
   const [username, setUsername] = useState("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<SuccessResult | null>(null);
   const [apiError, setApiError] = useState<string | null>(null);
   const [errorCode, setErrorCode] = useState<string | null>(null);
+  const [displayScore, setDisplayScore] = useState(0);
+  const [barReveal, setBarReveal] = useState(0);
+  const [dealVisible, setDealVisible] = useState(false);
   const { toast } = useToast();
+
+  // Restore persisted result on mount (so results survive tab/route switches)
+  useEffect(() => {
+    const saved = loadBrandScoreFromStorage();
+    if (saved) {
+      setResult(saved.result);
+      setUsername(saved.username);
+    }
+  }, []);
+
+  // Persist result when we have a successful score (only overwrite on new success)
+  useEffect(() => {
+    if (result?.success && username.trim()) {
+      saveBrandScoreToStorage(result, username.trim());
+    }
+  }, [result, username]);
 
   useEffect(() => {
     const user = getCurrentUser();
@@ -125,7 +167,39 @@ export default function BrandCollabScorePage() {
     loadSelected();
   }, [username]);
 
+  // Animate score 0→totalScore, breakdown bars, and deal estimate when result is set
+  useEffect(() => {
+    if (!result) {
+      setDisplayScore(0);
+      setBarReveal(0);
+      setDealVisible(false);
+      return;
+    }
+    const targetScore = result.totalScore;
+    const c1 = animate(0, targetScore, {
+      duration: 1.2,
+      ease: "easeOut",
+      onUpdate: (v) => setDisplayScore(v),
+    });
+    const c2 = animate(0, 1, {
+      duration: 0.5,
+      ease: "easeOut",
+      delay: 0.4,
+      onUpdate: (v) => setBarReveal(v),
+    });
+    const t = setTimeout(() => setDealVisible(true), 1800);
+    return () => {
+      c1.stop();
+      c2.stop();
+      clearTimeout(t);
+    };
+  }, [result]);
+
   const handleCalculate = async () => {
+    setLoading(true);
+    setApiError(null);
+    setErrorCode(null);
+    setResult(null);
     const trimmed = username.trim().toLowerCase();
     if (!trimmed) {
       toast({
@@ -133,6 +207,7 @@ export default function BrandCollabScorePage() {
         description: "Enter an Instagram username to analyze.",
         variant: "destructive",
       });
+      setLoading(false);
       return;
     }
     const user = getCurrentUser();
@@ -150,13 +225,13 @@ export default function BrandCollabScorePage() {
           </ToastAction>
         ),
       });
+      setLoading(false);
       return;
     }
 
-    setLoading(true);
-    setApiError(null);
-    setErrorCode(null);
-    setResult(null);
+    const startedAt = Date.now();
+    const MIN_LOADING_MS = 800;
+    await new Promise((r) => setTimeout(r, 0));
     try {
       const fn = httpsCallable<{ username: string }, ApiResponse>(functions, "getBrandCollabScore");
       const res = await fn({ username: trimmed });
@@ -167,6 +242,11 @@ export default function BrandCollabScorePage() {
         setErrorCode(data.code);
         toast({ title: "Unable to calculate", description: data.message, variant: "destructive" });
         return;
+      }
+      const elapsed = Date.now() - startedAt;
+      const delay = elapsed < MIN_LOADING_MS ? MIN_LOADING_MS - elapsed : 0;
+      if (delay > 0) {
+        await new Promise((r) => setTimeout(r, delay));
       }
       setResult(data);
       toast({ title: "Score ready", description: `${data.totalScore}/100 — ${data.status}` });
@@ -220,8 +300,7 @@ export default function BrandCollabScorePage() {
             <Button
               onClick={handleCalculate}
               disabled={loading}
-              className="text-white border-0 transition-opacity shadow-md min-w-[160px] hover:opacity-90"
-              style={{ background: "linear-gradient(90deg, #f9ce34, #ee2a7b, #6228d7)" }}
+              className="min-w-[160px] border-0 text-white shadow-md transition-all hover:opacity-95 bg-[#d72989] hover:bg-[#c0257a]"
             >
               {loading ? (
                 <span className="loading-text-inline">
@@ -285,17 +364,74 @@ export default function BrandCollabScorePage() {
         </Card>
       )}
 
-      {/* Results (hidden until success) */}
-      {result && (
+      {/* AI Calculating skeleton (min 800ms, then transition to result) */}
+      {loading && (
+        <div className="space-y-8 mt-8" role="status" aria-live="polite" aria-label="Calculating score">
+          <Card className="shadow-lg border-0 overflow-hidden border border-gray-200 bg-white">
+            <CardContent className="pt-8 pb-8">
+              <div className="flex flex-col md:flex-row items-center justify-center gap-8">
+                <div className="relative flex items-center justify-center">
+                  <CircularScoreRing score={0} size={180} />
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <span className="text-4xl font-bold text-gray-400">0</span>
+                  </div>
+                </div>
+                <div className="text-center md:text-left space-y-3 min-w-[200px]">
+                  <p className="text-sm font-medium text-gray-600 animate-pulse">AI analyzing engagement patterns...</p>
+                  <div className="space-y-2">
+                    <div className="h-3 w-full max-w-[180px] skeleton-shimmer rounded bg-gray-200" />
+                    <div className="h-3 w-2/3 max-w-[140px] skeleton-shimmer rounded bg-gray-200" />
+                    <div className="h-3 w-1/2 max-w-[120px] skeleton-shimmer rounded bg-gray-200" />
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <div>
+            <h2 className="text-xl font-semibold mb-4 text-gray-500">Score breakdown</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {PILLARS.map(({ label }) => (
+                <Card key={label} className="shadow-md border-gray-200 bg-gray-50/50">
+                  <CardContent className="pt-4 pb-4">
+                    <div className="flex justify-between items-baseline mb-2">
+                      <span className="h-4 w-24 skeleton-shimmer rounded bg-gray-200" />
+                      <span className="h-4 w-10 skeleton-shimmer rounded bg-gray-200" />
+                    </div>
+                    <div className="h-2 rounded-full bg-gray-200 overflow-hidden mb-2">
+                      <div className="h-full w-2/3 skeleton-shimmer rounded-full max-w-full bg-gray-300" />
+                    </div>
+                    <div className="h-3 w-full skeleton-shimmer rounded mt-2 bg-gray-200" />
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+          <Card className="shadow-lg border-0 border-gray-200 bg-gray-50/50">
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <div className="h-5 w-5 skeleton-shimmer rounded bg-gray-200" />
+                <span className="h-5 w-48 skeleton-shimmer rounded bg-gray-200" />
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="h-4 w-full max-w-md skeleton-shimmer rounded mb-3 bg-gray-200" />
+              <div className="h-8 w-40 skeleton-shimmer rounded bg-gray-200" />
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Results (persistent; restored from localStorage when returning to page) */}
+      {result && !loading && (
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
           {/* Large Score Card */}
           <Card className="shadow-lg border-0 overflow-hidden">
             <CardContent className="pt-8 pb-8">
               <div className="flex flex-col md:flex-row items-center justify-center gap-8">
                 <div className="relative flex items-center justify-center">
-                  <CircularScoreRing score={result.totalScore} size={180} />
+                  <CircularScoreRing score={displayScore} size={180} />
                   <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="text-4xl font-bold text-gray-900">{result.totalScore}</span>
+                    <span className="text-4xl font-bold text-gray-900">{Math.round(displayScore)}</span>
                   </div>
                 </div>
                 <div className="text-center md:text-left">
@@ -343,6 +479,7 @@ export default function BrandCollabScorePage() {
                 const pct = max > 0 ? Math.round((value / max) * 100) : 0;
                 const fillClass = pillarFillClass(pct);
                 const textColor = pct >= 70 ? "text-green-600" : pct >= 40 ? "text-yellow-600" : "text-red-600";
+                const widthPct = Math.round(pct * barReveal);
                 return (
                   <Card key={key} className="shadow-md hover:shadow-lg transition-shadow">
                     <CardContent className="pt-4 pb-4">
@@ -354,8 +491,8 @@ export default function BrandCollabScorePage() {
                       </div>
                       <div className="h-2 rounded-full bg-gray-200 overflow-hidden mb-2">
                         <div
-                          className={`h-full rounded-full transition-all duration-500 ${fillClass}`}
-                          style={{ width: `${pct}%` }}
+                          className={`h-full rounded-full transition-all duration-500 ease-out ${fillClass}`}
+                          style={{ width: `${widthPct}%` }}
                         />
                       </div>
                       <p className="text-xs text-gray-500">{description}</p>
@@ -368,7 +505,9 @@ export default function BrandCollabScorePage() {
 
           {/* Deal Estimate (PRO only) */}
           {result.dealEstimate && (
-            <Card className="shadow-lg border-0">
+            <Card
+              className={`shadow-lg border-0 transition-opacity duration-500 ${dealVisible ? "opacity-100" : "opacity-0"}`}
+            >
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
                   <DollarSign className="h-5 w-5 text-green-600" />

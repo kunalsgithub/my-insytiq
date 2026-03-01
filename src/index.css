@@ -134,4 +134,21 @@
   .blur-overlay-text {
     @apply text-2xl font-bold;
   }
+
+  /* Skeleton shimmer for Brand Collab calculating state */
+  .skeleton-shimmer {
+    background: linear-gradient(
+      90deg,
+      theme("colors.gray.200") 0%,
+      theme("colors.gray.100") 50%,
+      theme("colors.gray.200") 100%
+    );
+    background-size: 200% 100%;
+    animation: skeleton-shimmer 1.5s ease-in-out infinite;
+  }
+}
+
+@keyframes skeleton-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
 }
