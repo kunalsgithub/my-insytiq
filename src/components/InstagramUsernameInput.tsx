@@ -5,13 +5,15 @@ import { useToast } from '../hooks/use-toast';
 
 interface InstagramUsernameInputProps {
   onAnalyze: (username: string) => void;
+  disabled?: boolean;
 }
 
-const InstagramUsernameInput: React.FC<InstagramUsernameInputProps> = ({ onAnalyze }) => {
+const InstagramUsernameInput: React.FC<InstagramUsernameInputProps> = ({ onAnalyze, disabled = false }) => {
   const [username, setUsername] = useState('');
   const { toast } = useToast();
 
   const handleAnalyze = () => {
+    if (disabled) return;
     if (!username.trim()) {
       toast({
         title: 'Please enter an Instagram username',
@@ -26,6 +28,7 @@ const InstagramUsernameInput: React.FC<InstagramUsernameInputProps> = ({ onAnaly
     if (e.key === 'Enter') {
       e.preventDefault();
       e.stopPropagation();
+      if (disabled) return;
       handleAnalyze();
     }
   };
@@ -39,15 +42,18 @@ const InstagramUsernameInput: React.FC<InstagramUsernameInputProps> = ({ onAnaly
     <form onSubmit={handleSubmit} className="flex flex-col md:flex-row items-center gap-4 mb-8">
       <Input
         type="text"
-        placeholder="Enter Instagram username"
+        placeholder={disabled ? "Limit reached — upgrade to analyze more" : "Enter Instagram username"}
         value={username}
-        onChange={e => setUsername(e.target.value)}
+        onChange={e => !disabled && setUsername(e.target.value)}
         onKeyDown={handleKeyDown}
         className="w-full md:w-1/2"
+        disabled={disabled}
+        readOnly={disabled}
       />
       <Button
         type="submit"
         className="w-full md:w-auto bg-[rgb(192,37,122)] text-white border-0 hover:brightness-110"
+        disabled={disabled}
       >
         Analyze
       </Button>

@@ -248,6 +248,16 @@ const InstagramAnalyticsPage = () => {
       return;
     }
 
+    if (profileAnalysisLimitReached) {
+      const limit = PLAN_PROFILE_ANALYSES_LIMIT[userPlan] ?? PLAN_PROFILE_ANALYSES_LIMIT[PLAN.ANALYTICS_PLUS];
+      toast({
+        title: "Limit reached",
+        description: `You've used your ${limit} profile analyses this month. Upgrade to analyze more.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       clearForUser(userId);
       const success = await saveUsername(newUsername);
@@ -299,7 +309,10 @@ const InstagramAnalyticsPage = () => {
         )}
 
         <div className="bg-white rounded-xl shadow p-6 mb-8">
-          <InstagramUsernameInput onAnalyze={handleAnalyzeUsername} />
+          <InstagramUsernameInput
+            onAnalyze={handleAnalyzeUsername}
+            disabled={profileAnalysisLimitReached}
+          />
           {saving && (
             <p className="text-sm text-gray-500 mt-3 text-center">
               Saving username…
