@@ -6,6 +6,7 @@ import { MessageCircle, Send, TrendingUp, Users, BarChart3, ArrowDown } from 'lu
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '../firebase';
 import { useToast } from '../hooks/use-toast';
+import { ToastAction } from '../components/ui/toast';
 import { onAuthStateChangedListener, getCurrentUser } from '../services/firebaseService';
 import { doc, getDoc, onSnapshot } from 'firebase/firestore';
 import { db } from '../services/firebaseService';
@@ -610,9 +611,17 @@ const SmartChat = ({ useV2 = false }: SmartChatProps) => {
     // This ensures Firebase Auth has a valid token
     if (!currentAuthUser) {
       toast({
-        title: 'Authentication Required',
-        description: 'Please sign in to use Smart Chat',
+        title: 'Login required',
+        description: 'Please login to use Smart Chat.',
         variant: 'destructive',
+        action: (
+          <ToastAction
+            onClick={() => { window.location.href = '/auth'; }}
+            altText="Sign in"
+          >
+            Sign in
+          </ToastAction>
+        ),
       });
       const errorResponse: Message = {
         id: generateMessageId(),

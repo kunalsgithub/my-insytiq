@@ -8,6 +8,7 @@ import { db } from "../services/firebaseService";
 import { functions } from "../firebase";
 import { httpsCallable } from "firebase/functions";
 import { useToast } from "../hooks/use-toast";
+import { ToastAction } from "../components/ui/toast";
 import { AlertCircle, Lightbulb, DollarSign, AlertTriangle } from "lucide-react";
 import { Link } from "react-router-dom";
 import "../components/LoadingText.css";
@@ -137,9 +138,17 @@ export default function BrandCollabScorePage() {
     const user = getCurrentUser();
     if (!user) {
       toast({
-        title: "Sign in required",
-        description: "You must be signed in to use this feature.",
+        title: "Login required",
+        description: "Please login to analyze Instagram accounts.",
         variant: "destructive",
+        action: (
+          <ToastAction
+            onClick={() => { window.location.href = "/auth"; }}
+            altText="Sign in"
+          >
+            Sign in
+          </ToastAction>
+        ),
       });
       return;
     }
