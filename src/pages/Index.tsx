@@ -387,7 +387,11 @@ export default function Index() {
             <div className="absolute inset-0 bg-gradient-to-br from-[#fdf2f8]/30 to-[#f5f3ff]/30" />
             <div className="relative p-6 md:p-8">
               <div className="flex items-center gap-3 border-b border-gray-100 pb-4">
-                <div className="h-10 w-10 rounded-full bg-gradient-to-br from-[#ee2a7b] to-[#6228d7]" />
+                <img
+                  src="/hero-avatar.png"
+                  alt="Profile"
+                  className="h-10 w-10 shrink-0 rounded-full object-cover ring-2 ring-white shadow-md"
+                />
                 <div>
                   <p className="font-semibold text-gray-900">Brand Collab Readiness Score</p>
                   <p className="text-xs text-gray-500">Engagement · Consistency · Reel Impact · Deal estimate</p>

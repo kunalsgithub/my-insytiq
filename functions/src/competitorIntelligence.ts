@@ -135,7 +135,7 @@ export const updateCompetitorAnalytics = onCall(
 
 /** Growth Comparison chart data – Pro (Analytics+) only. Returns empty data for other plans. */
 export const getFollowerHistory = onCall(
-  { timeoutSeconds: 30 },
+  { timeoutSeconds: 30, cors: true },
   async (request) => {
     const userId = request.auth?.uid;
     if (!userId) {

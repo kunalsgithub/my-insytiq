@@ -49,6 +49,7 @@ export const getSocialBladeAnalytics = onCall(
     secrets: [sbClientId, sbApiToken],
     timeoutSeconds: 30,
     memory: "512MiB",
+    cors: true,
   },
   async (request) => {
     const { username } = request.data;
@@ -114,22 +115,30 @@ export const getSocialBladeAnalytics = onCall(
           timeout: 20000,
         });
       } catch (axiosError: any) {
-        console.error("Social Blade API request failed:", {
-          status: axiosError?.response?.status,
-          statusText: axiosError?.response?.statusText,
-          data: axiosError?.response?.data,
-          message: axiosError?.message,
-        });
-        throw axiosError;
+        const status = axiosError?.response?.status;
+        const data = axiosError?.response?.data;
+        const msg = data?.message || axiosError?.message || "Social Blade API request failed";
+        console.error("Social Blade API request failed:", { status, statusText: axiosError?.response?.statusText, data, message: axiosError?.message });
+        if (status === 401 || status === 403) {
+          throw new HttpsError("permission-denied", `Social Blade API auth failed (${status}). Check SB_CLIENT_ID and SB_API_TOKEN.`);
+        }
+        if (status === 429) {
+          throw new HttpsError("resource-exhausted", "Social Blade rate limit reached. Please try again later.");
+        }
+        if (status && status >= 500) {
+          throw new HttpsError("unavailable", `Social Blade API error (${status}). Try again later.`);
+        }
+        throw new HttpsError("unavailable", `Social Blade API: ${msg}`);
       }
 
       const apiData = response.data;
 
       // Check if API call was successful
       if (!apiData.status?.success || !apiData.data) {
+        const reason = (apiData.status as any)?.message ?? apiData.status?.status ?? JSON.stringify(apiData.status);
         throw new HttpsError(
-          "internal",
-          `Social Blade API returned unsuccessful response: ${JSON.stringify(apiData.status)}`
+          "failed-precondition",
+          `Social Blade API returned unsuccessful: ${reason}`
         );
       }
 
@@ -363,6 +372,10 @@ export const getSocialBladeAnalytics = onCall(
         cached: false,
       };
     } catch (error: any) {
+      // Re-throw if already an HttpsError (from axios or API check above)
+      if (error?.code && typeof error.code === "string" && error.message) {
+        throw error;
+      }
       console.error("Social Blade API error:", error?.response?.data || error?.message || error);
 
       // If we have cached data, return it even if expired
@@ -380,10 +393,8 @@ export const getSocialBladeAnalytics = onCall(
         }
       }
 
-      throw new HttpsError(
-        "internal",
-        `Failed to fetch Social Blade data: ${error?.response?.data?.message || error?.message || "Unknown error"}`
-      );
+      const detail = error?.response?.data?.message || error?.message || "Unknown error";
+      throw new HttpsError("unavailable", `Failed to fetch Social Blade data: ${detail}`);
     }
   }
 );
