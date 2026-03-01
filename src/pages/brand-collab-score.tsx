@@ -238,9 +238,10 @@ export default function BrandCollabScorePage() {
       const data = res.data as ApiResponse;
 
       if (!data.success) {
-        setApiError(data.message);
-        setErrorCode(data.code);
-        toast({ title: "Unable to calculate", description: data.message, variant: "destructive" });
+        const err = data as ErrorResult;
+        setApiError(err.message);
+        setErrorCode(err.code);
+        toast({ title: "Unable to calculate", description: err.message, variant: "destructive" });
         return;
       }
       const elapsed = Date.now() - startedAt;
@@ -251,9 +252,13 @@ export default function BrandCollabScorePage() {
       setResult(data);
       toast({ title: "Score ready", description: `${data.totalScore}/100 — ${data.status}` });
     } catch (err: any) {
-      const msg = err?.message || "Something went wrong. Please try again.";
+      const raw = err?.message || "Something went wrong. Please try again.";
+      const isDeadline = /deadline-exceeded|deadline exceeded|time out|timeout/i.test(raw);
+      const msg = isDeadline
+        ? "Analysis is taking longer than expected. Please try again — it often succeeds on the second attempt."
+        : raw;
       setApiError(msg);
-      setErrorCode(null);
+      setErrorCode(isDeadline ? "DEADLINE_EXCEEDED" : null);
       toast({ title: "Error", description: msg, variant: "destructive" });
     } finally {
       setLoading(false);
@@ -319,7 +324,23 @@ export default function BrandCollabScorePage() {
             <div className="flex flex-col gap-3 p-4 rounded-lg border animate-in fade-in bg-red-50 border-red-100 text-red-800" role="alert">
               <div className="flex items-start gap-3">
                 <AlertCircle className="h-5 w-5 shrink-0 mt-0.5" />
-                <p className="text-sm">{apiError}</p>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm">{apiError}</p>
+                  {errorCode === "DEADLINE_EXCEEDED" && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      className="mt-3 bg-[#d72989] hover:bg-[#c0257a] text-white"
+                      onClick={() => {
+                        setApiError(null);
+                        setErrorCode(null);
+                        handleCalculate();
+                      }}
+                    >
+                      Try again
+                    </Button>
+                  )}
+                </div>
               </div>
             </div>
           )}
