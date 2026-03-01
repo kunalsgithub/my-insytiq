@@ -52,7 +52,7 @@ const InstagramUsernameInput: React.FC<InstagramUsernameInputProps> = ({ onAnaly
       />
       <Button
         type="submit"
-        className="w-full md:w-auto bg-[rgb(192,37,122)] text-white border-0 hover:brightness-110"
+        className={`w-full md:w-auto border-0 ${disabled ? "bg-gray-400 text-gray-200 cursor-not-allowed" : "bg-[rgb(192,37,122)] text-white hover:brightness-110"}`}
         disabled={disabled}
       >
         Analyze
