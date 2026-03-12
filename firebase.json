@@ -1,7 +1,17 @@
 {
   "emulators": {
+    "auth": {
+      "port": 9099
+    },
+    "firestore": {
+      "port": 8080
+    },
     "functions": {
       "port": 5002
+    },
+    "ui": {
+      "enabled": false,
+      "port": 4000
     }
   },
   "functions": [

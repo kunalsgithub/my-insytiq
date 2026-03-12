@@ -19,6 +19,7 @@ const DAY_OPTIONS = [
   { label: "Last 14 Days", value: 14 },
   { label: "Last 30 Days", value: 30 },
   { label: "Last 60 Days", value: 60 },
+  { label: "Last 90 Days", value: 90 },
   { label: "Last 180 Days", value: 180 },
   { label: "Last 365 Days", value: 365 },
   { label: "Last 3 Years", value: 1095 },
@@ -376,7 +377,7 @@ const InstagramAnalytics: React.FC<InstagramAnalyticsProps & { userPlan?: string
                   >
                     {option.label}
                     {!option.enabled && (
-                      <span className="ml-auto text-xs text-muted-foreground">Upgrade for more</span>
+                      <span className="ml-auto text-xs text-muted-foreground">Upgrade</span>
                     )}
                     {option.enabled && selectedDays === option.value && <Check className="ml-auto h-4 w-4 text-green-500" />}
                   </DropdownMenuItem>

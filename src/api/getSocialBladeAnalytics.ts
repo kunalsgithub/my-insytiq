@@ -75,7 +75,7 @@ export async function getSocialBladeAnalytics(
       errorMessage =
         serverMsg ||
         "Service temporarily unavailable. If this continues, check your Firebase/Google Cloud billing and that your project is in good standing.";
-    } else if (error.code === "resource-exhausted") {
+    } else if (error.code === "resource-exhausted" || (error.message && /482|402|credits exhausted|rate limit/i.test(String(error.message)))) {
       errorMessage = "Social Blade rate limit or credits exhausted. Try again later or add credits at Social Blade. Reusing the same username uses cached data for 30 min.";
     } else if (error.message) {
       const msg = String(error.message).toLowerCase();

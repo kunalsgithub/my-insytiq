@@ -19,6 +19,7 @@ import {
   fetchAnalyticsIfNeeded,
   loadCachedAnalytics,
 } from "../utils/loadCachedAnalytics";
+import { reserveProfileAnalysisUsage } from "../api/reserveProfileAnalysisUsage";
 
 import { useInstagramAnalyticsStore } from "../store/useInstagramAnalyticsStore";
 
@@ -55,12 +56,10 @@ const InstagramAnalyticsPage = () => {
         const data = userDoc.data();
         const plan = (data?.currentPlan as string) || PLAN.FREE;
         setUserPlan(plan);
-        const usage = (data as any)?.profileAnalysisUsage || {};
-        const usageMonth = typeof usage.month === "string" ? usage.month : null;
-        const usageCount = typeof usage.count === "number" ? usage.count : 0;
-        const thisMonth = new Date().toISOString().slice(0, 7);
+        const usage = (data as any)?.usage?.profileAnalysis || {};
+        const usageCount = typeof usage.monthlyUsed === "number" ? usage.monthlyUsed : 0;
         const limit = PLAN_PROFILE_ANALYSES_LIMIT[plan] ?? PLAN_PROFILE_ANALYSES_LIMIT[PLAN.ANALYTICS_PLUS];
-        setProfileAnalysisLimitReached(usageMonth === thisMonth && usageCount >= limit);
+        setProfileAnalysisLimitReached(usageCount >= limit);
       } catch {
         setUserPlan(PLAN.FREE);
         setProfileAnalysisLimitReached(false);
@@ -175,24 +174,14 @@ const InstagramAnalyticsPage = () => {
 
         // 🔥 ONLY PLACE Apify CAN RUN
         if (result.needsFetch) {
-          if (profileAnalysisLimitReached) {
-            const limit = PLAN_PROFILE_ANALYSES_LIMIT[userPlan] ?? PLAN_PROFILE_ANALYSES_LIMIT[PLAN.ANALYTICS_PLUS];
-            const msg = `Your plan allows ${limit} profile analyses per month. You've reached that limit this month. Upgrade your plan to analyze more accounts.`;
-            toast({ title: "Limit reached", description: msg, variant: "destructive" });
-            setAnalysisError(msg);
-            markLoaded(loadKey);
-            return;
-          }
           await fetchAnalyticsIfNeeded(userId, username);
           {
             const userDoc = await getDoc(doc(db, "users", userId));
             const data = userDoc.data();
-            const usage = (data as any)?.profileAnalysisUsage || {};
-            const usageMonth = typeof usage.month === "string" ? usage.month : null;
-            const usageCount = typeof usage.count === "number" ? usage.count : 0;
-            const thisMonth = new Date().toISOString().slice(0, 7);
+            const usage = (data as any)?.usage?.profileAnalysis || {};
+            const usageCount = typeof usage.monthlyUsed === "number" ? usage.monthlyUsed : 0;
             const limit = PLAN_PROFILE_ANALYSES_LIMIT[userPlan] ?? PLAN_PROFILE_ANALYSES_LIMIT[PLAN.ANALYTICS_PLUS];
-            setProfileAnalysisLimitReached(usageMonth === thisMonth && usageCount >= limit);
+            setProfileAnalysisLimitReached(usageCount >= limit);
           }
           markLoaded(loadKey);
         }
@@ -248,17 +237,46 @@ const InstagramAnalyticsPage = () => {
       return;
     }
 
-    if (profileAnalysisLimitReached) {
-      const limit = PLAN_PROFILE_ANALYSES_LIMIT[userPlan] ?? PLAN_PROFILE_ANALYSES_LIMIT[PLAN.ANALYTICS_PLUS];
-      toast({
-        title: "Limit reached",
-        description: `You've used your ${limit} profile analyses this month. Upgrade to analyze more.`,
-        variant: "destructive",
-      });
-      return;
-    }
-
     try {
+      // 1️⃣ Reserve usage on the server BEFORE any cache logic
+      try {
+        await reserveProfileAnalysisUsage(userId);
+      } catch (err: any) {
+        const code = err?.code || "";
+        const message = err?.message || "";
+        const details = err?.details ?? {};
+        const isCooldown = details?.cooldown === true || (typeof message === "string" && /wait.*minutes/i.test(message));
+        const isLimit =
+          (code === "functions/resource-exhausted" || code === "resource-exhausted") &&
+          !isCooldown &&
+          (details?.upgradeRequired === true || (typeof message === "string" && message.toLowerCase().includes("limit")));
+
+        if (isCooldown) {
+          const mins = details?.remainingMinutes ?? 1;
+          toast({
+            title: "Please wait",
+            description: `Wait ${mins} minute${mins !== 1 ? "s" : ""} before running another profile analysis.`,
+            variant: "destructive",
+          });
+          return;
+        }
+        if (isLimit) {
+          const limit =
+            PLAN_PROFILE_ANALYSES_LIMIT[userPlan] ??
+            PLAN_PROFILE_ANALYSES_LIMIT[PLAN.ANALYTICS_PLUS];
+          toast({
+            title: "Limit reached",
+            description:
+              message ||
+              `You've used your ${limit} profile analyses this month. Upgrade to analyze more.`,
+            variant: "destructive",
+          });
+          setProfileAnalysisLimitReached(true);
+          return;
+        }
+        throw err;
+      }
+
       clearForUser(userId);
       const success = await saveUsername(newUsername);
       if (success) {

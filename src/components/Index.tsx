@@ -4,15 +4,17 @@ import TrendingContent from "@/components/TrendingContent";
 import CategoryFilter from "@/components/CategoryFilter";
 import InstagramNews from "@/components/InstagramNews";
 import ScrollVelocity from "@/components/ScrollVelocity";
+import { useUserPlan } from "@/hooks/useUserPlan";
 
 const Index = () => {
   const [selectedCategory, setSelectedCategory] = useState("all");
+  const { planKey } = useUserPlan();
 
   return (
     <main className="flex-1 w-full px-4 py-8">
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
-          <TrendingContent selectedCategory={selectedCategory} />
+          <TrendingContent selectedCategory={selectedCategory} userPlan={planKey} />
           <TrendingHashtags selectedCategory={selectedCategory} />
           <InstagramNews />
           <div className="w-full overflow-x-auto">

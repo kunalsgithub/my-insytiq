@@ -13,6 +13,7 @@ import {
   CarouselPrevious,
 } from "@/components/ui/carousel";
 import { hasAccess, PLAN } from "@/utils/accessControl";
+import { getUserPlan } from "@/utils/userPlan";
 
 const ReelsLogo = ({ className = "h-8 w-8" }) => (
   <img src="/reellogo.png" alt="Reels Logo" className={className} style={{ display: 'block' }} />
@@ -65,8 +66,12 @@ const TrendingContent = ({ selectedCategory = "all", isPremium = false, userPlan
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("posts");
 
-  // Determine content limit based on plan
-  const contentLimit = hasAccess("trendingContentLimit", userPlan || PLAN.FREE) || 5;
+  // Normalize plan once per render so all checks use the same value
+  const normalizedUserPlanKey = userPlan || PLAN.FREE;
+  const normalizedUserPlan = getUserPlan({ currentPlan: normalizedUserPlanKey });
+
+  // Determine content limit based on internal PLAN key
+  const contentLimit = hasAccess("trendingContentLimit", normalizedUserPlanKey) || 5;
 
   useEffect(() => {
     const getContent = async () => {
@@ -112,7 +117,7 @@ const TrendingContent = ({ selectedCategory = "all", isPremium = false, userPlan
 
     // Always show 10 items, but lock after contentLimit for free users
     const visibleItems = items.slice(0, 10);
-    const isLocked = (idx: number) => userPlan === PLAN.FREE && idx >= contentLimit;
+    const isLocked = (idx: number) => normalizedUserPlan === "free" && idx >= contentLimit;
     const showBlur = !isPremium && items.length > 5;
 
     return (

@@ -163,10 +163,12 @@ export function useInstagramData() {
           errorMessage = 'Please login to fetch analytics data';
         } else if (msg.includes('not found') || msg.includes('404')) {
           errorMessage = 'Username not found. Please check the username and try again.';
-        } else if (msg.includes('rate limit') || msg.includes('too many')) {
-          errorMessage = 'Too many requests. Please wait a moment and try again.';
+        } else if (msg.includes('rate limit') || msg.includes('too many') || msg.includes('482') || msg.includes('credits exhausted')) {
+          errorMessage = 'Social Blade credits or rate limit reached. Try again later or add credits at Social Blade. Same username is cached for 30 min.';
         } else if (msg.includes('network') || msg.includes('timeout')) {
           errorMessage = 'Network error. Please check your connection and try again.';
+        } else if (msg.includes('social blade')) {
+          errorMessage = 'Social Blade API limit or error. Try again later or add credits at Social Blade.';
         }
       }
       

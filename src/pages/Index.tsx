@@ -11,6 +11,9 @@ import {
   Gauge,
   ArrowRight,
   Play,
+  Bot,
+  LineChart,
+  CheckCircle2,
 } from "lucide-react";
 
 // ---------------------------------------------------------------------------
@@ -136,7 +139,7 @@ function HeroMockCard() {
           className="mt-4 flex items-center gap-2 rounded-lg bg-gray-50 px-3 py-2"
         >
           <span className="text-xs font-medium text-gray-500">Deal estimate</span>
-          <span className="text-sm font-semibold text-gray-900">$800 – $2.4K</span>
+          <span className="text-sm font-semibold text-gray-900">$2560000 – $7680000</span>
         </motion.div>
       </div>
     </motion.div>
@@ -196,10 +199,12 @@ export default function Index() {
   const heroRef = useRef<HTMLElement>(null);
   const featuresRef = useRef<HTMLElement>(null);
   const trustRef = useRef<HTMLElement>(null);
+  const aiCompareRef = useRef<HTMLElement>(null);
   const proRef = useRef<HTMLElement>(null);
   const heroInView = useInView(heroRef, { once: true, amount: 0.2 });
   const featuresInView = useInView(featuresRef, { once: true, amount: 0.15 });
   const trustInView = useInView(trustRef, { once: true, amount: 0.2 });
+  const aiCompareInView = useInView(aiCompareRef, { once: true, amount: 0.2 });
   const proInView = useInView(proRef, { once: true, amount: 0.2 });
 
   return (
@@ -355,6 +360,112 @@ export default function Index() {
             ))}
           </motion.div>
         </div>
+      </section>
+
+      {/* ---------------------------------------------------------------------------
+          AI COMPARISON — Generic AI vs INSYTIQ
+      --------------------------------------------------------------------------- */}
+      <section
+        ref={aiCompareRef}
+        className="px-4 py-16 md:py-20 bg-white"
+      >
+        <motion.div
+          initial={{ opacity: 0, y: 40 }}
+          animate={aiCompareInView ? { opacity: 1, y: 0 } : {}}
+          transition={{ duration: 0.6, ease: "easeOut" }}
+          className="mx-auto max-w-6xl"
+        >
+          <div className="text-center max-w-2xl mx-auto">
+            <h2 className="text-2xl md:text-3xl font-bold text-gray-900">
+              Generic AI Advice vs Real Instagram Intelligence
+            </h2>
+            <p className="mt-3 text-sm md:text-base text-gray-600">
+              Most AI tools give general advice. INSYTIQ analyzes your real Instagram data to give actionable insights.
+            </p>
+          </div>
+          <div className="mt-10 grid gap-6 md:grid-cols-2">
+            {/* Generic AI card */}
+            <motion.div
+              initial={{ opacity: 0, x: -40 }}
+              animate={aiCompareInView ? { opacity: 1, x: 0 } : {}}
+              transition={{ duration: 0.6, ease: "easeOut" }}
+              className="relative rounded-2xl border border-gray-200 bg-gray-50 p-6 shadow-sm"
+            >
+              <div className="flex items-center gap-3 mb-4">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gray-100">
+                  <Bot className="h-5 w-5 text-gray-500" />
+                </div>
+                <div>
+                  <h3 className="text-base md:text-lg font-semibold text-gray-900">Generic AI Tools</h3>
+                  <p className="text-xs text-gray-500">Chat-style answers, no real account data.</p>
+                </div>
+              </div>
+              <ul className="space-y-2 text-sm text-gray-500">
+                <li>• How to grow Instagram</li>
+                <li>• How to get more followers and likes</li>
+                <li>• What hashtags should I use to get more engagement</li>
+                <li>• How to make reels viral and get more views</li>
+                <li>• When should I post</li>
+                <li>• Generate captions for my next reel</li>
+              </ul>
+            </motion.div>
+
+            {/* INSYTIQ card */}
+            <motion.div
+              initial={{ opacity: 0, x: 40 }}
+              animate={aiCompareInView ? { opacity: 1, x: 0 } : {}}
+              transition={{ duration: 0.6, ease: "easeOut" }}
+              whileHover={{ scale: 1.02 }}
+              className="relative rounded-2xl border border-[#c0257a]/40 bg-gradient-to-br from-[#fdf2f8] via-white to-[#eef2ff] p-6 shadow-lg shadow-[#c0257a]/20"
+            >
+              <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-[#f9ce34]/10 via-[#ee2a7b]/8 to-[#6228d7]/10 pointer-events-none" />
+              <div className="relative flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/80 shadow-sm">
+                    <LineChart className="h-5 w-5 text-[#c0257a]" />
+                  </div>
+                  <div>
+                    <h3 className="text-base md:text-lg font-semibold text-gray-900">INSYTIQ</h3>
+                    <p className="text-xs text-gray-500">Real Instagram analytics, not guesses.</p>
+                  </div>
+                </div>
+                <span className="inline-flex items-center rounded-full bg-[#ecfdf3] px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-[#166534] shadow-sm">
+                  DATA-DRIVEN
+                </span>
+              </div>
+              <ul className="relative space-y-2 text-sm text-gray-800">
+                {[
+                  "What are my top performing posts in the last 30 days?",
+                  "Which hashtags are performing best for me?",
+                  "What is the best time to post?",
+                  "Analyze my account and tell me how much followers I can expect in the next 100 days?",
+                  "Which content type is performing best for me?",
+                  "Brand Collaboration Readiness Score of @username",
+                  "What is currently trending on Instagram?"
+                ].map((item) => (
+                  <li key={item} className="flex items-start gap-2">
+                    <CheckCircle2 className="mt-0.5 h-4 w-4 text-emerald-500 shrink-0" />
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </motion.div>
+          </div>
+
+          <div className="mt-10 text-center space-y-4">
+            <p className="text-sm md:text-base text-gray-600">
+              <span className="line-through">Generic AI guesses</span>.{" "}
+              <span className="font-semibold text-gray-900">INSYTIQ analyzes your real Instagram data.</span>
+            </p>
+            <Link
+              to="/instagram-analytics"
+              className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-[#c0257a] to-[#a01d68] px-7 py-3.5 text-sm font-semibold text-white shadow-lg shadow-[#c0257a]/30 transition-transform duration-200 hover:-translate-y-0.5 hover:shadow-xl"
+            >
+              Analyze My Instagram
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
+        </motion.div>
       </section>
 
       {/* ---------------------------------------------------------------------------

@@ -4,9 +4,16 @@ import { Input } from '../components/ui/input';
 import { ToastAction } from '../components/ui/toast';
 import { signInWithGoogle, signInWithGoogleRedirect } from '../services/firebaseService';
 import { useToast } from '../hooks/use-toast';
-import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
+import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, sendEmailVerification } from 'firebase/auth';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, Loader2, Check, Lock, Mail, Zap } from 'lucide-react';
+import { signupWithIpLimitUrl } from '../firebase';
+
+const SIGNUP_STEPS = [
+  { id: 1, label: 'Verifying security…', doneLabel: 'Security verified', icon: Lock },
+  { id: 2, label: 'Sending verification email…', doneLabel: 'Email sent', icon: Mail },
+  { id: 3, label: 'Preparing your dashboard…', doneLabel: 'Ready', icon: Zap },
+] as const;
 
 export default function LoginPage() {
   const [fullName, setFullName] = useState('');
@@ -14,6 +21,8 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [mode, setMode] = useState<'login' | 'signup'>('signup');
   const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [step, setStep] = useState(1);
   const { toast } = useToast();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -91,16 +100,72 @@ export default function LoginPage() {
     }
   };
 
-  const handleManualAuth = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const auth = getAuth();
     try {
       if (mode === 'login') {
-        await signInWithEmailAndPassword(auth, email, password);
+        const cred = await signInWithEmailAndPassword(auth, email, password);
+        if (!cred.user.emailVerified) {
+          toast({
+            title: 'Verify your email',
+            description: 'Please verify your email before continuing. We have sent you a verification link.',
+            variant: 'destructive',
+          });
+          try {
+            await sendEmailVerification(cred.user);
+          } catch {
+            // ignore resend failure here
+          }
+          navigate('/verify-email');
+          return;
+        }
         toast({ title: 'Logged in successfully' });
       } else {
-        await createUserWithEmailAndPassword(auth, email, password);
-        toast({ title: 'Account created and signed in' });
+        setIsLoading(true);
+        setStep(1);
+
+        try {
+          await new Promise((r) => setTimeout(r, 1000));
+          setStep(2);
+
+          // Create account via Cloud Function (HTTP + CORS) to enforce IP-based signup limits.
+          const res = await fetch(signupWithIpLimitUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          const code = data?.error?.code ?? 'internal';
+          const message = data?.error?.message ?? 'Signup failed. Please try again.';
+          const err = new Error(message) as Error & { code?: string };
+          err.code = code;
+          throw err;
+        }
+
+        // Now sign in normally so we can send verification email from client.
+        const cred = await signInWithEmailAndPassword(auth, email, password);
+        try {
+          await sendEmailVerification(cred.user);
+          toast({
+            title: 'Verify your email',
+            description: `We’ve sent a verification link to ${cred.user.email}. Please verify before continuing.`,
+          });
+        } catch {
+          toast({
+            title: 'Account created',
+            description: 'We could not send a verification email automatically. Please try resending from the next screen.',
+          });
+        }
+          setStep(3);
+          await new Promise((r) => setTimeout(r, 400));
+          navigate('/verify-email');
+          return;
+        } finally {
+          setIsLoading(false);
+          setStep(1);
+        }
       }
       navigate(fromSubscription ? '/subscription' : '/');
     } catch (error: any) {
@@ -108,10 +173,13 @@ export default function LoginPage() {
       let title = mode === 'login' ? 'Login failed' : 'Signup failed';
       let description = 'Something went wrong. Please try again.';
 
-      if (mode === 'signup' && code === 'auth/email-already-in-use') {
+      if (mode === 'signup' && (code === 'auth/email-already-in-use' || code === 'already-exists')) {
         title = 'Email already registered';
         description = 'This email is already linked to an account. Please sign in instead.';
         setMode('login');
+      } else if (mode === 'signup' && code === 'resource-exhausted') {
+        title = 'Signup limited';
+        description = error?.message || 'Too many accounts created from this network.';
       } else if (mode === 'login' && (code === 'auth/wrong-password' || code === 'auth/invalid-credential')) {
         title = 'Incorrect password';
         description = 'The password you entered is not correct. Please try again.';
@@ -181,7 +249,7 @@ export default function LoginPage() {
             </div>
 
             {/* Form */}
-            <form onSubmit={handleManualAuth} className="space-y-4">
+            <form className="space-y-4" onSubmit={handleSubmit}>
               {isSignup && (
                 <div className="space-y-1">
                   <label className="text-xs font-medium text-gray-600">Full name</label>
@@ -248,12 +316,54 @@ export default function LoginPage() {
                 )}
               </div>
 
-              <Button
+              <button
                 type="submit"
-                className="mt-3 w-full h-11 rounded-full bg-[rgb(192,37,122)] text-white font-semibold text-sm shadow-lg hover:brightness-110 transition-all"
+                disabled={isLoading}
+                className={`mt-3 w-full h-11 rounded-full bg-[rgb(192,37,122)] text-white font-semibold text-sm shadow-lg transition-all inline-flex items-center justify-center ${isLoading ? 'opacity-70 pointer-events-none' : 'hover:brightness-110'}`}
               >
-                {isSignup ? 'Submit' : 'Sign in'}
-              </Button>
+                {isLoading ? 'Creating account...' : isSignup ? 'Submit' : 'Sign in'}
+              </button>
+
+              {isSignup && isLoading && (
+                <div className="mt-4 rounded-2xl border border-gray-100 bg-white/90 p-4 shadow-sm transition-all duration-300 animate-in fade-in slide-in-from-top-2">
+                  <p className="text-sm font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                    <span className="text-base">✨</span> Setting up your INSYTIQ account
+                  </p>
+                  <ul className="space-y-2.5">
+                    {SIGNUP_STEPS.map((s) => {
+                      const isDone = step > s.id;
+                      const isActive = step === s.id;
+                      const Icon = s.icon;
+                      return (
+                        <li
+                          key={s.id}
+                          className={`flex items-center gap-3 text-sm transition-all duration-300 ${isDone ? 'text-emerald-600' : isActive ? 'text-gray-900 font-medium' : 'text-gray-400'}`}
+                        >
+                          {isDone ? (
+                            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-100">
+                              <Check className="h-3.5 w-3.5 text-emerald-600" />
+                            </span>
+                          ) : isActive ? (
+                            <Loader2 className="h-5 w-5 shrink-0 animate-spin text-[rgb(192,37,122)]" />
+                          ) : (
+                            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gray-100">
+                              <Icon className="h-3.5 w-3.5 text-gray-400" />
+                            </span>
+                          )}
+                          <span>
+                            {isDone ? `✓ ${s.doneLabel}` : (
+                              <>
+                                <Icon className="inline h-3.5 w-3.5 mr-1.5 text-current align-middle" />
+                                {s.label}
+                              </>
+                            )}
+                          </span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              )}
             </form>
 
             {/* Social auth */}

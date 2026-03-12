@@ -19,6 +19,9 @@ interface Message {
   text: string;
   sender: 'user' | 'assistant';
   timestamp: Date;
+  insight?: string;
+  confidence?: string;
+  suggestions?: string[];
 }
 
 interface AIAvatarProps {
@@ -167,13 +170,27 @@ function SimpleMarkdown({ text }: { text: string }) {
           </ul>
         );
       } else {
-        elements.push(
-          <ol key={`list-${elements.length}`} className="list-decimal list-inside my-2 space-y-1 ml-2">
-            {currentList.map((item, idx) => (
-              <li key={idx} className="ml-2">{renderListItem(item)}</li>
-            ))}
-          </ol>
-        );
+        // Special case: a single "1. Heading:" style line (e.g. Posting Time:, Formats:)
+        // should render as a simple arrow heading instead of a numbered list "1."
+        const isSingleHeading = currentList.length === 1 && currentList[0].trim().endsWith(':');
+        if (isSingleHeading) {
+          elements.push(
+            <div key={`list-${elements.length}`} className="my-2 ml-1">
+              <p className="flex items-start gap-1 font-semibold text-gray-900">
+                <span className="mt-0.5 text-xs">➜</span>
+                <span>{renderListItem(currentList[0])}</span>
+              </p>
+            </div>
+          );
+        } else {
+          elements.push(
+            <ol key={`list-${elements.length}`} className="list-decimal list-inside my-2 space-y-1 ml-2">
+              {currentList.map((item, idx) => (
+                <li key={idx} className="ml-2">{renderListItem(item)}</li>
+              ))}
+            </ol>
+          );
+        }
       }
       currentList = [];
       listType = null;
@@ -295,7 +312,7 @@ interface SmartChatProps {
   useV2?: boolean;
 }
 
-const SmartChat = ({ useV2 = false }: SmartChatProps) => {
+const SmartChat = ({ useV2 = true }: SmartChatProps) => {
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -801,19 +818,30 @@ const SmartChat = ({ useV2 = false }: SmartChatProps) => {
 
       console.log('handleSend: Firebase function response received:', res.data);
 
-      // Extract the reply from Firebase function response
-      const reply = (res.data as any)?.reply;
-      
-      if (!reply || typeof reply !== 'string') {
+      const data = res.data as any;
+      console.log('smartChatV2 raw response:', data);
+      const answerText = typeof data?.answer === 'string' ? data.answer : undefined;
+      const replyText = typeof data?.reply === 'string' ? data.reply : undefined;
+      const finalText = answerText || replyText;
+      const insight = typeof data?.insight === 'string' ? data.insight : undefined;
+      const confidence = typeof data?.confidence === 'string' ? data.confidence : undefined;
+      const suggestions = Array.isArray(data?.suggestions)
+        ? data.suggestions.filter((s: any) => typeof s === 'string')
+        : undefined;
+
+      if (!finalText || typeof finalText !== 'string') {
         throw new Error('Invalid response format from AI service');
       }
 
       // Add assistant response
       const assistantMessage: Message = {
         id: generateMessageId(),
-        text: reply,
+        text: finalText,
         sender: 'assistant',
         timestamp: new Date(),
+        ...(insight && { insight }),
+        ...(confidence && { confidence }),
+        ...(suggestions && suggestions.length > 0 && { suggestions }),
       };
 
       setMessages((prevMessages) => [...prevMessages, assistantMessage]);
@@ -1051,6 +1079,33 @@ const SmartChat = ({ useV2 = false }: SmartChatProps) => {
                       {message.sender === 'assistant' ? (
                         <div className="min-w-0 break-words md:break-normal">
                           <SimpleMarkdown text={fixSectionHeaders(message.text)} />
+                          {message.insight && (
+                            <div className="mt-3 px-3 py-2 rounded-xl bg-white/60 text-xs md:text-sm text-gray-800 border border-white/80">
+                              <span className="font-semibold text-gray-900">Insight: </span>
+                              <span>{message.insight}</span>
+                            </div>
+                          )}
+                          <div className="mt-2 flex flex-wrap items-center gap-2">
+                            {message.confidence && (
+                              <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-gray-900/5 text-[10px] md:text-xs text-gray-700 border border-gray-300/60">
+                                Confidence: <span className="ml-1 font-semibold">{message.confidence}</span>
+                              </span>
+                            )}
+                            {message.suggestions && message.suggestions.length > 0 && (
+                              <div className="mt-1 flex flex-wrap gap-2">
+                                {message.suggestions.slice(0, 3).map((q, idx) => (
+                                  <button
+                                    key={idx}
+                                    type="button"
+                                    onClick={() => handleQuestionClick(q)}
+                                    className="px-2.5 py-1 rounded-full bg-white/80 text-[10px] md:text-xs text-gray-800 border border-gray-200 hover:border-[#d72989]/60 hover:text-[#d72989] transition-colors"
+                                  >
+                                    {q}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
                           {isLoading && message.id === messages[messages.length - 1]?.id && (
                             <div className="mt-3 flex items-center gap-2 text-gray-500">
                               <div className="h-4 w-4 border-2 border-[#d72989] border-t-transparent rounded-full animate-spin flex-shrink-0" />

@@ -5,6 +5,7 @@ import { useToast } from '../hooks/use-toast';
 import { db, auth } from '../services/firebaseService';
 import { onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { PRICING_CONFIG } from '../config/pricingConfig';
 
 type PlanKey = 'Free' | 'Trends+' | 'Analytics+';
 
@@ -28,10 +29,10 @@ const plans: Array<{
     price: "$0",
     features: [
       "Top 5 daily trending Reels",
-      "2 profile analyses per month",
+      "1 profile analysis per month",
       "7-day snapshot view",
       "Competitor Overview only (1 profile)",
-      "Brand Collab Score: 1 lifetime full score",
+      "Brand Collab Score: 1 lifetime demo score",
       "Limited SmartChat (5 queries/day)",
     ],
     isFree: true,
@@ -41,10 +42,10 @@ const plans: Array<{
     tier: "Trends+",
     label: "Creator",
     subtitle: "For individual creators building consistent growth.",
-    price: "$19",
+    price: "$39",
     features: [
       "Analytics",
-      "12 Profile Analyses per month",
+      "__ANALYSES__",
       "30-Day Growth Tracking",
       "Competitor Comparison (up to 3 profiles)",
       "Trending Competitor Posts",
@@ -52,7 +53,7 @@ const plans: Array<{
       "Content Performance Insights",
       "Basic Post Level Intelligence",
       "Core Hashtag Intelligence",
-      "SmartChat (up to 600 queries/month)",
+      "__SMARTCHAT__",
     ],
     usageLimit: 12,
   },
@@ -60,19 +61,19 @@ const plans: Array<{
     tier: "Analytics+",
     label: "Pro",
     subtitle: "For serious creators, brands, and growth-focused teams.",
-    price: "$29",
+    price: "$69",
     features: [
       "Advanced Analytics",
-      "30 Profile Analyses per month",
+      "__ANALYSES__",
       "90-Day Growth Tracking",
       "Growth Comparison chart (Pro only)",
       "Competitor Comparison (up to 5 profiles)",
-      "Brand Collab Score: 50/month + premium features",
+      "Brand Collab Score: 15/month + premium features",
       "Engagement Drop Detection",
       "AI & Advanced Insights",
       "AI-Powered Growth Intelligence",
       "Advanced Hashtag Analysis",
-      "SmartChat (1,200+ queries/month)",
+      "__SMARTCHAT__",
       "CSV Data Exports",
     ],
     mostPopular: true,
@@ -88,13 +89,24 @@ type SubscriptionDoc = {
   usageCount: number;
   usageResetAt?: string | null; // ISO string for the next reset moment (used for Free plan daily reset)
   profileAnalysisUsage?: ProfileAnalysisUsage | null;
+  /** 'monthly' | 'yearly' for paid plans; for Free this is mostly informational */
+  billingCycle?: BillingCycle;
   updatedAt?: any;
 };
 
-const planUsageText: Record<PlanKey, string> = {
-  'Free': '2 profile analyses per month',
-  'Trends+': 'Analyze up to 12 profiles per month',
-  'Analytics+': 'Analyze up to 30 profiles per month',
+const planUsageText: Record<PlanKey, { monthly: string; yearly: string }> = {
+  'Free': {
+    monthly: '1 profile analysis per month',
+    yearly: '1 profile analysis per month',
+  },
+  'Trends+': {
+    monthly: 'Analyze up to 6 profiles per month',
+    yearly: 'Analyze up to 8 profiles per month',
+  },
+  'Analytics+': {
+    monthly: 'Analyze up to 15 profiles per month',
+    yearly: 'Analyze up to 20 profiles per month',
+  },
 };
 
 // Paddle / Stripe Billing price IDs (from .env)
@@ -133,7 +145,10 @@ const Subscription = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [limitReached, setLimitReached] = useState<boolean>(false);
   const [paddleReady, setPaddleReady] = useState<boolean>(false);
-  const [billingCycle, setBillingCycle] = useState<BillingCycle>('yearly'); // default yearly
+  const [billingCycle, setBillingCycle] = useState<BillingCycle>('yearly'); // UI toggle; syncs with sub.billingCycle when available
+
+  const creatorLimits = PRICING_CONFIG.creator[billingCycle];
+  const proLimits = PRICING_CONFIG.pro[billingCycle];
 
   const currentPlan = sub?.currentPlan || 'Free';
   const currentPlanConfig = useMemo(() => {
@@ -200,29 +215,27 @@ const Subscription = () => {
           profileAnalysisUsage: rawUsage && typeof rawUsage.month === 'string' && typeof rawUsage.count === 'number'
             ? { month: rawUsage.month, count: rawUsage.count }
             : null,
+          billingCycle: (data.billingCycle as BillingCycle | undefined) || 'yearly',
           updatedAt: data.updatedAt,
         };
         // Handle daily reset for Free plan
-        if (normalized.currentPlan === 'Free' && normalized.usageResetAt) {
-          const now = new Date();
-          const resetAt = new Date(normalized.usageResetAt);
-          if (now >= resetAt) {
-            // reset usage for the new day
-            normalized.usageCount = 0;
-            normalized.usageResetAt = computeNextDailyResetISO();
-            await setDoc(ref, { ...normalized, updatedAt: serverTimestamp() }, { merge: true });
-          }
-        }
+        // Legacy daily-reset logic for Free kept for backward compatibility with profileAnalysisUsage;
+        // profile analysis usage limits are now enforced server-side via usage.profileAnalysis.
         setSub(normalized);
+        if (normalized.billingCycle) {
+          setBillingCycle(normalized.billingCycle);
+        }
         setLoading(false);
       } else {
         const initial: SubscriptionDoc = {
           currentPlan: 'Free',
           usageCount: 0,
           usageResetAt: computeNextDailyResetISO(),
+          billingCycle: 'yearly',
         };
         await setDoc(ref, { ...initial, updatedAt: serverTimestamp() }, { merge: true });
         setSub(initial);
+        setBillingCycle(initial.billingCycle);
         setLoading(false);
       }
     });
@@ -241,7 +254,7 @@ const Subscription = () => {
     const usageCount = usage?.count ?? 0;
     const isSameMonth = usageMonth === thisMonth;
     if (usageLimit === 'per-day-1') {
-      setLimitReached(isSameMonth && usageCount >= 2);
+      setLimitReached(isSameMonth && usageCount >= 1);
     } else if (typeof usageLimit === 'number') {
       setLimitReached(isSameMonth && usageCount >= usageLimit);
     } else {
@@ -252,12 +265,27 @@ const Subscription = () => {
   const selectPlan = async (plan: PlanKey) => {
     if (!uid) return;
     const ref = doc(db, 'users', uid);
+    const normalizedPlanForSub =
+      plan === 'Analytics+' ? 'pro' : plan === 'Trends+' ? 'creator' : 'free';
     const base: SubscriptionDoc = {
       currentPlan: plan,
       usageCount: 0,
       usageResetAt: plan === 'Free' ? computeNextDailyResetISO() : null,
+      billingCycle,
     };
-    await setDoc(ref, { ...base, updatedAt: serverTimestamp() }, { merge: true });
+    await setDoc(
+      ref,
+      {
+        ...base,
+        subscription: {
+          plan: normalizedPlanForSub,
+          billingCycle,
+          startedAt: serverTimestamp(),
+        },
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true }
+    );
     setSub(base);
   };
 
@@ -470,7 +498,10 @@ const Subscription = () => {
 
         <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 w-full">
           {plans.map((plan) => {
-            const isCurrent = currentPlan === plan.tier;
+            // Highlight only when both plan tier AND billing cycle match the user's current subscription.
+            const isCurrent =
+              currentPlanConfig?.tier === plan.tier &&
+              (sub?.billingCycle ?? 'yearly') === billingCycle;
             const isMostPopular = !!plan.mostPopular;
 
             // Pricing logic per plan + billing cycle
@@ -481,24 +512,23 @@ const Subscription = () => {
 
             if (plan.tier === 'Trends+') {
               if (billingCycle === 'monthly') {
-                displayPrice = '$19';
+                displayPrice = '$39';
                 priceSuffix = '/month';
               } else {
-                displayPrice = '$189';
+                displayPrice = '$390';
                 priceSuffix = '/year';
-                billingSubtext = '$15.75/month billed annually';
-                savingsBadge = 'Save $39';
+                billingSubtext = '$32.50/month billed annually';
+                savingsBadge = 'Save $78';
               }
-            
             } else if (plan.tier === 'Analytics+') {
               if (billingCycle === 'monthly') {
-                displayPrice = '$29';
+                displayPrice = '$69';
                 priceSuffix = '/month';
               } else {
-                displayPrice = '$289';
+                displayPrice = '$690';
                 priceSuffix = '/year';
-                billingSubtext = '$24.08/month billed annually';
-                savingsBadge = 'Save $59';
+                billingSubtext = '$57.50/month billed annually';
+                savingsBadge = 'Save $138';
               }
             }
 
@@ -525,7 +555,7 @@ const Subscription = () => {
                   <span className="text-sm text-gray-500">{plan.isFree ? '' : priceSuffix}</span>
                 </div>
                 {billingSubtext && (
-                  <p className="text-xs text-gray-500 mb-2 text-center">
+                  <p className="text-xs text-gray-500 mb-1 text-center">
                     {billingSubtext}
                   </p>
                 )}
@@ -536,15 +566,97 @@ const Subscription = () => {
                     </span>
                   </div>
                 )}
+                {billingCycle === 'yearly' && !plan.isFree && (
+                  <p className="text-xs text-[#b45309] font-semibold mb-2 text-center">
+                    🔥 Best Value — Extra Usage + 2 Months Free
+                  </p>
+                )}
                 <ul className="text-gray-700 text-left mb-6 list-disc list-inside space-y-2 w-full">
-                {plan.features.map((feature, idx) => (
-                  <li key={idx}>{feature}</li>
-                ))}
-              </ul>
-              <div className="w-full mb-4 text-xs text-gray-600">
-                <span className="font-semibold">Usage:</span>{' '}
-                <span>{planUsageText[plan.tier]}</span>
-              </div>
+                  {plan.features.map((feature, idx) => {
+                    // Creator dynamic limits
+                    if (plan.tier === 'Trends+' && feature === '__ANALYSES__') {
+                      return (
+                        <li key={idx}>
+                          {creatorLimits.profileAnalyses} Profile Analyses per month
+                        </li>
+                      );
+                    }
+                    if (plan.tier === 'Trends+' && feature === '__SMARTCHAT__') {
+                      return (
+                        <li key={idx}>
+                          SmartChat ({creatorLimits.smartChatQueries} queries/month)
+                        </li>
+                      );
+                    }
+                    // Creator yearly extra benefits (copy only)
+                    if (plan.tier === 'Trends+' && feature === '30-Day Growth Tracking') {
+                      return (
+                        <li key={idx}>
+                          {billingCycle === 'yearly'
+                            ? '60-Day Growth Tracking'
+                            : '30-Day Growth Tracking'}
+                        </li>
+                      );
+                    }
+                    if (plan.tier === 'Trends+' && feature === 'Competitor Comparison (up to 3 profiles)') {
+                      return (
+                        <li key={idx}>
+                          {billingCycle === 'yearly'
+                            ? 'Competitor Comparison (up to 5 profiles)'
+                            : 'Competitor Comparison (up to 3 profiles)'}
+                        </li>
+                      );
+                    }
+
+                    // Pro dynamic limits
+                    if (plan.tier === 'Analytics+' && feature === '__ANALYSES__') {
+                      return (
+                        <li key={idx}>
+                          {proLimits.profileAnalyses} Profile Analyses per month
+                        </li>
+                      );
+                    }
+                    if (plan.tier === 'Analytics+' && feature === '__SMARTCHAT__') {
+                      return (
+                        <li key={idx}>
+                          SmartChat ({proLimits.smartChatQueries} queries/month)
+                        </li>
+                      );
+                    }
+
+                    // Pro yearly extra benefits (copy only)
+                    if (plan.tier === 'Analytics+' && feature === '90-Day Growth Tracking') {
+                      return (
+                        <li key={idx}>
+                          {billingCycle === 'yearly'
+                            ? '120-Day Growth Tracking'
+                            : '90-Day Growth Tracking'}
+                        </li>
+                      );
+                    }
+                    if (plan.tier === 'Analytics+' && feature === 'Competitor Comparison (up to 5 profiles)') {
+                      return (
+                        <li key={idx}>
+                          {billingCycle === 'yearly'
+                            ? 'Competitor Comparison (up to 8 profiles)'
+                            : 'Competitor Comparison (up to 5 profiles)'}
+                        </li>
+                      );
+                    }
+
+                    return <li key={idx}>{feature}</li>;
+                  })}
+                </ul>
+                <div className="w-full mb-4 text-xs text-gray-600">
+                  <span className="font-semibold">Usage:</span>{' '}
+                  <span>
+                    {plan.tier === 'Free'
+                      ? planUsageText['Free'][billingCycle]
+                      : plan.tier === 'Trends+'
+                      ? `Analyze up to ${creatorLimits.profileAnalyses} profiles per month`
+                      : `Analyze up to ${proLimits.profileAnalyses} profiles per month`}
+                  </span>
+                </div>
               {isCurrent ? (
                 <button
                   className={`mt-auto px-8 py-3 rounded-lg font-semibold transition-colors w-full text-lg shadow-md ${

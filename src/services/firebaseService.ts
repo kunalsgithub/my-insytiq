@@ -1,7 +1,8 @@
 import { initializeApp } from 'firebase/app';
 import { getFirestore, collection, query, orderBy, getDocs, DocumentData, where, doc, setDoc, getDoc } from 'firebase/firestore';
 import { getStorage, ref, getDownloadURL } from 'firebase/storage';
-import { getAuth, signInWithPopup, signInWithRedirect, GoogleAuthProvider, signOut as firebaseSignOut, onAuthStateChanged, User, getRedirectResult } from 'firebase/auth';
+import { getAuth, signInWithPopup, signInWithRedirect, GoogleAuthProvider, signOut as firebaseSignOut, onAuthStateChanged, User, getRedirectResult, connectAuthEmulator } from 'firebase/auth';
+import { connectFirestoreEmulator } from 'firebase/firestore';
 import checkEnvVariables from "../scripts/checkEnv";
 
 // Check environment variables before initializing Firebase
@@ -42,6 +43,11 @@ try {
   db = getFirestore(app);
   storage = getStorage(app);
   auth = getAuth(app);
+  if (import.meta.env.VITE_USE_FIREBASE_EMULATORS === 'true') {
+    connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true });
+    connectFirestoreEmulator(db, '127.0.0.1', 8080);
+    console.log('Firebase connected to Auth and Firestore emulators');
+  }
   console.log('Firebase initialized successfully');
 } catch (error) {
   console.error('Error initializing Firebase:', error);

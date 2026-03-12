@@ -5,6 +5,37 @@ export const PLAN = {
   ANALYTICS_PLUS: 'Analytics+',
 };
 
+/**
+ * Normalize arbitrary plan labels (e.g. "Pro – Growth Accelerator", "Creator – Content Explorer")
+ * into the three internal tiers used by the app and backend.
+ *
+ * This is important because Firestore / billing may store verbose names,
+ * while limits logic (growth days, competitors, profile analyses) is keyed
+ * on these canonical plan IDs.
+ */
+export function normalizePlan(plan: string | null | undefined): string {
+  if (!plan) return PLAN.FREE;
+  const raw = plan.trim().toLowerCase();
+
+  // Exact matches
+  if (raw === PLAN.FREE.toLowerCase()) return PLAN.FREE;
+  if (raw === PLAN.TRENDS_PLUS.toLowerCase()) return PLAN.TRENDS_PLUS;
+  if (raw === PLAN.ANALYTICS_PLUS.toLowerCase()) return PLAN.ANALYTICS_PLUS;
+
+  // Creator / Trends-style plans → Trends+
+  if (raw.includes('creator') || raw.includes('trends+')) {
+    return PLAN.TRENDS_PLUS;
+  }
+
+  // Pro / Analytics-style plans → Analytics+
+  if (raw.includes('pro') || raw.includes('analytics')) {
+    return PLAN.ANALYTICS_PLUS;
+  }
+
+  // Fallback
+  return PLAN.FREE;
+}
+
 /** Max growth tracking / analytics days allowed per plan (e.g. "Last 30 Days" dropdown) */
 export const PLAN_MAX_GROWTH_DAYS: Record<string, number> = {
   [PLAN.FREE]: 7,
@@ -21,21 +52,19 @@ export const PLAN_MAX_COMPETITORS: Record<string, number> = {
 
 /** Profile analyses per month (must match backend PROFILE_ANALYSES_LIMIT) */
 export const PLAN_PROFILE_ANALYSES_LIMIT: Record<string, number> = {
-  [PLAN.FREE]: 2,
-  [PLAN.TRENDS_PLUS]: 12,
-  [PLAN.ANALYTICS_PLUS]: 50,
+  [PLAN.FREE]: 1,
+  [PLAN.TRENDS_PLUS]: 6,
+  [PLAN.ANALYTICS_PLUS]: 15,
 };
 
 export function getMaxGrowthTrackingDays(plan: string | null): number {
-  if (!plan) return PLAN_MAX_GROWTH_DAYS[PLAN.FREE];
-  const normalized = plan.trim();
-  return PLAN_MAX_GROWTH_DAYS[normalized] ?? PLAN_MAX_GROWTH_DAYS[PLAN.FREE];
+  const key = normalizePlan(plan);
+  return PLAN_MAX_GROWTH_DAYS[key] ?? PLAN_MAX_GROWTH_DAYS[PLAN.FREE];
 }
 
 export function getMaxCompetitors(plan: string | null): number {
-  if (!plan) return PLAN_MAX_COMPETITORS[PLAN.FREE];
-  const normalized = plan.trim();
-  return PLAN_MAX_COMPETITORS[normalized] ?? PLAN_MAX_COMPETITORS[PLAN.FREE];
+  const key = normalizePlan(plan);
+  return PLAN_MAX_COMPETITORS[key] ?? PLAN_MAX_COMPETITORS[PLAN.FREE];
 }
 
 /** Returns upgrade message when a feature is not allowed for the plan */
@@ -56,6 +85,7 @@ export function getUpgradeMessageForFeature(
 }
 
 export const hasAccess = (feature: string, plan: string) => {
+  const key = normalizePlan(plan);
   const accessMatrix = {
     [PLAN.FREE]: {
       trendingContentLimit: 5,
@@ -73,5 +103,5 @@ export const hasAccess = (feature: string, plan: string) => {
       analytics: true,
     },
   };
-  return accessMatrix[plan]?.[feature];
+  return accessMatrix[key]?.[feature];
 }; 

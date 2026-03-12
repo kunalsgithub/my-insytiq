@@ -3,6 +3,8 @@ import { defineSecret } from "firebase-functions/params";
 import axios from "axios";
 import { initializeApp, getApps } from "firebase-admin/app";
 import { getFirestore, Firestore } from "firebase-admin/firestore";
+import { checkAndIncrementUsage, LIMIT_REACHED_CODE } from "./usageEnforcement";
+import { normalizePlanKey } from "./planLimits";
 
 if (getApps().length === 0) {
   initializeApp();
@@ -425,7 +427,47 @@ async function getDataSnapshot(
   return empty;
 }
 
-// ─── 2. MODE DECISION (NO OpenAI) ────────────────────────────────────────
+// ─── 2. LOGGING & MODE DECISION (NO OpenAI) ─────────────────────────────
+
+async function logSmartChatQuestion(
+  db: Firestore,
+  params: { userId: string; question: string; detectedIntent: string }
+) {
+  try {
+    await db.collection("smartchat_questions").add({
+      question: params.question,
+      detected_intent: params.detectedIntent,
+      user_id: params.userId,
+      timestamp: new Date(),
+    });
+  } catch (err) {
+    console.error("smartChatV2: failed to log question", (err as any)?.message || err);
+  }
+}
+
+async function logSmartChatFailure(
+  db: Firestore,
+  params: {
+    userId: string;
+    question: string;
+    detectedIntent: string;
+    confidenceScore: number;
+    responseGenerated: boolean;
+  }
+) {
+  try {
+    await db.collection("smartchat_logs").add({
+      question: params.question,
+      detected_intent: params.detectedIntent,
+      confidence_score: params.confidenceScore,
+      response_generated: params.responseGenerated,
+      user_id: params.userId,
+      timestamp: new Date(),
+    });
+  } catch (err) {
+    console.error("smartChatV2: failed to log failure", (err as any)?.message || err);
+  }
+}
 
 const ANALYTICS_POST_THRESHOLD = 5;
 const POSTING_TIME_THRESHOLD = 10;
@@ -498,6 +540,10 @@ function classifyIntent(message: string): string {
     m.includes("followers this month") || m.includes("gained this month") || m.includes("new followers")
   ) return "FOLLOWERS_GROWTH";
   if (
+    /\bwhich\s+posts\s+should\s+i\s+replicate\b/.test(m) ||
+    m.includes("which posts should i replicate")
+  ) return "REPLICATE_POSTS";
+  if (
     m.includes("best post") || m.includes("top post") || m.includes("best performing") ||
     m.includes("top performing") || m.includes("which posts perform") || m.includes("top 10") || m.includes("top 15") ||
     /\btop\s+\d+\s+(post|performing)/.test(m) || /\bbest\s+\d+\s+(post|performing)/.test(m) ||
@@ -561,16 +607,21 @@ function decideResponseMode(intent: string, snapshot: DataSnapshot): ResponseMod
   ];
   if (analyticsKnowledgeIntents.includes(intent)) return "STRATEGY";
   if (intent === "GENERATION" || intent === "DIAGNOSIS") return "STRATEGY";
-  if (intent === "POSTING_TIME" || intent === "BEST_POST" || intent === "HASHTAGS" || intent === "WHY_ABOUT_POSTS" || intent === "CAPTIONS_OR_PAID_POSTS") {
+  if (intent === "POSTING_TIME" || intent === "BEST_POST" || intent === "REPLICATE_POSTS" || intent === "HASHTAGS" || intent === "WHY_ABOUT_POSTS" || intent === "CAPTIONS_OR_PAID_POSTS") {
     if (snapshot.postCount === 0) return "LIMITATION";
-    const threshold = intent === "POSTING_TIME" ? POSTING_TIME_THRESHOLD : intent === "WHY_ABOUT_POSTS" ? 3 : ANALYTICS_POST_THRESHOLD;
+    const threshold =
+      intent === "POSTING_TIME"
+        ? POSTING_TIME_THRESHOLD
+        : intent === "WHY_ABOUT_POSTS"
+        ? 3
+        : ANALYTICS_POST_THRESHOLD;
     if (intent === "CAPTIONS_OR_PAID_POSTS" || snapshot.postCount >= threshold) return "ANALYTICS";
     return "LIMITATION";
   }
   return "STRATEGY";
 }
 
-// ─── 3. RESPONSE OUTPUT ──────────────────────────────────────────────────
+// ─── 3. RESPONSE OUTPUT & METADATA ──────────────────────────────────────
 
 function buildLimitationReply(intent: string, snapshot: DataSnapshot, selectedAccount: string): string {
   const count = snapshot.postCount;
@@ -642,6 +693,162 @@ function buildLimitationReply(intent: string, snapshot: DataSnapshot, selectedAc
     lines.push(`To get this answer: ${stepAnalytics}${stepChat}`);
   }
   return lines.join("\n");
+}
+
+type ConfidenceLevel = "High" | "Medium" | "Low";
+
+function computeConfidence(snapshot: DataSnapshot): {
+  postsAnalyzed: number;
+  score: number;
+  level: ConfidenceLevel;
+} {
+  const postsAnalyzed = snapshot.postCount || 0;
+  const scoreRaw = Math.max(0, Math.min(1, postsAnalyzed / 50));
+  let level: ConfidenceLevel = "Low";
+  if (scoreRaw > 0.7) level = "High";
+  else if (scoreRaw >= 0.4) level = "Medium";
+  return { postsAnalyzed, score: scoreRaw, level };
+}
+
+const QUESTION_POOLS: Record<string, string[]> = {
+  HASHTAGS: [
+    "Which hashtags appear most often in my top posts?",
+    "Which hashtag sets drive the highest engagement?",
+    "How many hashtags work best in my top posts?",
+    "Do posts with more hashtags perform better?",
+    "Which hashtags should I reuse?",
+  ],
+  POSTING_TIME: [
+    "Which posting hour gives me the highest engagement?",
+    "Do weekend posts perform differently than weekday posts?",
+    "Which time slots should I avoid based on low engagement?",
+    "What is the best time window for Reels?",
+    "Are evening posts performing better than morning posts for me?",
+  ],
+  BEST_POST: [
+    "Which posts had the highest engagement in the last 30 posts?",
+    "Which reels drove the most engagement recently?",
+    "What patterns exist in my top performing posts?",
+    "Which posts should I replicate based on performance?",
+    "Which formats appear most often in my top posts?",
+  ],
+  CONTENT_FORMAT: [
+    "Do Reels, carousels, or static posts work best for me?",
+    "How do carousels perform compared to Reels?",
+    "What posting mix should I use between Reels and carousels?",
+    "Are Reels driving more reach than other formats?",
+    "Which format brings the most saves per post?",
+  ],
+  POSTING_FREQUENCY: [
+    "How many posts per week do I publish on average?",
+    "Does posting more often increase or decrease engagement per post?",
+    "What weekly posting cadence should I test next?",
+    "What happens to engagement when I post less frequently?",
+    "How many posts per month do my best weeks include?",
+  ],
+  ACCOUNT_METRICS: [
+    "What is my engagement rate and average likes per post?",
+    "How many posts were analyzed in my recent data?",
+    "How does my engagement compare across different content formats?",
+    "How does my current engagement compare to my past average?",
+    "Which metric should I focus on improving first?",
+  ],
+  WHY_ABOUT_POSTS: [
+    "Which posts should I replicate based on performance?",
+    "Which hashtags appear in those top posts?",
+    "Do those top posts share a common posting time window?",
+    "Do my top posts share a similar caption style?",
+    "How does engagement on those posts compare to my account average?",
+  ],
+  REPLICATE_POSTS: [
+    "Why did those top posts perform well based on the numbers?",
+    "Which hashtags are common across the posts I should replicate?",
+    "Which posting time window is most common among those posts?",
+    "What caption length do those posts tend to use?",
+    "Which content format is most common among the posts to replicate?",
+  ],
+  DEFAULT: [
+    "Which posts performed best in my recent analytics?",
+    "Which reels drove the most engagement recently?",
+    "Which hashtags appear most often in my highest engagement posts?",
+    "What is the best time to post based on my data?",
+    "Which content format is performing best for me?",
+  ],
+};
+
+function normalizeQuestionText(q: string): string {
+  return q
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s]/gu, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function buildSuggestionsForIntent(
+  intent: string,
+  currentQuestion: string,
+  conversationHistory?: Array<{ role: string; content: string }>
+): string[] {
+  const pool = QUESTION_POOLS[intent] || QUESTION_POOLS.DEFAULT;
+  const normalizedCurrent = normalizeQuestionText(currentQuestion);
+
+  const recentUserQuestions: string[] = conversationHistory
+    ? conversationHistory
+        .filter((m) => m && typeof m.role === "string" && m.role === "user" && typeof m.content === "string")
+        .map((m) => String(m.content))
+        .slice(-5)
+    : [];
+
+  const recentSet = new Set(recentUserQuestions.map((q) => normalizeQuestionText(q)));
+
+  let filtered = pool.filter((q) => {
+    const n = normalizeQuestionText(q);
+    if (!n) return false;
+    if (n === normalizedCurrent) return false;
+    if (recentSet.has(n)) return false;
+    return true;
+  });
+
+  if (filtered.length < 3) {
+    filtered = pool.filter((q) => normalizeQuestionText(q) !== normalizedCurrent);
+    if (filtered.length === 0) filtered = pool;
+  }
+
+  const shuffled = [...filtered].sort(() => Math.random() - 0.5);
+  return shuffled.slice(0, 3);
+}
+
+function buildInsightForIntent(intent: string, snapshot: DataSnapshot): string {
+  const posts = snapshot.postCount || 0;
+  const er = snapshot.engagementRate;
+  if (intent === "CONTENT_FORMAT") {
+    return "Prioritize your strongest-performing content format from this analysis and post 2–3 more pieces in that format this week to compare engagement.";
+  }
+  if (intent === "POSTING_TIME") {
+    return "Use the best-performing posting window from this analysis for your next 3–5 posts and compare saves and profile visits against other time slots.";
+  }
+  if (intent === "BEST_POST" || intent === "REPLICATE_POSTS") {
+    return "Create 2–3 new posts modeled closely on your top performers from this analysis and compare engagement and saves against your average.";
+  }
+  if (intent === "HASHTAGS") {
+    return "Reuse the hashtag combinations that appear in your top-performing posts for your next few uploads and compare reach and saves.";
+  }
+  if (intent === "ACCOUNT_METRICS") {
+    if (er != null && posts > 0) {
+      return `Use your current engagement rate of ${er}% as a baseline and track how it moves as you test new formats and posting times over the next ${Math.min(
+        30,
+        posts
+      )} posts.`;
+    }
+    return "Run a fresh Instagram Analytics scan so future SmartChat answers can tie metrics like engagement rate and reach directly to your recent posts.";
+  }
+  if (intent === "POSTING_FREQUENCY") {
+    return "Stick to the suggested weekly posting cadence for the next few weeks and compare total weekly engagement versus your current average.";
+  }
+  if (intent === "WHY_ABOUT_POSTS") {
+    return "Take the numeric differences SmartChat highlighted between your top posts and test at least two new posts that copy those patterns to see if results repeat.";
+  }
+  return "Use the specific metrics in this answer to design a small, 3–5 post experiment and compare engagement before changing your entire content strategy.";
 }
 
 function buildStrategyDataBlock(snapshot: DataSnapshot, selectedAccount: string): string {
@@ -1010,6 +1217,211 @@ function buildFormatPerformanceReply(snapshot: DataSnapshot): string {
   return lines.join("\n");
 }
 
+// ─── 5. PATTERN ANALYSIS FOR REPLICATION (TOP POSTS) ────────────────────────
+
+type PostTypeBucket = "reel" | "image" | "carousel" | "other";
+
+interface ReplicationPostSummary {
+  url: string | null;
+  type: PostTypeBucket;
+  captionPreview: string;
+  engagement: number;
+  likes: number;
+  comments: number;
+  engagementRate?: number | null;
+}
+
+interface ReplicationPatterns {
+  top_content_type: PostTypeBucket | null;
+  reels_share_pct: number | null;
+  best_posting_time_range: string | null;
+  average_caption_length_words: number | null;
+  average_hashtag_count: number | null;
+  explanation: string;
+}
+
+interface ReplicationInsight {
+  top_posts: ReplicationPostSummary[];
+  patterns: ReplicationPatterns;
+  recommendation: string;
+}
+
+function normalizePostType(p: Post): PostTypeBucket {
+  const t = (p.type || "").toLowerCase();
+  if (t.includes("reel") || p.isVideo) return "reel";
+  if (t.includes("carousel") || t.includes("sidecar") || t.includes("album")) return "carousel";
+  if (t.includes("image") || t.includes("photo")) return "image";
+  return "other";
+}
+
+function bucketHourToRange(hour: number | null): string | null {
+  if (hour == null || Number.isNaN(hour)) return null;
+  if (hour >= 6 && hour < 12) return "6–12 (Morning)";
+  if (hour >= 12 && hour < 18) return "12–18 (Afternoon)";
+  if (hour >= 18 && hour < 22) return "18–22 (Evening)";
+  if (hour >= 22 || hour < 2) return "22–2 (Late Night)";
+  return "2–6 (Night)";
+}
+
+function buildReplicationInsight(snapshot: DataSnapshot): ReplicationInsight | null {
+  if (!snapshot.posts || snapshot.posts.length === 0) return null;
+
+  const followers = snapshot.followers && snapshot.followers > 0 ? snapshot.followers : null;
+
+  const postsWithEngagement = snapshot.posts.map((p) => {
+    const likes = p.likesCount ?? 0;
+    const comments = p.commentsCount ?? 0;
+    const engagement = likes + comments;
+    const hour = p.timestamp != null ? new Date(p.timestamp * 1000).getHours() : null;
+    const caption = (p.caption || "").trim();
+    const hashtags = caption.match(/#\w+/g) || [];
+    const words = caption.length ? caption.split(/\s+/).filter(Boolean) : [];
+    const engagementRate =
+      followers && followers > 0 && engagement > 0
+        ? parseFloat(((engagement / followers) * 100).toFixed(2))
+        : null;
+    return {
+      raw: p,
+      likes,
+      comments,
+      engagement,
+      hour,
+      caption,
+      hashtagsCount: hashtags.length,
+      wordsCount: words.length,
+      engagementRate,
+    };
+  });
+
+  if (postsWithEngagement.length === 0) return null;
+
+  const sortedByRate = [...postsWithEngagement].sort((a, b) => {
+    const erA = a.engagementRate ?? 0;
+    const erB = b.engagementRate ?? 0;
+    if (erA === erB) return b.engagement - a.engagement;
+    return erB - erA;
+  });
+
+  const top10 = sortedByRate.slice(0, 10);
+  const top3 = top10.slice(0, 3);
+
+  const summarizeCaption = (caption: string): string => {
+    if (!caption) return "";
+    const clean = caption.replace(/\s+/g, " ").trim();
+    if (clean.length <= 120) return clean;
+    return clean.slice(0, 117) + "...";
+  };
+
+  const topPosts: ReplicationPostSummary[] = top3.map((p) => ({
+    url: p.raw.url || null,
+    type: normalizePostType(p.raw),
+    captionPreview: summarizeCaption(p.caption),
+    engagement: p.engagement,
+    likes: p.likes,
+    comments: p.comments,
+    engagementRate: p.engagementRate,
+  }));
+
+  const typeCounts: Record<PostTypeBucket, number> = { reel: 0, image: 0, carousel: 0, other: 0 };
+  const hourRangeCounts: Record<string, number> = {};
+  let captionWordsSum = 0;
+  let captionCount = 0;
+  let hashtagSum = 0;
+  let hashtagCount = 0;
+
+  top10.forEach((p) => {
+    const t = normalizePostType(p.raw);
+    typeCounts[t] += 1;
+    const range = bucketHourToRange(p.hour);
+    if (range) {
+      hourRangeCounts[range] = (hourRangeCounts[range] || 0) + 1;
+    }
+    if (p.wordsCount > 0) {
+      captionWordsSum += p.wordsCount;
+      captionCount += 1;
+    }
+    hashtagSum += p.hashtagsCount;
+    hashtagCount += 1;
+  });
+
+  const reelsSharePct =
+    top10.length > 0 ? parseFloat(((typeCounts.reel / top10.length) * 100).toFixed(1)) : null;
+
+  const topContentType: PostTypeBucket | null = (Object.entries(typeCounts) as [PostTypeBucket, number][])
+    .sort((a, b) => b[1] - a[1])[0]?.[1]
+    ? (Object.entries(typeCounts) as [PostTypeBucket, number][]).sort((a, b) => b[1] - a[1])[0][0]
+    : null;
+
+  const bestTimeRange =
+    Object.keys(hourRangeCounts).length > 0
+      ? Object.entries(hourRangeCounts).sort((a, b) => b[1] - a[1])[0][0]
+      : null;
+
+  const avgCaptionWords =
+    captionCount > 0 ? parseFloat((captionWordsSum / captionCount).toFixed(1)) : null;
+  const avgHashtags =
+    hashtagCount > 0 ? parseFloat((hashtagSum / hashtagCount).toFixed(1)) : null;
+
+  const patternLines: string[] = [];
+  if (topContentType) {
+    const label =
+      topContentType === "reel"
+        ? "Reels"
+        : topContentType === "carousel"
+        ? "carousels"
+        : topContentType === "image"
+        ? "image posts"
+        : "posts";
+    patternLines.push(`Most of your top posts are ${label}.`);
+  }
+  if (reelsSharePct != null && reelsSharePct >= 60) {
+    patternLines.push(`About ${reelsSharePct}% of your top posts are Reels.`);
+  }
+  if (bestTimeRange) {
+    patternLines.push(`Top posts cluster around the ${bestTimeRange} window.`);
+  }
+  if (avgCaptionWords != null) {
+    const captionStyle =
+      avgCaptionWords <= 12
+        ? "short"
+        : avgCaptionWords <= 25
+        ? "medium-length"
+        : "longer";
+    patternLines.push(
+      `Your best posts tend to have ${captionStyle} captions (about ${avgCaptionWords} words on average).`
+    );
+  }
+  if (avgHashtags != null) {
+    patternLines.push(
+      `Top posts use around ${avgHashtags} hashtags on average.`
+    );
+  }
+
+  const patterns: ReplicationPatterns = {
+    top_content_type: topContentType,
+    reels_share_pct: reelsSharePct,
+    best_posting_time_range: bestTimeRange,
+    average_caption_length_words: avgCaptionWords,
+    average_hashtag_count: avgHashtags,
+    explanation: patternLines.join(" "),
+  };
+
+  let recommendation = "Replicate the structure of your top posts.";
+  if (topContentType === "reel" && bestTimeRange) {
+    recommendation = `Focus on short-form Reels published during the ${bestTimeRange} window. Keep captions ${patterns.average_caption_length_words && patterns.average_caption_length_words <= 12 ? "short and focused" : "tight and clear"}, and reuse the hashtag volume that already works for you.`;
+  } else if (topContentType === "carousel" && bestTimeRange) {
+    recommendation = `Lean into educational carousels posted around ${bestTimeRange}. Use concise captions and a similar number of hashtags as your top posts.`;
+  } else if (bestTimeRange) {
+    recommendation = `Publish more of your strongest format in the ${bestTimeRange} range, keeping captions and hashtag counts close to what works in your top posts.`;
+  }
+
+  return {
+    top_posts: topPosts,
+    patterns,
+    recommendation,
+  };
+}
+
 function buildPostingFrequencyReply(snapshot: DataSnapshot, selectedAccount: string): string {
   const posts = snapshot.posts?.filter((p) => p.timestamp != null) ?? [];
   if (posts.length < 5) {
@@ -1182,46 +1594,86 @@ export const smartChatV2 = onCall(
       const userRef = db.collection("users").doc(userId);
       const userDoc = await userRef.get();
       if (!userDoc.exists) {
-        throw new HttpsError("failed-precondition", "Please add an Instagram account in Analytics to use Smart Chat.");
+        throw new HttpsError(
+          "failed-precondition",
+          "Please add an Instagram account in Analytics to use Smart Chat."
+        );
       }
 
       const userData = userDoc.data() || {};
 
-      // Plan-aware daily Smart Chat limit: Free plan gets 5 queries/day
-      const currentPlan = (userData.currentPlan as string) || "Free";
-      const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD (UTC)
-      const usage = (userData as any).smartChatUsage || {};
-      let usageDate: string | null = typeof usage.date === "string" ? usage.date : null;
-      let usageCount: number = typeof usage.count === "number" ? usage.count : 0;
-
-      if (usageDate !== today) {
-        usageDate = today;
-        usageCount = 0;
-      }
-
-      if (currentPlan === "Free" && usageCount >= 5) {
-        throw new HttpsError(
-          "resource-exhausted",
-          "You have used your 5 free Smart Chat queries for today on the FREE – Explorer plan. Upgrade your plan to unlock more daily Smart Chat questions."
-        );
-      }
-
-      // Best-effort update of Smart Chat usage (non-blocking if it fails)
+      // 1️⃣ Per-day guard for Free plan: 5 Smart Chat queries per calendar day
       try {
-        await userRef.set(
-          {
-            currentPlan,
-            smartChatUsage: {
-              date: today,
-              count: usageCount + 1,
+        const rawPlan =
+          (userData?.planType as string | undefined) ??
+          (userData?.currentPlan as string | undefined);
+        const planKey = normalizePlanKey(rawPlan);
+        const usage = (userData as any)?.smartChatUsage || {};
+        const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+        let usageDate: string | null =
+          typeof usage.date === "string" ? usage.date : null;
+        let usageCount: number =
+          typeof usage.count === "number" ? usage.count : 0;
+
+        if (usageDate !== today) {
+          usageDate = today;
+          usageCount = 0;
+        }
+
+        const dailyFreeLimit = 5;
+        if (planKey === "free" && usageCount >= dailyFreeLimit) {
+          throw new HttpsError(
+            "resource-exhausted",
+            "You have used your 5 free Smart Chat queries for today on the FREE – Explorer plan. Upgrade your plan to unlock more daily Smart Chat questions.",
+            { code: "SMARTCHAT_DAILY_LIMIT", upgradeRequired: true }
+          );
+        }
+
+        // Best-effort update of per-day usage (non-blocking if it fails)
+        try {
+          await userRef.set(
+            {
+              smartChatUsage: {
+                date: today,
+                count: usageCount + 1,
+              },
             },
-          },
-          { merge: true }
-        );
+            { merge: true }
+          );
+        } catch (err) {
+          console.error(
+            "Failed to update smartChatUsage for user",
+            userId,
+            err
+          );
+        }
       } catch (err) {
-        console.error("Failed to update smartChatUsage for user", userId, err);
+        if (err instanceof HttpsError) {
+          throw err;
+        }
+        console.error(
+          "SmartChatV2 daily usage guard error:",
+          (err as any)?.message || err
+        );
       }
 
+      // 2️⃣ Global monthly enforcement (server-side only, all plans)
+      try {
+        await checkAndIncrementUsage(db, userId, "smartChat");
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : "";
+        if (message === LIMIT_REACHED_CODE) {
+          throw new HttpsError(
+            "resource-exhausted",
+            "You've reached your limit for this feature.",
+            {
+              code: LIMIT_REACHED_CODE,
+              upgradeRequired: true,
+            }
+          );
+        }
+        throw err;
+      }
       const selectedAccount = (userData as any)?.selectedInstagramAccount;
       if (!selectedAccount) {
         throw new HttpsError("failed-precondition", "Please add an Instagram account in Analytics to use Smart Chat.");
@@ -1241,20 +1693,185 @@ export const smartChatV2 = onCall(
       const intent = classifyIntent(message);
       const mode = decideResponseMode(intent, snapshot);
 
-      // Deterministic, data-only handlers for format and posting frequency questions
+      // Log all real user questions for later analysis
+      await logSmartChatQuestion(db, {
+        userId,
+        question: message,
+        detectedIntent: intent,
+      });
+
+      // Deterministic, data-only handlers for format, posting frequency, and replication questions
       if (intent === "CONTENT_FORMAT") {
-        const reply = stripMarkdownHeadings(buildFormatPerformanceReply(snapshot));
-        return { success: true, reply };
+        const baseAnswer = stripMarkdownHeadings(buildFormatPerformanceReply(snapshot));
+        const confidenceMeta = computeConfidence(snapshot);
+        const insight = buildInsightForIntent(intent, snapshot);
+        const suggestions = buildSuggestionsForIntent(intent, String(message), conversationHistory as any[]);
+        if (confidenceMeta.level === "Low") {
+          await logSmartChatFailure(db, {
+            userId,
+            question: message,
+            detectedIntent: intent,
+            confidenceScore: confidenceMeta.score,
+            responseGenerated: true,
+          });
+        }
+        const confidenceLine = `Confidence: ${confidenceMeta.level} (based on analysis of ${confidenceMeta.postsAnalyzed} posts).`;
+        const answer = baseAnswer;
+        const reply = [answer, "", `Insight: ${insight}`, "", confidenceLine].join("\n");
+        return {
+          success: true,
+          answer,
+          insight,
+          confidence: confidenceMeta.level,
+          suggestions,
+          reply,
+        };
       }
       if (intent === "POSTING_FREQUENCY") {
-        const reply = stripMarkdownHeadings(buildPostingFrequencyReply(snapshot, selectedAccount));
-        return { success: true, reply };
+        const baseAnswer = stripMarkdownHeadings(buildPostingFrequencyReply(snapshot, selectedAccount));
+        const confidenceMeta = computeConfidence(snapshot);
+        const insight = buildInsightForIntent(intent, snapshot);
+        const suggestions = buildSuggestionsForIntent(intent, String(message), conversationHistory as any[]);
+        if (confidenceMeta.level === "Low") {
+          await logSmartChatFailure(db, {
+            userId,
+            question: message,
+            detectedIntent: intent,
+            confidenceScore: confidenceMeta.score,
+            responseGenerated: true,
+          });
+        }
+        const confidenceLine = `Confidence: ${confidenceMeta.level} (based on analysis of ${confidenceMeta.postsAnalyzed} posts).`;
+        const answer = baseAnswer;
+        const reply = [answer, "", `Insight: ${insight}`, "", confidenceLine].join("\n");
+        return {
+          success: true,
+          answer,
+          insight,
+          confidence: confidenceMeta.level,
+          suggestions,
+          reply,
+        };
+      }
+      if (intent === "REPLICATE_POSTS") {
+        const insight = buildReplicationInsight(snapshot);
+        if (!insight) {
+          const limitationAnswer = stripMarkdownHeadings(buildLimitationReply("BEST_POST", snapshot, selectedAccount));
+          const confidenceMeta = computeConfidence(snapshot);
+          const fallbackSuggestions = buildSuggestionsForIntent("BEST_POST", String(message), conversationHistory as any[]);
+          await logSmartChatFailure(db, {
+            userId,
+            question: message,
+            detectedIntent: intent,
+            confidenceScore: confidenceMeta.score,
+            responseGenerated: false,
+          });
+          const fallbackInsight =
+            "I couldn't find a strong pattern in your recent analytics yet. Try one of the suggested analytics-based questions to narrow down what you want to analyze.";
+          const confidenceLine = `Confidence: Low (no usable post-level dataset for this question).`;
+          const answer = [
+            limitationAnswer,
+            "",
+            "I couldn't find a strong pattern in your recent analytics yet.",
+            "Try asking:",
+            "• Which posts performed best this month?",
+            "• Which reels drove the most engagement?",
+            "• Which hashtags appear in my top posts?",
+          ].join("\n");
+          const reply = [answer, "", `Insight: ${fallbackInsight}`, "", confidenceLine].join("\n");
+          return {
+            success: true,
+            answer,
+            insight: fallbackInsight,
+            confidence: "Low" as ConfidenceLevel,
+            suggestions: fallbackSuggestions,
+            reply,
+          };
+        }
+        const jsonBlock = JSON.stringify(insight, null, 2);
+        const confidenceMeta = computeConfidence(snapshot);
+        const suggestions = buildSuggestionsForIntent(intent, String(message), conversationHistory as any[]);
+        if (confidenceMeta.level === "Low") {
+          await logSmartChatFailure(db, {
+            userId,
+            question: message,
+            detectedIntent: intent,
+            confidenceScore: confidenceMeta.score,
+            responseGenerated: true,
+          });
+        }
+        const confidenceLine = `Confidence: ${confidenceMeta.level} (based on analysis of ${confidenceMeta.postsAnalyzed} posts).`;
+        const answerLines: string[] = [];
+        answerLines.push("DATA ANALYZED: We looked at your top posts by engagement rate and total interactions.");
+        answerLines.push("");
+        answerLines.push("FACTS (numbers only):");
+        answerLines.push(`- We selected the top 3 posts to replicate from your highest-engagement content.`);
+        if (insight.patterns.top_content_type) {
+          answerLines.push(`- Top content type: ${insight.patterns.top_content_type}.`);
+        }
+        if (insight.patterns.reels_share_pct != null) {
+          answerLines.push(`- Reels share among top posts: ${insight.patterns.reels_share_pct}%.`);
+        }
+        if (insight.patterns.best_posting_time_range) {
+          answerLines.push(`- Best performing posting window: ${insight.patterns.best_posting_time_range}.`);
+        }
+        if (insight.patterns.average_caption_length_words != null) {
+          answerLines.push(`- Avg caption length (top posts): ${insight.patterns.average_caption_length_words} words.`);
+        }
+        if (insight.patterns.average_hashtag_count != null) {
+          answerLines.push(`- Avg hashtags per top post: ${insight.patterns.average_hashtag_count}.`);
+        }
+        answerLines.push("");
+        answerLines.push("WHAT CANNOT BE CONCLUDED: We only see engagement, time, and caption metrics—no content or creative details, so we can't tell why a specific idea or visual worked.");
+        answerLines.push("");
+        answerLines.push(`NEXT STEP: ${insight.recommendation} Want more data? Say 'analyze 50 posts' or 'analyze 90 posts'—it will take longer but we'll fetch and analyze them.`);
+        answerLines.push("");
+        answerLines.push("STRUCTURED_INSIGHTS (for builders/tools):");
+        answerLines.push(jsonBlock);
+
+        const baseAnswer = stripMarkdownHeadings(answerLines.join("\n"));
+        const reply = [baseAnswer, "", `Insight: ${insight.recommendation}`, "", confidenceLine].join("\n");
+        return {
+          success: true,
+          answer: baseAnswer,
+          insight: insight.recommendation,
+          confidence: confidenceMeta.level,
+          suggestions,
+          reply,
+        };
       }
 
       if (mode === "LIMITATION") {
+        const limitationAnswer = stripMarkdownHeadings(buildLimitationReply(intent, snapshot, selectedAccount));
+        const confidenceMeta = computeConfidence(snapshot);
+        const suggestions = buildSuggestionsForIntent(intent, String(message), conversationHistory as any[]);
+        await logSmartChatFailure(db, {
+          userId,
+          question: message,
+          detectedIntent: intent,
+          confidenceScore: confidenceMeta.score,
+          responseGenerated: false,
+        });
+        const fallbackInsight =
+          "Your current analytics sample is too small for a confident answer. Run a fresh Instagram Analytics scan, then try one of the suggested analytics-based questions.";
+        const confidenceLine = `Confidence: Low (no or minimal post-level data for this question).`;
+        const answer = [
+          limitationAnswer,
+          "",
+          "I couldn't find a strong pattern in your recent analytics yet.",
+          "Try asking:",
+          "• Which posts performed best this month?",
+          "• Which reels drove the most engagement?",
+          "• Which hashtags appear in my top posts?",
+        ].join("\n");
+        const reply = [answer, "", `Insight: ${fallbackInsight}`, "", confidenceLine].join("\n");
         return {
           success: true,
-          reply: stripMarkdownHeadings(buildLimitationReply(intent, snapshot, selectedAccount)),
+          answer,
+          insight: fallbackInsight,
+          confidence: "Low" as ConfidenceLevel,
+          suggestions,
+          reply,
         };
       }
 
@@ -1289,7 +1906,7 @@ ALWAYS: be data-led or explicitly disclaim that we don't have data.
 
 CONVERSATIONAL: Use prior messages for context. If the user refers to "these", "those", "among these", answer directly from what you previously said.
 FORMATTING: Do NOT prefix headings or section titles with '#', '##', or '###'. Output headings as plain text lines without markdown hashes.`;
-        const reply = stripMarkdownHeadings(
+        const baseReply = stripMarkdownHeadings(
           await callOpenAI(
             systemPrompt,
             `User question: "${message}"`,
@@ -1297,7 +1914,29 @@ FORMATTING: Do NOT prefix headings or section titles with '#', '##', or '###'. O
             conversationHistory
           )
         );
-        return { success: true, reply };
+        const confidenceMeta = computeConfidence(snapshot);
+        const insight = buildInsightForIntent(intent, snapshot);
+        const suggestions = buildSuggestionsForIntent(intent, String(message), conversationHistory as any[]);
+        if (confidenceMeta.level === "Low") {
+          await logSmartChatFailure(db, {
+            userId,
+            question: message,
+            detectedIntent: intent,
+            confidenceScore: confidenceMeta.score,
+            responseGenerated: true,
+          });
+        }
+        const confidenceLine = `Confidence: ${confidenceMeta.level} (based on analysis of ${confidenceMeta.postsAnalyzed} posts).`;
+        const answer = baseReply;
+        const reply = [answer, "", `Insight: ${insight}`, "", confidenceLine].join("\n");
+        return {
+          success: true,
+          answer,
+          insight,
+          confidence: confidenceMeta.level,
+          suggestions,
+          reply,
+        };
       }
 
       // mode === "ANALYTICS"
@@ -1361,10 +2000,32 @@ FORMATTING: Do NOT prefix headings or section titles with '#', '##', or '###'. O
 - Post more in afternoon: Use TIME_SLOTS Afternoon; say whether data supports it (e.g. if Afternoon has highest avgEngagement, yes).`
         : `Intent: ${intent}`;
       const userContent = `${intentHint}\n\nUser question: "${message}"`;
-      const reply = stripMarkdownHeadings(
+      const baseReply = stripMarkdownHeadings(
         await callOpenAI(systemPrompt, userContent, apiKey, conversationHistory)
       );
-      return { success: true, reply };
+      const confidenceMeta = computeConfidence(snapshot);
+      const insight = buildInsightForIntent(intent, snapshot);
+      const suggestions = buildSuggestionsForIntent(intent, String(message), conversationHistory as any[]);
+      if (confidenceMeta.level === "Low") {
+        await logSmartChatFailure(db, {
+          userId,
+          question: message,
+          detectedIntent: intent,
+          confidenceScore: confidenceMeta.score,
+          responseGenerated: true,
+        });
+      }
+      const confidenceLine = `Confidence: ${confidenceMeta.level} (based on analysis of ${confidenceMeta.postsAnalyzed} posts).`;
+      const answer = baseReply;
+      const reply = [answer, "", `Insight: ${insight}`, "", confidenceLine].join("\n");
+      return {
+        success: true,
+        answer,
+        insight,
+        confidence: confidenceMeta.level,
+        suggestions,
+        reply,
+      };
     } catch (e) {
       if (e instanceof HttpsError) throw e;
       const msg = e instanceof Error ? e.message : "An unexpected error occurred.";

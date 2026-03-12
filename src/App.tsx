@@ -15,10 +15,12 @@ import Subscription from "./pages/subscription";
 import InstagramAnalyticsPage from "./pages/instagram-analytics";
 import CompetitorIntelligencePage from "./pages/competitor-intelligence";
 import LoginPage from "./pages/login";
+import VerifyEmailPage from "./pages/verify-email";
 import Privacy from "./pages/privacy";
 import TermsAndConditions from "./pages/terms-and-conditions";
 import Refund from "./pages/refund";
 import SidebarLayout from "./components/ui/SidebarLayout";
+import RequireVerifiedEmail from "./components/RequireVerifiedEmail";
 import Trending from "./pages/trending";
 import TrendingNow from "./pages/trending-now";
 import SmartChat from "./pages/smart-chat";
@@ -92,7 +94,9 @@ function App() {
         <Sonner />
         <BrowserRouter>
           <Routes>
-            <Route element={<SidebarLayout />}>
+            {/* Protected app: requires email-verified user */}
+            <Route element={<RequireVerifiedEmail />}>
+              <Route element={<SidebarLayout />}>
               <Route path="/" element={<Index />} />
               <Route path="/instagram-analytics" element={<InstagramAnalyticsPage />} />
               <Route path="/analytics/competitor-intelligence" element={<CompetitorIntelligencePage />} />
@@ -114,8 +118,10 @@ function App() {
               <Route path="/growth-ai/hashtag-saturation-meter" element={<Navigate to="/subscription" replace />} />
               <Route path="/growth-ai/ai-powered-daily-growth-tips" element={<Navigate to="/subscription" replace />} />
               <Route path="/growth-ai/competitor-content-heatmap" element={<Navigate to="/subscription" replace />} />
+              </Route>
             </Route>
             <Route path="/auth" element={<LoginPage />} />
+            <Route path="/verify-email" element={<VerifyEmailPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
