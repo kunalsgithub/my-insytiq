@@ -6,14 +6,19 @@ import { useToast } from '../hooks/use-toast';
 interface InstagramUsernameInputProps {
   onAnalyze: (username: string) => void;
   disabled?: boolean;
+  loading?: boolean;
 }
 
-const InstagramUsernameInput: React.FC<InstagramUsernameInputProps> = ({ onAnalyze, disabled = false }) => {
+const InstagramUsernameInput: React.FC<InstagramUsernameInputProps> = ({
+  onAnalyze,
+  disabled = false,
+  loading = false,
+}) => {
   const [username, setUsername] = useState('');
   const { toast } = useToast();
 
   const handleAnalyze = () => {
-    if (disabled) return;
+    if (disabled || loading) return;
     if (!username.trim()) {
       toast({
         title: 'Please enter an Instagram username',
@@ -28,7 +33,7 @@ const InstagramUsernameInput: React.FC<InstagramUsernameInputProps> = ({ onAnaly
     if (e.key === 'Enter') {
       e.preventDefault();
       e.stopPropagation();
-      if (disabled) return;
+      if (disabled || loading) return;
       handleAnalyze();
     }
   };
@@ -42,20 +47,28 @@ const InstagramUsernameInput: React.FC<InstagramUsernameInputProps> = ({ onAnaly
     <form onSubmit={handleSubmit} className="flex flex-col md:flex-row items-center gap-4 mb-8">
       <Input
         type="text"
-        placeholder={disabled ? "Limit reached — upgrade to analyze more" : "Enter Instagram username"}
+        placeholder={
+          disabled
+            ? "Limit reached — upgrade to analyze more"
+            : "Enter Instagram username"
+        }
         value={username}
-        onChange={e => !disabled && setUsername(e.target.value)}
+        onChange={e => !disabled && !loading && setUsername(e.target.value)}
         onKeyDown={handleKeyDown}
         className="w-full md:w-1/2"
-        disabled={disabled}
-        readOnly={disabled}
+        disabled={disabled || loading}
+        readOnly={disabled || loading}
       />
       <Button
         type="submit"
-        className={`w-full md:w-auto border-0 ${disabled ? "bg-gray-400 text-gray-200 cursor-not-allowed" : "bg-[rgb(192,37,122)] text-white hover:brightness-110"}`}
-        disabled={disabled}
+        className={`w-full md:w-auto border-0 ${
+          disabled || loading
+            ? "bg-gray-400 text-gray-200 cursor-not-allowed"
+            : "bg-[rgb(192,37,122)] text-white hover:brightness-110"
+        }`}
+        disabled={disabled || loading}
       >
-        Analyze
+        {loading ? "Analyzing…" : "Analyze"}
       </Button>
     </form>
   );

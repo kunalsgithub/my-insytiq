@@ -26,6 +26,8 @@ import { useInstagramAnalyticsStore } from "../store/useInstagramAnalyticsStore"
 const InstagramAnalyticsPage = () => {
   const [username, setUsername] = useState("");
   const [isRestoringFromCache, setIsRestoringFromCache] = useState(false);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [loadingStep, setLoadingStep] = useState<1 | 2 | 3>(1);
 
   const [instagramData, analyzeUsername, setDataFromFirestore, setAnalysisError] =
     useInstagramData();
@@ -47,6 +49,20 @@ const InstagramAnalyticsPage = () => {
 
   const [userPlan, setUserPlan] = useState<string>(PLAN.FREE);
   const [profileAnalysisLimitReached, setProfileAnalysisLimitReached] = useState(false);
+
+  // Progressively advance loading steps while analysis is running
+  useEffect(() => {
+    if (!isAnalyzing) return;
+
+    setLoadingStep(1);
+    const t1 = window.setTimeout(() => setLoadingStep(2), 1000);
+    const t2 = window.setTimeout(() => setLoadingStep(3), 2200);
+
+    return () => {
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
+    };
+  }, [isAnalyzing]);
 
   useEffect(() => {
     if (!userId) return;
@@ -238,6 +254,7 @@ const InstagramAnalyticsPage = () => {
     }
 
     try {
+      setIsAnalyzing(true);
       // 1️⃣ Reserve usage on the server BEFORE any cache logic
       try {
         await reserveProfileAnalysisUsage(userId);
@@ -258,6 +275,7 @@ const InstagramAnalyticsPage = () => {
             description: `Wait ${mins} minute${mins !== 1 ? "s" : ""} before running another profile analysis.`,
             variant: "destructive",
           });
+          setIsAnalyzing(false);
           return;
         }
         if (isLimit) {
@@ -272,6 +290,7 @@ const InstagramAnalyticsPage = () => {
             variant: "destructive",
           });
           setProfileAnalysisLimitReached(true);
+          setIsAnalyzing(false);
           return;
         }
         throw err;
@@ -293,10 +312,18 @@ const InstagramAnalyticsPage = () => {
         description: "Could not start analysis. Please try again.",
         variant: "destructive",
       });
+      setIsAnalyzing(false);
     }
   };
 
   const dailyMetrics = instagramData.insights?.dailyMetrics || [];
+
+  // When backend finishes loading (or errors), stop the front-end loading state
+  useEffect(() => {
+    if (!instagramData.loading && !isRestoringFromCache) {
+      setIsAnalyzing(false);
+    }
+  }, [instagramData.loading, isRestoringFromCache]);
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -330,6 +357,7 @@ const InstagramAnalyticsPage = () => {
           <InstagramUsernameInput
             onAnalyze={handleAnalyzeUsername}
             disabled={profileAnalysisLimitReached}
+            loading={isAnalyzing}
           />
           {saving && (
             <p className="text-sm text-gray-500 mt-3 text-center">
@@ -344,9 +372,25 @@ const InstagramAnalyticsPage = () => {
           </div>
         )}
 
-        {instagramData.loading && !isRestoringFromCache && username && (
-          <div className="bg-blue-50 p-5 rounded-lg text-center mb-6">
-            Fetching analytics for @{username}…
+        {(isAnalyzing || (instagramData.loading && !isRestoringFromCache && username)) && (
+          <div className="bg-white rounded-xl shadow p-6 mb-8 flex flex-col items-center gap-4">
+            <div className="w-12 h-12 border-4 border-[#d72989] border-t-transparent rounded-full animate-spin" />
+            <div className="space-y-1 text-center">
+              <p className="text-sm font-semibold text-gray-900">
+                {loadingStep === 1 && "Fetching profile data…"}
+                {loadingStep === 2 && "Fetching recent posts…"}
+                {loadingStep === 3 && "Analyzing engagement patterns…"}
+              </p>
+              <p className="text-xs text-gray-500">
+                This usually takes a few seconds. You can keep this tab open while we analyze @{username}.
+              </p>
+            </div>
+            {/* Simple skeleton for analytics dashboard */}
+            <div className="w-full grid grid-cols-1 md:grid-cols-3 gap-4 mt-2">
+              <div className="h-24 rounded-xl bg-gray-100 animate-pulse" />
+              <div className="h-24 rounded-xl bg-gray-100 animate-pulse" />
+              <div className="h-24 rounded-xl bg-gray-100 animate-pulse" />
+            </div>
           </div>
         )}
 
