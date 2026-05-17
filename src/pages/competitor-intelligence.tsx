@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
@@ -41,6 +41,9 @@ interface CompetitorDoc {
   avgLikes: number;
   avgComments: number;
   postingFrequency: number;
+  // Accurate "posts in the last 30 days" count computed server-side.
+  // Older docs may not have this yet (so we fall back to `posts.length`).
+  postsCount30d?: number;
   lastUpdated?: any;
   posts: CompetitorPost[];
 }
@@ -83,6 +86,23 @@ const gradientBtn = {
   border: "none",
 };
 
+/** Minimum daily history points to show Growth Comparison (SB backfill usually provides 30). */
+const MIN_GROWTH_HISTORY_POINTS = 2;
+
+/** Self + every tracked competitor (same set as Competitor Overview table). */
+function getComparisonUsernames(
+  baseUsername: string,
+  competitorList: CompetitorDoc[]
+): string[] {
+  const base = baseUsername.toLowerCase().trim();
+  const competitorUsernames = competitorList
+    .map((c) => (c.username || "").toLowerCase().trim())
+    .filter(Boolean);
+  return [base, ...competitorUsernames].filter(
+    (value, index, self) => self.indexOf(value) === index
+  );
+}
+
 const CompetitorIntelligencePage: React.FC = () => {
   const { toast } = useToast();
   const [inputUsername, setInputUsername] = useState("");
@@ -91,11 +111,13 @@ const CompetitorIntelligencePage: React.FC = () => {
   const [competitors, setCompetitors] = useState<CompetitorDoc[]>([]);
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
+  const [refreshingCompetitors, setRefreshingCompetitors] = useState(false);
   const [currentPlan, setCurrentPlan] = useState<string | null>(null);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyData, setHistoryData] = useState<
     Record<string, FollowerHistoryPoint[]>
   >({});
+  const autoRefreshedCompetitorsOnce = useRef(false);
 
   useEffect(() => {
     const user = getCurrentUser();
@@ -131,6 +153,7 @@ const CompetitorIntelligencePage: React.FC = () => {
           avgLikes: d.avgLikes ?? 0,
           avgComments: d.avgComments ?? 0,
           postingFrequency: d.postingFrequency ?? 0,
+          postsCount30d: typeof d.postsCount30d === "number" ? d.postsCount30d : undefined,
           posts: Array.isArray(d.posts)
             ? d.posts.map((p: any) => ({
                 postId: p.url || p.shortcode || p.code || String(p.timestamp || Date.now()),
@@ -175,6 +198,7 @@ const CompetitorIntelligencePage: React.FC = () => {
             avgLikes: data.avgLikes ?? 0,
             avgComments: data.avgComments ?? 0,
             postingFrequency: data.postingFrequency ?? 0,
+            postsCount30d: typeof data.postsCount30d === "number" ? data.postsCount30d : undefined,
             lastUpdated: data.lastUpdated,
             posts: Array.isArray(data.posts) ? data.posts : [],
           };
@@ -190,22 +214,45 @@ const CompetitorIntelligencePage: React.FC = () => {
     return () => unsub();
   }, []);
 
+  // Auto-refresh competitor docs once if the server-side count field isn't present yet.
+  // This keeps the "Posts (30d)" column accurate for existing users without requiring manual refresh.
+  useEffect(() => {
+    if (!userId) return;
+    if (competitors.length === 0) return;
+    if (autoRefreshedCompetitorsOnce.current) return;
+
+    const needsRefresh = competitors.some(
+      (c) => typeof c.postsCount30d !== "number"
+    );
+    if (!needsRefresh) return;
+
+    autoRefreshedCompetitorsOnce.current = true;
+    setRefreshingCompetitors(true);
+    toast({
+      title: "Updating competitor stats",
+      description: "Fetching the last 30 days post counts for accurate comparisons…",
+    });
+
+    const fn = httpsCallable(functions, "updateCompetitorAnalytics");
+    fn({})
+      .catch((err: any) => {
+        console.error("updateCompetitorAnalytics error:", err);
+        toast({
+          title: "Couldn't update competitor stats",
+          description: err?.message || "Please try again later.",
+          variant: "destructive",
+        });
+      })
+      .finally(() => setRefreshingCompetitors(false));
+  }, [competitors, toast, userId]);
+
   useEffect(() => {
     if (!accountStats?.username) {
       setHistoryData({});
       return;
     }
 
-    const baseUsername = accountStats.username;
-    const competitorUsernames = competitors
-      // Include up to 4 competitors so a PRO user can
-      // compare 5 usernames total (self + 4 competitors).
-      .slice(0, 4)
-      .map((c) => c.username.toLowerCase());
-
-    const usernames = [baseUsername, ...competitorUsernames].filter(
-      (value, index, self) => self.indexOf(value) === index
-    );
+    const usernames = getComparisonUsernames(accountStats.username, competitors);
 
     if (usernames.length === 0) {
       setHistoryData({});
@@ -224,17 +271,55 @@ const CompetitorIntelligencePage: React.FC = () => {
         const res = await fn({ usernames });
         const payload = res.data?.data ?? {};
         const result: Record<string, FollowerHistoryPoint[]> = {};
-        Object.keys(payload).forEach((uname) => {
-          result[uname] = (payload[uname] || []).map((p) => ({
+
+        usernames.forEach((uname) => {
+          const points = payload[uname] || [];
+          result[uname] = points.map((p) => ({
             date: new Date(p.date),
             followers: p.followers,
           }));
         });
+
+        const since = new Date();
+        since.setDate(since.getDate() - 29);
+        since.setHours(0, 0, 0, 0);
+
+        const loadFromSocialBladeCache = async (username: string): Promise<FollowerHistoryPoint[]> => {
+          const cacheId = `socialblade_${username.toLowerCase().trim()}`;
+          const snap = await getDoc(doc(db, "socialblade_cache", cacheId));
+          if (!snap.exists()) return [];
+          const daily = (snap.data() as any)?.data?.dailyHistory;
+          if (!Array.isArray(daily)) return [];
+          const normalized = daily
+            .filter((d: any) => d?.date && typeof d.followers === "number")
+            .map((d: any) => ({
+              date: new Date(d.date),
+              followers: Number(d.followers) || 0,
+            }))
+            .filter((p) => !Number.isNaN(p.date.getTime()))
+            .sort((a, b) => a.date.getTime() - b.date.getTime());
+          const inWindow = normalized.filter((p) => p.date.getTime() >= since.getTime());
+          if (inWindow.length >= MIN_GROWTH_HISTORY_POINTS) return inWindow;
+          if (normalized.length >= MIN_GROWTH_HISTORY_POINTS) return normalized.slice(-31);
+          return [];
+        };
+
+        await Promise.all(
+          usernames.map(async (uname) => {
+            if ((result[uname]?.length || 0) >= MIN_GROWTH_HISTORY_POINTS) return;
+            const fromCache = await loadFromSocialBladeCache(uname);
+            if (fromCache.length >= MIN_GROWTH_HISTORY_POINTS) {
+              result[uname] = fromCache;
+            }
+          })
+        );
+
         if (!cancelled) {
           setHistoryData(result);
           setHistoryLoading(false);
         }
-      } catch {
+      } catch (err) {
+        console.error("getFollowerHistory error:", err);
         if (!cancelled) {
           setHistoryData({});
           setHistoryLoading(false);
@@ -298,16 +383,19 @@ const CompetitorIntelligencePage: React.FC = () => {
     }
 
     const baseUsername = accountStats.username;
-    const competitorUsernames = competitors
-      .slice(0, 3)
-      .map((c) => c.username.toLowerCase());
-    const usernames = [baseUsername, ...competitorUsernames].filter(
-      (value, index, self) => self.indexOf(value) === index
-    );
+    const usernames = getComparisonUsernames(baseUsername, competitors);
 
     if (usernames.length === 0) {
       return { metrics: [] as GrowthMetric[], chartData: [] as any[], spikes: [] as GrowthSpike[], hasEnoughHistory: false };
     }
+
+    const currentFollowersByUsername: Record<string, number> = {};
+    currentFollowersByUsername[baseUsername] = accountStats.followers || 0;
+    competitors.forEach((c) => {
+      const u = c.username?.toLowerCase?.() || c.username;
+      if (!u) return;
+      currentFollowersByUsername[u] = c.followers || 0;
+    });
 
     type SeriesPoint = { date: Date; followers: number; dailyGain: number };
     const seriesPerAccount: Record<string, SeriesPoint[]> = {};
@@ -331,10 +419,10 @@ const CompetitorIntelligencePage: React.FC = () => {
       seriesPerAccount[uname] = enriched;
     });
 
-    const baseHistory = seriesPerAccount[baseUsername] || [];
-    // Require a meaningful history window: at least 30 days of snapshots
-    // for the primary account before enabling the growth comparison dashboard.
-    if (baseHistory.length < 30) {
+    const hasComparisonData = usernames.some(
+      (u) => (seriesPerAccount[u]?.length || 0) >= MIN_GROWTH_HISTORY_POINTS
+    );
+    if (!hasComparisonData) {
       return {
         metrics: [] as GrowthMetric[],
         chartData: [] as any[],
@@ -362,13 +450,27 @@ const CompetitorIntelligencePage: React.FC = () => {
 
     usernames.forEach((uname, index) => {
       const series = seriesPerAccount[uname];
-      if (!series || series.length === 0) {
-        return;
-      }
-
       const isSelf = uname === baseUsername;
       const displayName = isSelf ? `${uname} (you)` : `@${uname}`;
       const seriesKey = isSelf ? "You" : `@${uname}`;
+
+      // If we have no history for an account, still show a card so the UI is consistent.
+      if (!series || series.length === 0) {
+        const currentFollowers = currentFollowersByUsername[uname] || 0;
+        metrics.push({
+          username: uname,
+          displayName,
+          isSelf,
+          seriesKey,
+          currentFollowers,
+          followers30DaysAgo: currentFollowers,
+          growthPercent: 0,
+          netGain: 0,
+          dailyAvg: 0,
+          status: "Stable",
+        });
+        return;
+      }
 
       let pointer = 0;
       let lastFollowers = series[0].followers;
@@ -395,7 +497,10 @@ const CompetitorIntelligencePage: React.FC = () => {
       const netGain = finalFollowers - firstFollowers;
       const growthPercent =
         firstFollowers > 0 ? (netGain / firstFollowers) * 100 : 0;
-      const dailyAvg = netGain / 30;
+      const spanMs =
+        series[series.length - 1].date.getTime() - series[0].date.getTime();
+      const spanDays = Math.max(1, Math.min(30, Math.round(spanMs / 86400000) || 1));
+      const dailyAvg = netGain / spanDays;
 
       const lastWeekPoints = series.slice(-7);
       const earlierPoints = series.slice(
@@ -591,7 +696,11 @@ const CompetitorIntelligencePage: React.FC = () => {
                         <td className="py-2 pr-4">
                           {accountStats.postingFrequency.toFixed(2)}
                         </td>
-                        <td className="py-2 pr-4">{accountStats.posts.length}</td>
+                        <td className="py-2 pr-4">
+                          {typeof accountStats.postsCount30d === "number"
+                            ? accountStats.postsCount30d
+                            : accountStats.posts.length}
+                        </td>
                         <td className="py-2 pr-4 text-xs text-gray-400">—</td>
                       </tr>
                     )}
@@ -601,7 +710,11 @@ const CompetitorIntelligencePage: React.FC = () => {
                         <td className="py-2 pr-4">{c.followers.toLocaleString()}</td>
                         <td className="py-2 pr-4">{c.engagementRate.toFixed(2)}%</td>
                         <td className="py-2 pr-4">{c.postingFrequency.toFixed(2)}</td>
-                        <td className="py-2 pr-4">{c.posts?.length || 0}</td>
+                        <td className="py-2 pr-4">
+                          {typeof c.postsCount30d === "number"
+                            ? c.postsCount30d
+                            : c.posts?.length || 0}
+                        </td>
                         <td className="py-2 pr-4">
                           <button
                             type="button"
@@ -658,9 +771,16 @@ const CompetitorIntelligencePage: React.FC = () => {
             {historyLoading ? (
               <p className="text-sm text-gray-500">Loading follower history…</p>
             ) : !hasEnoughHistory ? (
-              <p className="text-sm text-gray-500">
-                Not enough historical data to generate growth comparison.
-              </p>
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600 space-y-2">
+                <p className="font-medium text-slate-800">
+                  Not enough historical data to generate growth comparison yet.
+                </p>
+                <p>
+                  Run <strong>Instagram Analytics</strong> on your account and each competitor
+                  (or add competitors again) so we can load 30-day follower history from Social
+                  Blade. Data usually appears within a minute after analysis.
+                </p>
+              </div>
             ) : (
               <div
                 className={
@@ -670,7 +790,7 @@ const CompetitorIntelligencePage: React.FC = () => {
                 }
               >
                 {/* Growth Summary Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 mb-6">
                   {(() => {
                     if (metrics.length === 0) return null;
                     const growthValues = metrics.map((m) => m.growthPercent);
@@ -717,7 +837,7 @@ const CompetitorIntelligencePage: React.FC = () => {
                 </div>
 
                 {/* Growth Gap Insight */}
-                <div className="rounded-lg bg-gray-50 border border-gray-200 p-3 text-xs md:text-sm">
+                <div className="rounded-xl border border-[#d72989]/25 bg-gradient-to-r from-[#f9ce34]/10 via-[#ee2a7b]/10 to-[#6228d7]/10 p-3 text-xs md:text-sm ring-1 ring-[#d72989]/10">
                   {(() => {
                     if (!accountStats?.username) {
                       return (
@@ -752,11 +872,11 @@ const CompetitorIntelligencePage: React.FC = () => {
                     if (growthDiff > 0 && projectedGap > 0) {
                       return (
                         <>
-                          <p className="text-gray-700">
+                          <p className="text-gray-900 font-semibold">
                             You are growing {Math.round(growthDiff)}% slower than{" "}
                             {bestCompetitor.displayName}.
                           </p>
-                          <p className="text-gray-700 mt-1">
+                          <p className="text-gray-800 mt-1">
                             If this continues, {bestCompetitor.displayName} will gain
                             approximately{" "}
                             {Math.round(projectedGap).toLocaleString()} more
@@ -768,12 +888,12 @@ const CompetitorIntelligencePage: React.FC = () => {
                     const reverseGap = -projectedGap;
                     return (
                       <>
-                        <p className="text-gray-700">
+                        <p className="text-gray-900 font-semibold">
                           You are growing at a similar or faster rate than{" "}
                           {bestCompetitor.displayName}.
                         </p>
                         {reverseGap > 0 && (
-                          <p className="text-gray-700 mt-1">
+                          <p className="text-gray-800 mt-1">
                             If this continues, you could gain approximately{" "}
                             {Math.round(reverseGap).toLocaleString()} more followers
                             than {bestCompetitor.displayName} in the next 30 days.

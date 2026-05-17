@@ -1,14 +1,19 @@
 import { onCall } from "firebase-functions/v2/https";
-import { defineSecret } from "firebase-functions/params";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import { initializeApp, getApps } from "firebase-admin/app";
 import { fetchInstagramData } from "./apifyFetcher";
+import {
+  checkBrandCollabLimit,
+  incrementBrandCollabUsage,
+  LIMIT_REACHED_CODE,
+  limitReachedResponse,
+} from "./usageEnforcement";
+import { apifyApiTokenParam } from "./configParams";
 
 if (getApps().length === 0) {
   initializeApp();
 }
 const db = getFirestore();
-const apifyApiTokenSecret = defineSecret("APIFY_API_TOKEN");
 
 /** Allow only safe Instagram username characters (prevent injection) */
 const USERNAME_REGEX = /^[a-z0-9._]{1,30}$/;
@@ -98,7 +103,6 @@ export interface BrandCollabScoreError {
 }
 
 const RATE_LIMIT_SEC = 15;
-const PRO_MONTHLY_LIMIT = 50;
 
 function normalizePlanType(rawPlan: string | undefined): PlanType {
   const p = (rawPlan || "").trim().toLowerCase();
@@ -106,14 +110,6 @@ function normalizePlanType(rawPlan: string | undefined): PlanType {
   if (p === "analytics+" || p === "pro" || p.includes("pro")) return "pro";
   if (p === "trends+" || p === "creator" || p.includes("creator")) return "creator";
   return "free";
-}
-
-function firstDayOfNextMonth(): string {
-  const d = new Date();
-  d.setMonth(d.getMonth() + 1);
-  d.setDate(1);
-  d.setHours(0, 0, 0, 0);
-  return d.toISOString().slice(0, 10);
 }
 
 function getStatus(totalScore: number): string {
@@ -338,7 +334,6 @@ type FullScoreResult = ReturnType<typeof computeScore>;
 
 export const getBrandCollabScore = onCall(
   {
-    secrets: [apifyApiTokenSecret],
     timeoutSeconds: 300,
     cors: true,
   },
@@ -366,12 +361,6 @@ export const getBrandCollabScore = onCall(
       const userRef = db.collection("users").doc(userId);
       const userSnap = await userRef.get();
       const userData = userSnap.data() || {};
-      const planType = normalizePlanType(userData.currentPlan as string | undefined);
-
-      const usage = (userData.brandCollabUsage as Record<string, unknown>) || {};
-      let lifetimeUsed = typeof usage.lifetimeUsed === "number" ? usage.lifetimeUsed : 0;
-      let monthlyUsed = typeof usage.monthlyUsed === "number" ? usage.monthlyUsed : 0;
-      let monthlyResetDate = typeof usage.monthlyResetDate === "string" ? usage.monthlyResetDate : null as string | null;
       const lastCallAt = userData.lastBrandCollabCallAt as { toDate?: () => Date } | undefined;
       const lastCallMs = lastCallAt?.toDate?.()?.getTime();
       if (lastCallMs && Date.now() - lastCallMs < RATE_LIMIT_SEC * 1000) {
@@ -382,107 +371,123 @@ export const getBrandCollabScore = onCall(
         };
       }
 
-      if (planType === "creator") {
+      // Prevent double submissions while a calculation is already running
+      const tempFlags = (userData as any)?.tempFlags || {};
+      if (tempFlags.brandCollabInProgress) {
         return {
           success: false,
-          code: "PRO_ONLY_FEATURE",
-          message: "Brand Collab Score is available in PRO plan only.",
+          code: "IN_PROGRESS",
+          message: "A Brand Collab Readiness Score calculation is already in progress. Please wait a moment and try again.",
         };
       }
 
-      if (planType === "free") {
-        if (lifetimeUsed >= 1) {
+      // 1️⃣ Check limit ONLY (no increment yet)
+      try {
+        await checkBrandCollabLimit(db, userId);
+      } catch (err: any) {
+        if (err?.message === LIMIT_REACHED_CODE) {
+          return limitReachedResponse("You've reached your limit for this feature.");
+        }
+        throw err;
+      }
+
+      // Mark calculation as in progress
+      await userRef.set(
+        {
+          tempFlags: {
+            ...(tempFlags || {}),
+            brandCollabInProgress: true,
+          },
+        },
+        { merge: true }
+      );
+
+      try {
+        const planType = normalizePlanType(userData.currentPlan as string | undefined);
+        const apifyApiToken = apifyApiTokenParam.value();
+        const profileData = await fetchInstagramData(username, apifyApiToken, 30);
+
+        const followers = profileData.followersCount ?? profileData.followerCount ?? profileData.followers ?? 0;
+        const media = Array.isArray(profileData.media) ? profileData.media : [];
+        const isPrivate =
+          (profileData.isPrivate ?? profileData.private) === true ||
+          (followers === 0 && media.length === 0);
+        if (isPrivate) {
           return {
             success: false,
-            code: "BRAND_SCORE_LOCKED",
-            message: "Free plan includes 1 lifetime Brand Collab Score. Upgrade to PRO for more.",
+            code: "PRIVATE_PROFILE",
+            message: "This profile appears to be private. We can only analyze public profiles.",
           };
         }
-      }
-
-      if (planType === "pro") {
-        const now = new Date();
-        const resetDate = monthlyResetDate ? new Date(monthlyResetDate) : null;
-        if (!resetDate || now > resetDate) {
-          monthlyUsed = 0;
-          monthlyResetDate = firstDayOfNextMonth();
-        }
-        if (monthlyUsed >= PRO_MONTHLY_LIMIT) {
+        if (!media.length) {
           return {
             success: false,
-            code: "MONTHLY_LIMIT_REACHED",
-            message: "You've reached your 50 monthly Brand Collab Score limit.",
+            code: "NO_POSTS",
+            message: "No posts found for this profile. We need at least some public posts to calculate the score.",
           };
         }
-      }
 
-      const apifyApiToken = apifyApiTokenSecret.value();
-      const profileData = await fetchInstagramData(username, apifyApiToken, 30);
+        const full = computeScore(profileData) as FullScoreResult;
 
-      const followers = profileData.followersCount ?? profileData.followerCount ?? profileData.followers ?? 0;
-      const media = Array.isArray(profileData.media) ? profileData.media : [];
-      const isPrivate = (profileData.isPrivate ?? profileData.private) === true || (followers === 0 && media.length === 0);
-      if (isPrivate) {
+        // 2️⃣ Only now, after successful calculation, consume usage
+        try {
+          await incrementBrandCollabUsage(db, userId);
+        } catch (err: any) {
+          if (err?.message === LIMIT_REACHED_CODE) {
+            // Edge case: limit changed between check and increment
+            return limitReachedResponse("You've reached your limit for this feature.");
+          }
+          throw err;
+        }
+
+        await userRef.set(
+          { lastBrandCollabCallAt: FieldValue.serverTimestamp() },
+          { merge: true }
+        );
+
+        if (planType === "pro") {
+          return {
+            ...full,
+            dealEstimate: full.dealEstimate,
+            expectedEngagementRange: full.expectedEngagementRange,
+            actualEngagementRate: full.actualEngagementRate,
+            riskFlags: full.riskFlags,
+            enableExport: true,
+          };
+        }
+
         return {
-          success: false,
-          code: "PRIVATE_PROFILE",
-          message: "This profile appears to be private. We can only analyze public profiles.",
+          success: true,
+          totalScore: full.totalScore,
+          status: full.status,
+          breakdown: full.breakdown,
+          followers: full.followers,
+          avgLikes: full.avgLikes,
+          avgComments: full.avgComments,
+          avgReelViews: full.avgReelViews,
+          recommendations: full.recommendations,
+          enableExport: false,
         };
+      } finally {
+        // Always clear in-progress flag so users aren't stuck
+        try {
+          await userRef.set(
+            {
+              tempFlags: {
+                ...(tempFlags || {}),
+                brandCollabInProgress: false,
+              },
+            },
+            { merge: true }
+          );
+        } catch (e) {
+          console.error(
+            "Failed to clear brandCollabInProgress flag for user",
+            userId,
+            e
+          );
+        }
       }
-      if (!media.length) {
-        return {
-          success: false,
-          code: "NO_POSTS",
-          message: "No posts found for this profile. We need at least some public posts to calculate the score.",
-        };
-      }
-
-      const full = computeScore(profileData) as FullScoreResult;
-
-      const updates: Record<string, unknown> = {
-        lastBrandCollabCallAt: FieldValue.serverTimestamp(),
-      };
-
-      if (planType === "free") {
-        updates.brandCollabUsage = {
-          lifetimeUsed: lifetimeUsed + 1,
-          monthlyUsed: 0,
-          monthlyResetDate: null,
-        };
-      } else if (planType === "pro") {
-        updates.brandCollabUsage = {
-          ...usage,
-          lifetimeUsed: usage.lifetimeUsed ?? 0,
-          monthlyUsed: monthlyUsed + 1,
-          monthlyResetDate,
-        };
-      }
-
-      await userRef.set(updates, { merge: true });
-
-      if (planType === "pro") {
-        return {
-          ...full,
-          dealEstimate: full.dealEstimate,
-          expectedEngagementRange: full.expectedEngagementRange,
-          actualEngagementRate: full.actualEngagementRate,
-          riskFlags: full.riskFlags,
-          enableExport: true,
-        };
-      }
-
-      return {
-        success: true,
-        totalScore: full.totalScore,
-        status: full.status,
-        breakdown: full.breakdown,
-        followers: full.followers,
-        avgLikes: full.avgLikes,
-        avgComments: full.avgComments,
-        avgReelViews: full.avgReelViews,
-        recommendations: full.recommendations,
-        enableExport: false,
-      };
     } catch (err: any) {
       const msg = err?.message || "";
       if (msg.includes("NO_POSTS") || msg === "NO_POSTS") {

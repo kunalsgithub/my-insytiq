@@ -20,9 +20,17 @@ export async function fetchAndStoreCompetitorData(
   const firestore = db || getFirestore();
   const normalizedUsername = username.toLowerCase().trim();
 
-  // Fetch latest ~30 posts (30-day window where possible)
-  const profileData = await fetchInstagramData(normalizedUsername, apifyApiToken, 30, "30 days");
+  // Fetch posts within the last 30 days and compute an accurate post count.
+  // We fetch a higher cap to avoid "all competitors show ~30 posts" when someone posts > 30 times/month.
+  const POSTS_IN_30D_FETCH_LIMIT = 200;
+  const profileData = await fetchInstagramData(
+    normalizedUsername,
+    apifyApiToken,
+    POSTS_IN_30D_FETCH_LIMIT,
+    "30 days"
+  );
   const media: any[] = Array.isArray(profileData.media) ? profileData.media : [];
+  const postsCount30d = media.length;
 
   const followers =
     profileData.followersCount ||
@@ -61,7 +69,9 @@ export async function fetchAndStoreCompetitorData(
     !!item.videoUrl ||
     !!item.videoCodec;
 
-  media.slice(0, 30).forEach((item: any) => {
+  // Map all fetched posts, but only store the top subset for UI responsiveness.
+  // Counts/averages are computed from the full fetched list.
+  const mappedAllPosts: typeof posts = media.map((item: any) => {
     const likes = item.likesCount || item.likeCount || 0;
     const comments = item.commentsCount || item.commentCount || 0;
     const engagement = likes + comments;
@@ -69,12 +79,16 @@ export async function fetchAndStoreCompetitorData(
     totalLikes += likes;
     totalComments += comments;
 
-    const ts =
+    const tsRaw =
       typeof item.timestamp === "number"
         ? item.timestamp
         : typeof item.takenAtTimestamp === "number"
-        ? item.takenAtTimestamp
-        : Math.floor(Date.now() / 1000);
+          ? item.takenAtTimestamp
+          : Math.floor(Date.now() / 1000);
+
+    // Normalize to unix seconds (some sources return milliseconds)
+    const ts =
+      typeof tsRaw === "number" && tsRaw > 1e12 ? Math.floor(tsRaw / 1000) : tsRaw;
 
     // Prefer a full URL when available; fallback to null.
     const postUrl: string | null = (() => {
@@ -87,7 +101,7 @@ export async function fetchAndStoreCompetitorData(
       return null;
     })();
 
-    posts.push({
+    return {
       postId: getPostId(item),
       type: isVideoLike(item) ? "Reel" : "Post",
       likes,
@@ -98,10 +112,13 @@ export async function fetchAndStoreCompetitorData(
       // Prefer fields that hold actual image URLs
       thumbnailUrl: item.displayUrl || item.thumbnailUrl || null,
       url: postUrl,
-    });
+    };
   });
 
-  const postCount = posts.length;
+  // Store top posts only (used for "Trending Competitor Posts")
+  posts.push(...mappedAllPosts.sort((a, b) => b.engagement - a.engagement).slice(0, 30));
+
+  const postCount = postsCount30d;
   const avgLikes = postCount > 0 ? Math.round(totalLikes / postCount) : 0;
   const avgComments = postCount > 0 ? Math.round(totalComments / postCount) : 0;
   const engagementRate =
@@ -111,8 +128,8 @@ export async function fetchAndStoreCompetitorData(
 
   // Approximate posting frequency (posts/week) over last 30 days
   let postingFrequency = 0;
-  if (posts.length > 1) {
-    const sorted = [...posts].sort((a, b) => b.timestamp - a.timestamp);
+  if (mappedAllPosts.length > 1) {
+    const sorted = [...mappedAllPosts].sort((a, b) => b.timestamp - a.timestamp);
     const newest = sorted[0].timestamp;
     const oldest = sorted[sorted.length - 1].timestamp;
     const daysDiff = (newest - oldest) / (60 * 60 * 24);
@@ -136,6 +153,9 @@ export async function fetchAndStoreCompetitorData(
     avgLikes,
     avgComments,
     postingFrequency,
+    // Accurate count of posts within the last 30 days window.
+    // UI should use this instead of `posts.length` (which is capped for storage size).
+    postsCount30d,
     lastUpdated: FieldValue.serverTimestamp(),
     posts,
   });

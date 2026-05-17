@@ -285,7 +285,7 @@ const InstagramAnalytics: React.FC<InstagramAnalyticsProps & { userPlan?: string
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
               <CardTitle className="font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-[#f9ce34] via-[#ee2a7b] to-[#6228d7]">Followers Growth</CardTitle>
-              <CardDescription className="text-gray-700">Daily Follower Count from Social Blade</CardDescription>
+              <CardDescription className="text-gray-700">Daily Follower Count</CardDescription>
             </div>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>

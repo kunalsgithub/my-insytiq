@@ -1,21 +1,17 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
-import { defineSecret } from "firebase-functions/params";
 import { getAuth } from "firebase-admin/auth";
 import { getApps } from "firebase-admin/app";
 import { initializeApp } from "firebase-admin/app";
+import { sendgridApiKeyParam } from "./configParams";
 
 if (getApps().length === 0) {
   initializeApp();
 }
 
-const sendgridApiKeySecret = defineSecret("SENDGRID_API_KEY");
-
 const RESET_CONTINUE_URL = "https://insytiq.ai/auth";
 
 export const sendCustomPasswordReset = onCall(
-  {
-    secrets: [sendgridApiKeySecret],
-  },
+  {},
   async (req) => {
     const email = typeof req.data?.email === "string" ? req.data.email.trim() : "";
     if (!email) {
@@ -37,7 +33,7 @@ export const sendCustomPasswordReset = onCall(
       throw new HttpsError("internal", "Could not generate reset link. Please try again.");
     }
 
-    const apiKey = sendgridApiKeySecret.value();
+    const apiKey = sendgridApiKeyParam.value();
     if (!apiKey) {
       throw new HttpsError("failed-precondition", "Email service is not configured. Please try again later.");
     }

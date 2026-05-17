@@ -16,6 +16,8 @@
   "main": "lib/index.js",
   "dependencies": {
     "axios": "^1.12.2",
+    "sharp": "^0.33.5",
+    "cors": "^2.8.5",
     "firebase": "^12.1.0",
     "firebase-admin": "^12.7.0",
     "firebase-functions": "^6.0.1",

@@ -66,11 +66,16 @@ export async function getSocialBladeAnalytics(
 
     let errorMessage = "Unable to fetch analytics data. Please try again.";
 
-    if (error.code === "unauthenticated" || error.code === "permission-denied") {
+    const fnCode = String(error?.code || "");
+    if (fnCode.includes("unauthenticated") || fnCode.includes("permission-denied")) {
       errorMessage = "Please sign in to fetch analytics data.";
-    } else if (error.code === "not-found") {
+    } else if (fnCode.includes("not-found")) {
       errorMessage = "Username not found. Please check the username and try again.";
-    } else if (error.code === "internal" || error.code === "unavailable" || error.code === "failed-precondition") {
+    } else if (
+      fnCode.includes("internal") ||
+      fnCode.includes("unavailable") ||
+      fnCode.includes("failed-precondition")
+    ) {
       const serverMsg = error.message && !error.message.includes("internal") ? error.message : "";
       errorMessage =
         serverMsg ||
@@ -92,7 +97,10 @@ export async function getSocialBladeAnalytics(
       }
     }
 
-    throw new Error(errorMessage);
+    const wrapped = new Error(errorMessage) as Error & { code?: string };
+    wrapped.code =
+      typeof error?.code === "string" ? error.code : undefined;
+    throw wrapped;
   }
 }
 

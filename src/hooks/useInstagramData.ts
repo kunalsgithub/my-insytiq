@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { getSocialBladeAnalytics } from '../api/getSocialBladeAnalytics';
+import { loadInstagramAnalytics } from '../utils/loadCachedAnalytics';
 
 interface InstagramData {
   profile: {
@@ -111,7 +112,60 @@ export function useInstagramData() {
 
     try {
       console.log(`Fetching Social Blade data for: ${username}`);
-      const sbData = await getSocialBladeAnalytics(username);
+      let sbData;
+      try {
+        sbData = await getSocialBladeAnalytics(username);
+      } catch (sbErr: any) {
+        const rawCode = String(sbErr?.code || '');
+        const code =
+          rawCode.includes('failed-precondition') || rawCode === 'failed-precondition'
+            ? 'failed-precondition'
+            : rawCode.includes('unavailable') || rawCode === 'unavailable'
+              ? 'unavailable'
+              : rawCode;
+        const msg = String(sbErr?.message || '');
+        const isConfigOrSbDown =
+          code === 'failed-precondition' ||
+          code === 'unavailable' ||
+          /social blade|sb_api_token|not configured|secret\.local/i.test(msg);
+        if (isConfigOrSbDown) {
+          const fb = await loadInstagramAnalytics(username);
+          if (fb && (fb.followers > 0 || fb.avgLikes > 0)) {
+            console.warn(
+              '[useInstagramData] Social Blade unavailable; using Firestore instagramAnalytics cache (Apify-derived).',
+              { code, message: msg }
+            );
+            setData({
+              ...defaultData,
+              username,
+              loading: false,
+              error: null,
+              profile: {
+                username,
+                profile_picture_url: fb.profilePictureUrl || undefined,
+                media_count: 0,
+                followers_count: fb.followers || 0,
+                follows_count: 0,
+              },
+              insights: {
+                followers: { growth: [] },
+                engagement: {
+                  likes: fb.avgLikes || 0,
+                  comments: fb.avgComments || 0,
+                  rate: fb.engagementRate || 0,
+                },
+                dailyMetrics: [],
+              },
+              dataSource: 'instagram-firestore',
+              currentFollowerCount: fb.followers || 0,
+              followerProjections: [],
+            });
+            return;
+          }
+        }
+        throw sbErr;
+      }
+
       console.log('Social Blade data received:', sbData);
       console.log('Projections from API:', sbData.projections);
 

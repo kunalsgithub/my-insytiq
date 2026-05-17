@@ -2,7 +2,7 @@
 
 ## "FirebaseError: internal" on Instagram Analytics
 - Usually the **Social Blade API** call from the function is failing (auth or rate limit). Backend now returns clearer error codes and messages.
-- **Check:** Firebase Console → Project Settings → Secret Manager (or Functions → getSocialBladeAnalytics) — ensure **SB_CLIENT_ID** and **SB_API_TOKEN** are set and valid for the Social Blade Business API.
+- **Check:** In **`functions/.env`** (or project env file), set **`CFG_SB_CLIENT_ID`** and **`CFG_SB_API_TOKEN`** for the Social Blade Business API (see `functions/.env.example`).
 - **Logs:** Firebase Console → Functions → getSocialBladeAnalytics → Logs. Look for "Social Blade API request failed" to see status (e.g. 401 = bad credentials).
 
 ## 1. Too much API credit / Low Social Blade credits
@@ -13,6 +13,11 @@
 - **Code:** `cors: true` added to `getSocialBladeAnalytics` and `getFollowerHistory`. Redeploy:  
   `firebase deploy --only functions:getSocialBladeAnalytics,functions:getFollowerHistory`
 - **Authorized domains:** If `insytiq.ai` (and `www.insytiq.ai` if you use it) are already in Firebase → Auth → Authorized domains, you’re set. Add `www.insytiq.ai` only if your live site uses that exact host.
+
+## Deploy 400: Secret overlaps non-secret env var (OPENAI_API_KEY, APIFY_API_TOKEN, …)
+
+- **Cause:** Functions were previously deployed with **Secret Manager** (`defineSecret`), so Cloud Run still exposes those names as **secret** env vars. A new deploy using **`defineString`** with the **same names** tries to add **plain** env vars → overlap error.
+- **Fix in repo:** Env keys are now prefixed with **`CFG_`** (see `functions/.env.example` and `functions/src/configParams.ts`). Rename keys in **`functions/.env`** and **`functions/.env.social-trends-29ac2`** (or your project file) to match, then redeploy.
 
 ## 3. Billing suspended
 - Main cause of live errors **and** deploy failures. Secret Manager (used by functions) requires billing.

@@ -1,26 +1,24 @@
 import { onRequest } from "firebase-functions/v2/https";
-import { defineSecret } from "firebase-functions/params";
 import { initializeApp, getApps } from "firebase-admin/app";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import * as crypto from "crypto";
+import { paddleWebhookSecretParam } from "./configParams";
 
 if (getApps().length === 0) {
   initializeApp();
 }
 const db = getFirestore();
 
-const paddleWebhookSecret = defineSecret("PADDLE_WEBHOOK_SECRET");
-
 /**
  * Paddle Billing webhook: verifies signature and activates plan server-side.
  * Configure in Paddle Dashboard: Notifications → Add endpoint → URL = this function's URL.
- * Set secret in Firebase: firebase functions:secrets:set PADDLE_WEBHOOK_SECRET
+ * Set CFG_PADDLE_WEBHOOK_SECRET in functions/.env (see configParams.ts).
  *
  * Events we handle: subscription.created, transaction.completed
  * custom_data (userId, email, selectedPlan) is sent from checkout and copied to subscription/transaction.
  */
 export const subscriptionWebhook = onRequest(
-  { secrets: [paddleWebhookSecret], cors: false },
+  { cors: false },
   async (req, res) => {
     if (req.method !== "POST") {
       res.status(405).send("Method Not Allowed");
@@ -41,7 +39,7 @@ export const subscriptionWebhook = onRequest(
     }
 
     try {
-      const secret = paddleWebhookSecret.value();
+      const secret = paddleWebhookSecretParam.value();
       if (!secret) {
         console.error("PADDLE_WEBHOOK_SECRET not set");
         res.status(500).send("Webhook not configured");

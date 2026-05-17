@@ -15,6 +15,8 @@ import {
   LineChart,
   CheckCircle2,
 } from "lucide-react";
+import FAQSection from "@/components/FAQSection";
+import { Helmet } from "react-helmet-async";
 
 // ---------------------------------------------------------------------------
 // Hero: animated gradient text class (needs bg-size for keyframes)
@@ -209,6 +211,24 @@ export default function Index() {
 
   return (
     <div className="min-h-screen bg-white">
+      <Helmet>
+        <title>Instagram Analytics Tool | AI Growth Strategy Platform</title>
+        <meta
+          name="description"
+          content="Analyze Instagram performance and get actionable growth recommendations powered by AI."
+        />
+        <link rel="canonical" href="https://www.insytiq.ai/" />
+        <meta property="og:title" content="Instagram Analytics Tool | AI Growth Strategy Platform" />
+        <meta
+          property="og:description"
+          content="Analyze Instagram performance and get actionable growth recommendations powered by AI."
+        />
+        <meta name="twitter:title" content="Instagram Analytics Tool | AI Growth Strategy Platform" />
+        <meta
+          name="twitter:description"
+          content="Analyze Instagram performance and get actionable growth recommendations powered by AI."
+        />
+      </Helmet>
       {/* ---------------------------------------------------------------------------
           HERO
       --------------------------------------------------------------------------- */}
@@ -228,27 +248,53 @@ export default function Index() {
         <div className="relative mx-auto max-w-6xl">
           <div className="grid gap-10 lg:grid-cols-2 lg:gap-12 lg:items-center">
             <div className="text-center lg:text-left">
-              <motion.h1
-                initial={{ opacity: 0, y: 20 }}
-                animate={heroInView ? { opacity: 1, y: 0 } : {}}
-                transition={{ duration: 0.4 }}
-                className="text-4xl font-extrabold leading-tight tracking-tight text-gray-900 md:text-5xl lg:text-[2.75rem]"
-              >
-                Turn Instagram Data Into{" "}
-                <span className={gradientTextClass}>
-                  Growth & Brand Intelligence
-                </span>
-              </motion.h1>
-              <motion.p
-                initial={{ opacity: 0, y: 12 }}
-                animate={heroInView ? { opacity: 1, y: 0 } : {}}
-                transition={{ duration: 0.4, delay: 0.08 }}
-                className="mt-5 max-w-xl text-lg text-gray-600 md:text-xl mx-auto lg:mx-0"
-              >
-                AI-powered analytics, competitor intelligence, and brand readiness scoring — built for serious creators.
-              </motion.p>
+              <h1 className="text-4xl font-extrabold leading-tight tracking-tight text-gray-900 md:text-5xl lg:text-[2.75rem]">
+                AI Instagram Analytics Tool That Turns Data Into{" "}
+                <span className={gradientTextClass}>Growth Strategy</span>
+              </h1>
+              <p className="mt-5 max-w-xl text-lg text-gray-600 md:text-xl mx-auto lg:mx-0">
+                Insytiq combines <strong className="font-semibold text-gray-800">Instagram analytics</strong>, live
+                trends, and AI explanations so you can focus on a clear <strong className="font-semibold text-gray-800">content strategy</strong>—not
+                endless screenshots and spreadsheets.
+              </p>
+              <p className="mt-4 max-w-xl text-sm leading-relaxed text-gray-600 mx-auto lg:mx-0">
+                <span className="text-gray-500">Explore:</span>{" "}
+                <Link to="/features" className="font-medium text-[#c0257a] hover:underline">
+                  Features
+                </Link>
+                <span className="text-gray-400"> · </span>
+                <Link to="/pricing" className="font-medium text-[#c0257a] hover:underline">
+                  Pricing
+                </Link>
+                <span className="text-gray-400"> · </span>
+                <Link to="/about" className="font-medium text-[#c0257a] hover:underline">
+                  About
+                </Link>
+                <span className="text-gray-400"> · </span>
+                <Link to="/blog" className="font-medium text-[#c0257a] hover:underline">
+                  Blog
+                </Link>
+                <span className="text-gray-400"> · </span>
+                <a
+                  href="https://www.instagram.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-medium text-[#c0257a] hover:underline"
+                >
+                  Instagram
+                </a>
+                <span className="text-gray-400"> · </span>
+                <a
+                  href="https://business.instagram.com/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-medium text-[#c0257a] hover:underline"
+                >
+                  Instagram for Business
+                </a>
+              </p>
               <motion.div
-                initial={{ opacity: 0, y: 12 }}
+                initial={{ opacity: 1, y: 0 }}
                 animate={heroInView ? { opacity: 1, y: 0 } : {}}
                 transition={{ duration: 0.4, delay: 0.16 }}
                 className="mt-8 flex flex-wrap items-center justify-center gap-3 lg:justify-start"
@@ -279,25 +325,32 @@ export default function Index() {
       </section>
 
       {/* ---------------------------------------------------------------------------
-          FEATURES — Powerful AI Tools
+          FEATURES — Key features
       --------------------------------------------------------------------------- */}
-      <section ref={featuresRef} className="px-4 py-16 md:py-20">
+      <section
+        ref={featuresRef}
+        id="key-features"
+        className="px-4 py-16 md:py-20"
+        aria-labelledby="key-features-heading"
+      >
         <div className="mx-auto max-w-6xl">
           <motion.h2
-            initial={{ opacity: 0, y: 16 }}
+            id="key-features-heading"
+            initial={{ opacity: 1, y: 0 }}
             animate={featuresInView ? { opacity: 1, y: 0 } : {}}
             transition={{ duration: 0.4 }}
             className="text-center text-3xl font-bold text-gray-900 md:text-4xl"
           >
-            Powerful AI Tools for Instagram Growth
+            Key features
           </motion.h2>
           <motion.p
-            initial={{ opacity: 0, y: 12 }}
+            initial={{ opacity: 1, y: 0 }}
             animate={featuresInView ? { opacity: 1, y: 0 } : {}}
             transition={{ duration: 0.4, delay: 0.06 }}
-            className="mx-auto mt-3 max-w-2xl text-center text-gray-600"
+            className="mx-auto mt-3 max-w-2xl text-center text-base text-gray-600 md:text-lg"
           >
-            Everything you need to grow and monetize your presence.
+            Everything you need to grow and monetize your presence: analytics, trends, competitors, and brand readiness
+            in one workflow.
           </motion.p>
           <motion.div
             variants={container}
@@ -333,13 +386,22 @@ export default function Index() {
       <section ref={trustRef} className="border-t border-gray-100 bg-gray-50/80 px-4 py-16 md:py-20">
         <div className="mx-auto max-w-6xl">
           <motion.h2
-            initial={{ opacity: 0, y: 16 }}
+            initial={{ opacity: 1, y: 0 }}
             animate={trustInView ? { opacity: 1, y: 0 } : {}}
             transition={{ duration: 0.4 }}
             className="text-center text-2xl font-bold text-gray-900 md:text-3xl"
           >
-            Built for Serious Creators & Growth Teams
+            Built for serious creators and growth teams
           </motion.h2>
+          <motion.p
+            initial={{ opacity: 1, y: 0 }}
+            animate={trustInView ? { opacity: 1, y: 0 } : {}}
+            transition={{ duration: 0.4, delay: 0.05 }}
+            className="mx-auto mt-3 max-w-2xl text-center text-gray-600"
+          >
+            Reliable signals, transparent scoring, and workflows tuned for professional{" "}
+            <strong className="font-medium text-gray-800">social media analytics</strong>.
+          </motion.p>
           <motion.div
             variants={container}
             initial="hidden"
@@ -350,12 +412,22 @@ export default function Index() {
               <motion.div
                 key={t.label}
                 variants={item}
-                className="flex items-center gap-4 rounded-2xl border border-gray-200/80 bg-white/80 p-5 shadow-sm backdrop-blur-sm"
+                className="flex items-start gap-4 rounded-2xl border border-gray-200/80 bg-white/80 p-5 shadow-sm backdrop-blur-sm"
               >
                 <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#fdf2f8] to-[#f5f3ff]">
                   <t.icon className="h-6 w-6 text-[#c0257a]" />
                 </div>
-                <span className="font-medium text-gray-800">{t.label}</span>
+                <div>
+                  <h3 className="text-base font-semibold text-gray-900">{t.label}</h3>
+                  <p className="mt-1 text-sm text-gray-600">
+                    {t.label === "AI-Powered Scoring Engine" &&
+                      "Interpret metrics with models trained for creator and brand outcomes."}
+                    {t.label === "Real-Time Public Data Analysis" &&
+                      "Trend and benchmark views grounded in live public activity."}
+                    {t.label === "Brand Monetization Intelligence" &&
+                      "Readiness signals that mirror how partnerships are often evaluated."}
+                  </p>
+                </div>
               </motion.div>
             ))}
           </motion.div>
@@ -367,20 +439,27 @@ export default function Index() {
       --------------------------------------------------------------------------- */}
       <section
         ref={aiCompareRef}
+        id="why-insytiq-is-different"
         className="px-4 py-16 md:py-20 bg-white"
+        aria-labelledby="why-different-heading"
       >
         <motion.div
-          initial={{ opacity: 0, y: 40 }}
+          initial={{ opacity: 1, y: 0 }}
           animate={aiCompareInView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.6, ease: "easeOut" }}
           className="mx-auto max-w-6xl"
         >
           <div className="text-center max-w-2xl mx-auto">
-            <h2 className="text-2xl md:text-3xl font-bold text-gray-900">
-              Generic AI Advice vs Real Instagram Intelligence
+            <h2 id="why-different-heading" className="text-2xl md:text-3xl font-bold text-gray-900">
+              Why it&apos;s different
             </h2>
-            <p className="mt-3 text-sm md:text-base text-gray-600">
-              Most AI tools give general advice. INSYTIQ analyzes your real Instagram data to give actionable insights.
+            <p className="mt-3 text-sm md:text-base text-gray-600 leading-relaxed">
+              Generic AI gives opinions. Insytiq pairs <strong className="font-medium text-gray-800">Instagram analytics</strong>{" "}
+              and platform trends so recommendations map to your account and niche—not a one-size template.
+            </p>
+            <h3 className="mt-6 text-lg font-semibold text-gray-900">Generic AI vs real Instagram intelligence</h3>
+            <p className="mt-2 text-sm text-gray-600">
+              Compare chat-style tips with questions you can only answer when data is wired into the product.
             </p>
           </div>
           <div className="mt-10 grid gap-6 md:grid-cols-2">
@@ -471,23 +550,33 @@ export default function Index() {
       {/* ---------------------------------------------------------------------------
           PRO POSITIONING — Know What Brands See
       --------------------------------------------------------------------------- */}
-      <section ref={proRef} className="px-4 py-16 md:py-24">
+      <section ref={proRef} className="px-4 py-16 md:py-24" aria-labelledby="pro-positioning-heading">
         <div className="mx-auto max-w-6xl">
           <motion.h2
-            initial={{ opacity: 0, y: 16 }}
+            id="pro-positioning-heading"
+            initial={{ opacity: 1, y: 0 }}
             animate={proInView ? { opacity: 1, y: 0 } : {}}
             transition={{ duration: 0.4 }}
             className="text-center text-3xl font-bold text-gray-900 md:text-4xl"
           >
-            Know What Brands See Before They Reach Out
+            Know what brands see before they reach out
           </motion.h2>
+          <motion.h3
+            initial={{ opacity: 1, y: 0 }}
+            animate={proInView ? { opacity: 1, y: 0 } : {}}
+            transition={{ duration: 0.4, delay: 0.04 }}
+            className="mx-auto mt-4 max-w-2xl text-center text-lg font-semibold text-gray-800"
+          >
+            Brand Collab Readiness Score
+          </motion.h3>
           <motion.p
-            initial={{ opacity: 0, y: 12 }}
+            initial={{ opacity: 1, y: 0 }}
             animate={proInView ? { opacity: 1, y: 0 } : {}}
             transition={{ duration: 0.4, delay: 0.06 }}
-            className="mx-auto mt-3 max-w-2xl text-center text-gray-600"
+            className="mx-auto mt-2 max-w-2xl text-center text-gray-600"
           >
-            Brand Collab Readiness Score gives you the same lens brands use to evaluate creators.
+            See yourself through the same signals brands use when shortlisting creators—grounded in{" "}
+            <strong className="font-medium text-gray-800">Instagram analytics</strong>, not vanity metrics alone.
           </motion.p>
           <motion.div
             initial={{ opacity: 0, y: 24 }}
@@ -544,19 +633,140 @@ export default function Index() {
       {/* ---------------------------------------------------------------------------
           CTA
       --------------------------------------------------------------------------- */}
-      <section className="border-t border-gray-100 px-4 py-16">
+      <section id="cta" className="border-t border-gray-100 px-4 py-16" aria-labelledby="cta-heading">
         <div className="mx-auto max-w-3xl text-center">
-          <h2 className="text-2xl font-bold text-gray-900 md:text-3xl">Ready to get started?</h2>
-          <p className="mt-2 text-gray-600">Choose a plan and unlock growth intelligence.</p>
+          <h2 id="cta-heading" className="text-2xl font-bold text-gray-900 md:text-3xl">
+            Ready to grow with better Instagram analytics?
+          </h2>
+          <p className="mt-3 text-base text-gray-600 leading-relaxed">
+            Choose a plan, unlock deeper intelligence, and keep your <strong className="font-medium text-gray-800">content strategy</strong>{" "}
+            aligned with real performance data.
+          </p>
+          <h3 className="mt-6 text-lg font-semibold text-gray-900">Next steps</h3>
+          <p className="mt-2 text-sm text-gray-600">
+            <Link to="/pricing" className="font-medium text-[#c0257a] hover:underline">
+              Compare pricing
+            </Link>
+            <span className="text-gray-400"> · </span>
+            <Link to="/blog" className="font-medium text-[#c0257a] hover:underline">
+              Read the blog
+            </Link>
+            <span className="text-gray-400"> · </span>
+            <Link to="/features" className="font-medium text-[#c0257a] hover:underline">
+              Feature overview
+            </Link>
+          </p>
           <Link
             to="/subscription"
             className="mt-6 inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#c0257a] to-[#a01d68] px-6 py-3.5 font-semibold text-white shadow-lg shadow-[#c0257a]/25 transition-all duration-300 hover:shadow-xl"
           >
-            View Subscription Plans
+            View subscription plans
             <ArrowRight className="h-4 w-4" />
           </Link>
         </div>
       </section>
+
+      <section
+        id="how-it-works"
+        className="border-t border-gray-100 bg-gray-50/60 px-4 py-14 md:py-20"
+        aria-labelledby="how-it-works-heading"
+      >
+        <div className="mx-auto max-w-3xl">
+          <h2 id="how-it-works-heading" className="text-2xl font-bold text-gray-900 md:text-3xl">
+            How it works
+          </h2>
+          <p className="mt-3 text-base leading-relaxed text-gray-700 md:text-lg">
+            Insytiq is designed as a simple loop: measure, compare, and act. Each step uses{" "}
+            <strong className="font-semibold text-gray-900">Instagram analytics</strong> or live trend data so your{" "}
+            <strong className="font-semibold text-gray-900">content strategy</strong> stays grounded in evidence.
+          </p>
+          <h3 className="mt-8 text-lg font-semibold text-gray-900">1. Connect your performance story</h3>
+          <p className="mt-2 text-base leading-relaxed text-gray-700">
+            Pull in profile and post metrics to see engagement patterns, consistency, and which formats deserve another
+            iteration.
+          </p>
+          <h3 className="mt-6 text-lg font-semibold text-gray-900">2. Layer in trends and competitors</h3>
+          <p className="mt-2 text-base leading-relaxed text-gray-700">
+            Browse what is rising across Instagram—hashtags, audio, and content themes—then contrast that with your own
+            lane using competitor-style intelligence.
+          </p>
+          <h3 className="mt-6 text-lg font-semibold text-gray-900">3. Turn insight into next week’s plan</h3>
+          <p className="mt-2 text-base leading-relaxed text-gray-700">
+            Use AI-assisted summaries and scores (like brand readiness) to prioritize actions: what to film, what to
+            test, and what to pause—so <strong className="font-semibold text-gray-900">Instagram growth</strong> is
+            intentional, not random.
+          </p>
+          <p className="mt-8 text-sm text-gray-600">
+            <Link to="/features" className="font-medium text-[#c0257a] hover:underline">
+              Browse all features
+            </Link>
+            <span className="text-gray-400"> · </span>
+            <Link to="/pricing" className="font-medium text-[#c0257a] hover:underline">
+              View pricing
+            </Link>
+          </p>
+        </div>
+      </section>
+
+      <section
+        id="what-insytiq-does"
+        className="border-t border-gray-100 bg-white px-4 py-14 md:py-20"
+        aria-labelledby="what-insytiq-does-heading"
+      >
+        <div className="mx-auto max-w-3xl">
+          <h2 id="what-insytiq-does-heading" className="text-2xl font-bold text-gray-900 md:text-3xl">
+            What the product does
+          </h2>
+          <p className="mt-4 text-base leading-relaxed text-gray-700 md:text-lg">
+            Insytiq is built for anyone who wants <strong className="font-semibold text-gray-900">Instagram growth</strong>{" "}
+            without guessing. We combine <strong className="font-semibold text-gray-900">Instagram analytics</strong> on
+            your profile and posts with platform-wide trend signals—so you see what is working in your niche, not only
+            what worked last month on your account.
+          </p>
+          <p className="mt-4 text-base leading-relaxed text-gray-700 md:text-lg">
+            Strong <strong className="font-semibold text-gray-900">social media analytics</strong> should connect metrics
+            to decisions: which Reels to repeat, which themes to retire, and where to experiment next. Insytiq helps you
+            document that loop with charts, scores, and plain-language takeaways, so your{" "}
+            <strong className="font-semibold text-gray-900">content strategy</strong> stays aligned with real audience
+            behaviour.
+          </p>
+          <h3 className="mt-8 text-lg font-semibold text-gray-900">From dashboards to a weekly plan</h3>
+          <p className="mt-2 text-base leading-relaxed text-gray-700">
+            Use analytics to spot your best-performing formats, then validate ideas against live trends before you
+            publish. That is how teams shrink the gap between “we posted” and “we know why it worked.”
+          </p>
+          <h3 className="mt-8 text-lg font-semibold text-gray-900">Who Insytiq is for</h3>
+          <p className="mt-2 text-base leading-relaxed text-gray-700">
+            Creators, social managers, and small agencies use Insytiq to prioritize creative effort, brief stakeholders
+            with numbers, and keep <strong className="font-semibold text-gray-900">Instagram analytics</strong> and{" "}
+            <strong className="font-semibold text-gray-900">social media analytics</strong> in one place—without juggling
+            five disconnected tools.
+          </p>
+          <p className="mt-6 text-sm text-gray-600">
+            Official references:{" "}
+            <a
+              href="https://www.instagram.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-medium text-[#c0257a] hover:underline"
+            >
+              Instagram
+            </a>
+            {" · "}
+            <a
+              href="https://business.instagram.com/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-medium text-[#c0257a] hover:underline"
+            >
+              Instagram for Business
+            </a>
+            {" — useful context alongside Insytiq’s analytics and trend views."}
+          </p>
+        </div>
+      </section>
+
+      <FAQSection />
 
       {/* ---------------------------------------------------------------------------
           FOOTER
@@ -564,6 +774,18 @@ export default function Index() {
       <footer className="border-t border-gray-200 bg-gray-50/50 py-8">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-4 md:flex-row md:px-6">
           <div className="flex flex-wrap justify-center gap-6 text-sm text-gray-500">
+            <Link to="/features" className="hover:text-[#c0257a] transition-colors">
+              Features
+            </Link>
+            <Link to="/pricing" className="hover:text-[#c0257a] transition-colors">
+              Pricing
+            </Link>
+            <Link to="/about" className="hover:text-[#c0257a] transition-colors">
+              About
+            </Link>
+            <Link to="/blog" className="hover:text-[#c0257a] transition-colors">
+              Blog
+            </Link>
             <Link to="/terms-and-conditions" className="hover:text-[#c0257a] transition-colors">
               Terms of Service
             </Link>

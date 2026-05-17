@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { animate } from "framer-motion";
+import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
@@ -10,8 +11,10 @@ import { functions } from "../firebase";
 import { httpsCallable } from "firebase/functions";
 import { useToast } from "../hooks/use-toast";
 import { ToastAction } from "../components/ui/toast";
-import { AlertCircle, Lightbulb, DollarSign, AlertTriangle } from "lucide-react";
+import { AlertCircle, Lightbulb, DollarSign, AlertTriangle, Share2, Twitter, Link2, Download } from "lucide-react";
 import { Link } from "react-router-dom";
+import html2canvas from "html2canvas";
+import trendLogo from "../trendlogo.png";
 import "../components/LoadingText.css";
 
 type Breakdown = {
@@ -54,6 +57,15 @@ const PILLARS: { key: keyof Breakdown; label: string; max: number; description: 
   { key: "community", label: "Community Strength", max: 10, description: "Comment activity vs likes (conversation)." },
   { key: "professionalism", label: "Profile Professionalism", max: 10, description: "Bio clarity, niche signals, and link." },
 ];
+
+/** Creator stage label from score (UI only; does not change backend logic). */
+function getCreatorStage(score: number): string {
+  if (score >= 86) return "Elite Creator";
+  if (score >= 71) return "Brand Ready";
+  if (score >= 51) return "Growing Influencer";
+  if (score >= 31) return "Developing Creator";
+  return "Starter Creator";
+}
 
 /** Red = poor (0–39), Yellow = moderate (40–59), Green = good (60–100) */
 function scoreToColor(score: number): "red" | "yellow" | "green" {
@@ -125,6 +137,23 @@ function saveBrandScoreToStorage(result: SuccessResult, username: string) {
   }
 }
 
+/** Get highest and lowest metric labels from breakdown for share UI. */
+function getHighestLowestMetrics(breakdown: Breakdown): { highestMetric: string; lowestMetric: string } {
+  const entries = PILLARS.map((p) => ({ key: p.key, label: p.label, value: breakdown[p.key] }));
+  const byValue = [...entries].sort((a, b) => b.value - a.value);
+  return {
+    highestMetric: byValue[0]?.label ?? "—",
+    lowestMetric: byValue[byValue.length - 1]?.label ?? "—",
+  };
+}
+
+/** Simple frontend-only deal estimate: followers * 0.002 to 0.01 (per post). */
+function getSimpleDealEstimate(followers: number): { min: number; max: number } {
+  const min = Math.round(followers * 0.002);
+  const max = Math.round(followers * 0.01);
+  return { min: Math.max(50, min), max: Math.max(min + 50, max) };
+}
+
 export default function BrandCollabScorePage() {
   const [username, setUsername] = useState("");
   const [loading, setLoading] = useState(false);
@@ -134,6 +163,7 @@ export default function BrandCollabScorePage() {
   const [displayScore, setDisplayScore] = useState(0);
   const [barReveal, setBarReveal] = useState(0);
   const [dealVisible, setDealVisible] = useState(false);
+  const storyCardRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
   // Restore persisted result on mount (so results survive tab/route switches)
@@ -167,7 +197,7 @@ export default function BrandCollabScorePage() {
     loadSelected();
   }, [username]);
 
-  // Animate score 0→totalScore, breakdown bars, and deal estimate when result is set
+  // Animate score 0→totalScore (1.5s), breakdown bars, and deal estimate when result is set
   useEffect(() => {
     if (!result) {
       setDisplayScore(0);
@@ -177,7 +207,7 @@ export default function BrandCollabScorePage() {
     }
     const targetScore = result.totalScore;
     const c1 = animate(0, targetScore, {
-      duration: 1.2,
+      duration: 1.5,
       ease: "easeOut",
       onUpdate: (v) => setDisplayScore(v),
     });
@@ -187,7 +217,7 @@ export default function BrandCollabScorePage() {
       delay: 0.4,
       onUpdate: (v) => setBarReveal(v),
     });
-    const t = setTimeout(() => setDealVisible(true), 1800);
+    const t = setTimeout(() => setDealVisible(true), 2200);
     return () => {
       c1.stop();
       c2.stop();
@@ -272,7 +302,7 @@ export default function BrandCollabScorePage() {
   };
 
   return (
-    <div className="container max-w-4xl mx-auto py-8 px-4">
+    <div className="container max-w-4xl mx-auto py-8 px-4 overflow-x-hidden min-w-0 w-full">
       {/* Header */}
       <header className="mb-8 animate-in fade-in duration-500">
         <h1 className="text-3xl font-bold text-gray-900">
@@ -443,26 +473,42 @@ export default function BrandCollabScorePage() {
       )}
 
       {/* Results (persistent; restored from localStorage when returning to page) */}
-      {result && !loading && (
-        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      {result && !loading && (() => {
+        const percentile = Math.round(result.totalScore);
+        const stage = getCreatorStage(result.totalScore);
+        const { highestMetric, lowestMetric } = getHighestLowestMetrics(result.breakdown);
+        const simpleDeal = getSimpleDealEstimate(result.followers);
+        const engagementScorePct = Math.round((result.breakdown.engagement / 40) * 100);
+        const consistencyScorePct = Math.round((result.breakdown.consistency / 20) * 100);
+        const reelScorePct = Math.round((result.breakdown.reelImpact / 20) * 100);
+        return (
+        <div className="space-y-8">
           {/* Large Score Card */}
-          <Card className="shadow-lg border-0 overflow-hidden">
-            <CardContent className="pt-8 pb-8">
-              <div className="flex flex-col md:flex-row items-center justify-center gap-8">
-                <div className="relative flex items-center justify-center">
-                  <CircularScoreRing score={displayScore} size={180} />
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="text-4xl font-bold text-gray-900">{Math.round(displayScore)}</span>
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4 }}
+          >
+            <Card className="shadow-lg border-0 overflow-hidden">
+              <CardContent className="pt-8 pb-8">
+                <div className="flex flex-col md:flex-row items-center justify-center gap-8">
+                  <div className="relative flex items-center justify-center">
+                    <CircularScoreRing score={displayScore} size={180} />
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <span className="text-4xl font-bold text-gray-900">{Math.round(displayScore)}</span>
+                    </div>
                   </div>
-                </div>
-                <div className="text-center md:text-left">
-                  <p className="text-5xl font-bold text-gray-900">/ 100</p>
-                  <p className={`text-xl font-semibold mt-2 ${statusColor(result.status)}`}>
-                    {result.status}
-                  </p>
-                  <p className="text-sm text-gray-500 mt-1">
-                    Based on {result.followers.toLocaleString()} followers · {result.avgLikes.toLocaleString()} avg likes · {result.avgComments.toLocaleString()} avg comments
-                  </p>
+                  <div className="text-center md:text-left">
+                    <p className="text-5xl font-bold text-gray-900">/ 100</p>
+                    <p className={`text-xl font-semibold mt-2 ${statusColor(result.status)}`}>
+                      {stage}
+                    </p>
+                    <p className="text-sm text-gray-600 mt-2">
+                      Better than {percentile}% of creators analyzed by INSYTIQ
+                    </p>
+                    <p className="text-sm text-gray-500 mt-1">
+                      Based on {result.followers.toLocaleString()} followers · {result.avgLikes.toLocaleString()} avg likes · {result.avgComments.toLocaleString()} avg comments
+                    </p>
                   {result.expectedEngagementRange != null && result.actualEngagementRate != null && (
                     <div className="mt-4 pt-4 border-t border-gray-100 text-left">
                       <p className="text-sm text-gray-600">
@@ -490,9 +536,207 @@ export default function BrandCollabScorePage() {
               </div>
             </CardContent>
           </Card>
+          </motion.div>
+
+          {/* Metric Highlight: Top Strength & Growth Opportunity */}
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.15 }}
+            className="grid grid-cols-1 sm:grid-cols-2 gap-4"
+          >
+            <Card className="shadow-md border-0 bg-gradient-to-br from-green-50 to-emerald-50/50">
+              <CardContent className="pt-5 pb-5">
+                <p className="text-xs font-semibold uppercase tracking-wide text-green-700 mb-1">Top Strength</p>
+                <p className="text-lg font-bold text-gray-900">{highestMetric}</p>
+              </CardContent>
+            </Card>
+            <Card className="shadow-md border-0 bg-gradient-to-br from-amber-50 to-orange-50/50">
+              <CardContent className="pt-5 pb-5">
+                <p className="text-xs font-semibold uppercase tracking-wide text-amber-700 mb-1">Growth Opportunity</p>
+                <p className="text-lg font-bold text-gray-900">{lowestMetric}</p>
+              </CardContent>
+            </Card>
+          </motion.div>
+
+          {/* Share your Creator Score */}
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.35 }}
+          >
+            <Card className="shadow-lg border-0">
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Share2 className="h-5 w-5 text-[#d72989]" />
+                  Share your Creator Score
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="flex flex-wrap gap-3">
+                <Button
+                  variant="outline"
+                  className="border-gray-200 hover:bg-[#1da1f2]/10 hover:border-[#1da1f2]/30"
+                  onClick={() => {
+                    const text = `My Brand Collab Readiness Score is ${result.totalScore}/100 on INSYTIQ.\n\nBiggest Strength: ${highestMetric}\nBiggest Improvement Area: ${lowestMetric}\n\nAnalyze your Instagram profile → https://insytiq.ai`;
+                    const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`;
+                    window.open(url, "_blank", "noopener,noreferrer");
+                  }}
+                >
+                  <Twitter className="h-4 w-4 mr-2" />
+                  Share on Twitter
+                </Button>
+                <Button
+                  variant="outline"
+                  className="border-gray-200"
+                  onClick={() => {
+                    const link = "https://insytiq.ai/brand-collab-score";
+                    navigator.clipboard.writeText(link);
+                    toast({ title: "Link copied", description: "Share link copied to clipboard." });
+                  }}
+                >
+                  <Link2 className="h-4 w-4 mr-2" />
+                  Copy Share Link
+                </Button>
+                <Button
+                  variant="outline"
+                  className="border-gray-200"
+                  onClick={async () => {
+                    if (!storyCardRef.current) return;
+                    try {
+                      const canvas = await html2canvas(storyCardRef.current, {
+                        scale: 1,
+                        useCORS: true,
+                        allowTaint: true,
+                        backgroundColor: null,
+                        width: 1080,
+                        height: 1920,
+                        windowWidth: 1080,
+                        windowHeight: 1920,
+                      });
+                      const link = document.createElement("a");
+                      link.download = `insytiq-creator-score-${result.totalScore}.png`;
+                      link.href = canvas.toDataURL("image/png");
+                      link.click();
+                      toast({ title: "Downloaded", description: "Story card saved." });
+                    } catch (e) {
+                      toast({ title: "Download failed", description: "Could not generate image.", variant: "destructive" });
+                    }
+                  }}
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Download Story Card
+                </Button>
+              </CardContent>
+            </Card>
+          </motion.div>
+
+          {/* Hidden INSYTIQ Story Card for html2canvas (1080x1920) - positioned off-screen but still visible to the renderer */}
+          <div
+            className="fixed -left-[2000px] top-0 pointer-events-none opacity-0"
+            style={{ zIndex: -1 }}
+            aria-hidden="true"
+          >
+            <div
+              ref={storyCardRef}
+              className="w-[1080px] h-[1920px] flex flex-col items-center justify-between px-16 py-20 text-white"
+              style={{
+                background: "linear-gradient(180deg, #ee2a7b 0%, #d72989 25%, #9c1f6b 60%, #6b1550 100%)",
+                fontFamily: "system-ui, sans-serif",
+              }}
+            >
+              {/* Header: INSYTIQ logo + username */}
+              <div className="w-full flex flex-col items-center gap-6 mt-2">
+                <img src={trendLogo} alt="INSYTIQ" className="w-40 h-40 object-contain opacity-95 drop-shadow-2xl" />
+                <div className="flex flex-col items-center gap-1">
+                  <p className="text-xs md:text-sm tracking-[0.25em] uppercase opacity-80">
+                    INSYTIQ Creator Score
+                  </p>
+                  {username && (
+                    <p className="text-3xl md:text-4xl font-semibold">@{username}</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Center: Score ring with glow, badge, and analytics stats */}
+              <div className="flex flex-col items-center gap-10">
+                {/* Circular score with soft glow */}
+                <div className="relative flex items-center justify-center">
+                  <div className="absolute w-[280px] h-[280px] rounded-full bg-white/15 blur-3xl" />
+                  <div className="w-[260px] h-[260px] rounded-full bg-white/5 backdrop-blur-sm flex items-center justify-center">
+                    <div className="relative flex items-center justify-center">
+                      <CircularScoreRing score={result.totalScore} size={220} />
+                      <div className="absolute inset-0 flex flex-col items-center justify-center">
+                        <span className="text-6xl md:text-7xl font-extrabold leading-none">
+                          {result.totalScore}
+                        </span>
+                        <span className="text-lg md:text-xl font-semibold opacity-80 mt-1">
+                          / 100
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Creator badge */}
+                <div className="flex flex-col items-center gap-2">
+                  <p className="px-6 py-2 rounded-full bg-white/10 backdrop-blur-sm text-lg md:text-xl font-semibold shadow-lg">
+                    {stage} Creator
+                  </p>
+                  <p className="text-xs md:text-sm uppercase tracking-[0.24em] opacity-80">
+                    Top {Math.max(1, 100 - percentile)}% of creators analyzed
+                  </p>
+                </div>
+
+                {/* Small analytics stats */}
+                <div className="mt-4 grid grid-cols-3 gap-6 text-center text-xs md:text-sm">
+                  <div className="flex flex-col items-center gap-1 bg-white/5 rounded-2xl px-4 py-3 border border-white/10">
+                    <span className="uppercase tracking-[0.18em] text-[10px] opacity-70">
+                      Engagement Rate
+                    </span>
+                    <span className="text-lg font-semibold">
+                      {engagementScorePct}
+                      <span className="text-xs opacity-80">/100</span>
+                    </span>
+                  </div>
+                  <div className="flex flex-col items-center gap-1 bg-white/5 rounded-2xl px-4 py-3 border border-white/10">
+                    <span className="uppercase tracking-[0.18em] text-[10px] opacity-70">
+                      Posting Consistency
+                    </span>
+                    <span className="text-lg font-semibold">
+                      {consistencyScorePct}
+                      <span className="text-xs opacity-80">/100</span>
+                    </span>
+                  </div>
+                  <div className="flex flex-col items-center gap-1 bg-white/5 rounded-2xl px-4 py-3 border border-white/10">
+                    <span className="uppercase tracking-[0.18em] text-[10px] opacity-70">
+                      Reel Performance
+                    </span>
+                    <span className="text-lg font-semibold">
+                      {reelScorePct}
+                      <span className="text-xs opacity-80">/100</span>
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Footer CTA */}
+              <div className="w-full flex flex-col items-center gap-1 mb-2">
+                <p className="text-lg md:text-xl opacity-90">
+                  Analyze your Instagram
+                </p>
+                <p className="text-3xl md:text-4xl font-bold tracking-wide">
+                  insytiq.ai
+                </p>
+              </div>
+            </div>
+          </div>
 
           {/* Breakdown Grid */}
-          <div>
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.2 }}
+          >
             <h2 className="text-xl font-semibold mb-4">Score breakdown</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {PILLARS.map(({ key, label, max, description }) => {
@@ -522,33 +766,38 @@ export default function BrandCollabScorePage() {
                 );
               })}
             </div>
-          </div>
+          </motion.div>
 
-          {/* Deal Estimate (PRO only) */}
-          {result.dealEstimate && (
-            <Card
-              className={`shadow-lg border-0 transition-opacity duration-500 ${dealVisible ? "opacity-100" : "opacity-0"}`}
-            >
+          {/* Estimated Brand Deal Value (single card: backend when available, else simple formula) */}
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.25 }}
+            className={!dealVisible ? "opacity-0" : ""}
+          >
+            <Card className="shadow-lg border-0 transition-opacity duration-500">
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
                   <DollarSign className="h-5 w-5 text-green-600" />
-                  Estimated brand deal range
+                  Estimated Brand Deal Value
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-sm text-gray-600 mb-3">
-                  Approximate range per post based on followers and engagement. Actual rates vary by niche and brand.
+                <p className="text-sm text-gray-600 mb-2">
+                  {result.dealEstimate
+                    ? "Approximate range per post based on followers and engagement. Actual rates vary by niche and brand."
+                    : "Approximate range per post based on follower count. Actual rates vary by niche and brand."}
                 </p>
                 <p className="text-2xl font-bold text-green-700">
-                  ${result.dealEstimate.min.toLocaleString()} – ${result.dealEstimate.max.toLocaleString()} USD
+                  ${(result.dealEstimate ? result.dealEstimate.min : simpleDeal.min).toLocaleString()} – ${(result.dealEstimate ? result.dealEstimate.max : simpleDeal.max).toLocaleString()}
+                  {result.dealEstimate ? " USD" : ""} per post
                 </p>
-                <p className="text-xs text-gray-500 mt-1">per post</p>
                 {result.enableExport && (
                   <p className="text-xs text-gray-500 mt-2">Export enabled for PRO.</p>
                 )}
               </CardContent>
             </Card>
-          )}
+          </motion.div>
 
           {/* Improvement Suggestions */}
           {result.recommendations && result.recommendations.length > 0 && (
@@ -572,7 +821,8 @@ export default function BrandCollabScorePage() {
             </Card>
           )}
         </div>
-      )}
+        );
+      })()}
     </div>
   );
 }

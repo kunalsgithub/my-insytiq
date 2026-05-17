@@ -140,6 +140,7 @@ export default function SidebarLayout() {
               {/* Insights Section */}
               <div className="uppercase text-xs font-semibold text-gray-500 tracking-wider mb-2 px-6">Insights</div>
               <NavLink to="/subscription" className={({ isActive }) => isActive ? "bg-[#f9e6f3] text-[#d72989] font-bold rounded px-2 py-2 mx-4 my-1" : "text-gray-900 font-medium rounded px-2 py-2 mx-4 my-1 hover:bg-gray-50 hover:text-[#d72989] transition-colors"} onClick={() => setMobileMenuOpen(false)}>Subscriptions</NavLink>
+              <NavLink to="/blog" className={({ isActive }) => isActive ? "bg-[#f9e6f3] text-[#d72989] font-bold rounded px-2 py-2 mx-4 my-1" : "text-gray-900 font-medium rounded px-2 py-2 mx-4 my-1 hover:bg-gray-50 hover:text-[#d72989] transition-colors"} onClick={() => setMobileMenuOpen(false)}>Blog</NavLink>
               <NavLink to="/smart-chat" className={({ isActive }) => isActive ? "bg-[#f9e6f3] text-[#d72989] font-bold rounded px-2 py-2 mx-4 my-1" : "text-gray-900 font-medium rounded px-2 py-2 mx-4 my-1 hover:bg-gray-50 hover:text-[#d72989] transition-colors"} onClick={() => setMobileMenuOpen(false)}>Smart Chat</NavLink>
 
               {/* Chats block for Smart Chat v2 history (mobile & tablet) */}

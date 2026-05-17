@@ -1,22 +1,20 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
-import { defineSecret } from "firebase-functions/params";
 import fetch from "node-fetch";
 import axios from "axios";
 import { initializeApp, getApps } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
+import { checkAndIncrementUsage, LIMIT_REACHED_CODE } from "./usageEnforcement";
+import {
+  openaiApiKeyParam,
+  sbClientIdParam,
+  sbApiTokenParam,
+} from "./configParams";
 
 // Only initialize if not already initialized
 if (getApps().length === 0) {
   initializeApp();
 }
 const db = getFirestore();
-
-// Define OpenAI API key secret
-const openaiApiKeySecret = defineSecret("OPENAI_API_KEY");
-
-// Define Social Blade secrets (for fallback when instagramAnalytics is empty)
-const sbClientId = defineSecret("SB_CLIENT_ID");
-const sbApiToken = defineSecret("SB_API_TOKEN");
 
 /**
  * Smart Chat AI
@@ -314,7 +312,6 @@ function buildLimitationResponse(params: {
 export const smartChat = onCall(
   {
     region: "us-central1",
-    secrets: [openaiApiKeySecret, sbClientId, sbApiToken],
     timeoutSeconds: 60,
     memory: "512MiB",
     minInstances: 1,
@@ -361,6 +358,19 @@ export const smartChat = onCall(
       console.log("SmartChat - User ID:", userId);
       if (!userId) {
         throw new HttpsError("unauthenticated", "User must be authenticated to use Smart Chat");
+      }
+
+      // Global usage enforcement (server-side only)
+      try {
+        await checkAndIncrementUsage(db, userId, "smartChat");
+      } catch (err: any) {
+        if (err?.message === LIMIT_REACHED_CODE) {
+          throw new HttpsError("resource-exhausted", "You've reached your limit for this feature.", {
+            code: LIMIT_REACHED_CODE,
+            upgradeRequired: true,
+          });
+        }
+        throw err;
       }
 
       // Fetch user document from Firestore to check prerequisites
@@ -741,8 +751,8 @@ export const smartChat = onCall(
       // This ensures Smart Chat gets data when Instagram Analytics (Apify) has not run.
       if (mediaLength === 0) {
         try {
-          const sbClientIdValue = sbClientId.value();
-          const sbApiTokenValue = sbApiToken.value();
+          const sbClientIdValue = sbClientIdParam.value();
+          const sbApiTokenValue = sbApiTokenParam.value();
           if (sbClientIdValue && sbApiTokenValue) {
             const sbUrl = `https://matrix.sbapis.com/b/instagram/statistics?query=${encodeURIComponent(selectedAccount)}`;
             const sbHeaders: Record<string, string> = {
@@ -1091,8 +1101,8 @@ export const smartChat = onCall(
         if (engagementRate === 0 && followersCount === 0 && totalMedia === 0) {
           console.log("SmartChat - Raw Apify data also has no metrics, trying Social Blade as final fallback...");
           try {
-            const sbClientIdValue = sbClientId.value();
-            const sbApiTokenValue = sbApiToken.value();
+            const sbClientIdValue = sbClientIdParam.value();
+            const sbApiTokenValue = sbApiTokenParam.value();
             
             if (sbClientIdValue && sbApiTokenValue) {
               // Use the same Social Blade API endpoint as getSocialBladeAnalytics function
@@ -1485,11 +1495,10 @@ BANNED (never use): "Content Appeal", "Effective Captions", "engaging content", 
     /* ===============================
        OPENAI API CALL
        =============================== */
-    // Access the secret value (Firebase Functions v2 uses defineSecret, not process.env)
-    const openaiKey = openaiApiKeySecret.value();
+    const openaiKey = openaiApiKeyParam.value();
     
     if (!openaiKey) {
-      console.error("SmartChat - OPENAI_API_KEY secret is missing");
+      console.error("SmartChat - CFG_OPENAI_API_KEY is missing (functions/.env)");
       throw new HttpsError(
         "failed-precondition",
         "OpenAI API key is not configured. Please contact support."

@@ -1,6 +1,17 @@
 import React, { useEffect, useState } from "react";
 import { NavLink, useNavigate, useLocation } from "react-router-dom";
-import { MoreVertical } from "lucide-react";
+import {
+  MoreVertical,
+  House,
+  Flame,
+  Users,
+  BarChart3,
+  Radar,
+  Target,
+  MessageSquareText,
+  CreditCard,
+  BookOpenText,
+} from "lucide-react";
 import trendLogo from "../../trendlogo.png";
 
 // Minimal sidebar menu for MVP.
@@ -17,6 +28,15 @@ export function WhoistrendSidebarMenu() {
   const navigate = useNavigate();
   const location = useLocation();
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
+
+  const navItemClass = ({ isActive }: { isActive: boolean }) =>
+    `group/nav relative flex items-center rounded-xl px-3 py-2 transition-all ${
+      isActive
+        ? "bg-[#e9f2ff] text-[#1a73e8]"
+        : "text-gray-700 hover:bg-gray-100/80 hover:text-gray-900"
+    }`;
+
+  const labelClass = "ml-3 truncate text-sm font-medium opacity-0 transition-opacity duration-150 group-hover:opacity-100";
 
   useEffect(() => {
     const loadHistory = () => {
@@ -67,52 +87,43 @@ export function WhoistrendSidebarMenu() {
   };
 
   return (
-    <div className="fixed top-0 left-0 h-screen z-30 flex flex-col bg-white border-r shadow-sm min-w-[220px] max-w-[260px] p-4 hidden md:flex">
+    <aside className="group fixed top-0 left-0 z-30 hidden h-screen w-[72px] flex-col border-r border-gray-200 bg-white/95 p-3 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-white/90 transition-[width] duration-200 ease-out hover:w-[260px] md:flex">
       <NavLink
         to="/"
-        className="flex items-center gap-2 mb-8 hover:opacity-80 transition-opacity"
+        className="mb-6 flex items-center gap-2 overflow-hidden rounded-lg px-1 py-1 hover:opacity-90 transition-opacity"
       >
         <img src={trendLogo} alt="insytiq.ai logo" className="h-8 w-8" />
-        <span className="text-xs font-semibold tracking-[0.2em] text-gray-500 uppercase">
+        <span className="truncate text-xs font-semibold tracking-[0.2em] text-gray-500 uppercase opacity-0 transition-opacity duration-150 group-hover:opacity-100">
           INSYTIQ.AI
         </span>
       </NavLink>
 
       {/* Main Section */}
       <div>
-        <div className="uppercase text-xs font-semibold text-gray-500 tracking-wider mb-2">
+        <div className="mb-2 h-4 overflow-hidden text-xs font-semibold uppercase tracking-wider text-gray-500 opacity-0 transition-opacity duration-150 group-hover:opacity-100">
           Main
         </div>
         <nav className="flex flex-col gap-1 mb-4">
           <NavLink
             to="/"
-            className={({ isActive }) =>
-              isActive
-                ? "text-[#d72989] font-bold bg-gray-100 rounded px-2 py-1 transition-colors"
-                : "text-gray-900 font-medium rounded px-2 py-1 hover:bg-gray-50 hover:text-[#d72989] transition-colors"
-            }
+            className={navItemClass}
           >
-            Home
+            <House className="h-5 w-5 shrink-0" />
+            <span className={labelClass}>Home</span>
           </NavLink>
           <NavLink
             to="/trending"
-            className={({ isActive }) =>
-              isActive
-                ? "text-[#d72989] font-bold bg-gray-100 rounded px-2 py-1 transition-colors"
-                : "text-gray-900 font-medium rounded px-2 py-1 hover:bg-gray-50 hover:text-[#d72989] transition-colors"
-            }
+            className={navItemClass}
           >
-            Trending
+            <Flame className="h-5 w-5 shrink-0" />
+            <span className={labelClass}>Trending</span>
           </NavLink>
           <NavLink
             to="/top-influencers"
-            className={({ isActive }) =>
-              isActive
-                ? "text-[#d72989] font-bold bg-gray-100 rounded px-2 py-1 transition-colors"
-                : "text-gray-900 font-medium rounded px-2 py-1 hover:bg-gray-50 hover:text-[#d72989] transition-colors"
-            }
+            className={navItemClass}
           >
-            Top Influencers
+            <Users className="h-5 w-5 shrink-0" />
+            <span className={labelClass}>Top Influencers</span>
           </NavLink>
         </nav>
         <div className="border-t border-gray-200 my-2" />
@@ -120,39 +131,30 @@ export function WhoistrendSidebarMenu() {
 
       {/* Analytics Section */}
       <div>
-        <div className="uppercase text-xs font-semibold text-gray-500 tracking-wider mb-2">
+        <div className="mb-2 h-4 overflow-hidden text-xs font-semibold uppercase tracking-wider text-gray-500 opacity-0 transition-opacity duration-150 group-hover:opacity-100">
           Analytics
         </div>
         <nav className="flex flex-col gap-1 mb-4">
           <NavLink
             to="/instagram-analytics"
-            className={({ isActive }) =>
-              isActive
-                ? "text-[#d72989] font-bold bg-gray-100 rounded px-2 py-1 transition-colors"
-                : "text-gray-900 font-medium rounded px-2 py-1 hover:bg-gray-50 hover:text-[#d72989] transition-colors"
-            }
+            className={navItemClass}
           >
-            Instagram Analytics
+            <BarChart3 className="h-5 w-5 shrink-0" />
+            <span className={labelClass}>Instagram Analytics</span>
           </NavLink>
           <NavLink
             to="/analytics/competitor-intelligence"
-            className={({ isActive }) =>
-              isActive
-                ? "text-[#d72989] font-bold bg-gray-100 rounded px-2 py-1 transition-colors"
-                : "text-gray-900 font-medium rounded px-2 py-1 hover:bg-gray-50 hover:text-[#d72989] transition-colors"
-            }
+            className={navItemClass}
           >
-            Competitor Intelligence
+            <Radar className="h-5 w-5 shrink-0" />
+            <span className={labelClass}>Competitor Intelligence</span>
           </NavLink>
           <NavLink
             to="/brand-collab-score"
-            className={({ isActive }) =>
-              isActive
-                ? "text-[#d72989] font-bold bg-gray-100 rounded px-2 py-1 transition-colors"
-                : "text-gray-900 font-medium rounded px-2 py-1 hover:bg-gray-50 hover:text-[#d72989] transition-colors"
-            }
+            className={navItemClass}
           >
-            Brand Collab Score
+            <Target className="h-5 w-5 shrink-0" />
+            <span className={labelClass}>Brand Collab Score</span>
           </NavLink>
         </nav>
         <div className="border-t border-gray-200 my-2" />
@@ -160,25 +162,22 @@ export function WhoistrendSidebarMenu() {
 
       {/* Insights Section */}
       <div>
-        <div className="uppercase text-xs font-semibold text-gray-500 tracking-wider mb-2">
+        <div className="mb-2 h-4 overflow-hidden text-xs font-semibold uppercase tracking-wider text-gray-500 opacity-0 transition-opacity duration-150 group-hover:opacity-100">
           Insights
         </div>
         <nav className="flex flex-col gap-1 mb-4">
           <NavLink
             to="/smart-chat"
-            className={({ isActive }) =>
-              isActive
-                ? "text-[#d72989] font-bold bg-gray-100 rounded px-2 py-1 transition-colors"
-                : "text-gray-900 font-medium rounded px-2 py-1 hover:bg-gray-50 hover:text-[#d72989] transition-colors"
-            }
+            className={navItemClass}
           >
-            Smart Chat
+            <MessageSquareText className="h-5 w-5 shrink-0" />
+            <span className={labelClass}>Smart Chat</span>
           </NavLink>
         </nav>
 
         {/* Chats section (Smart Chat history) - only visible on Smart Chat and desktop (lg+) */}
         {location.pathname.startsWith("/smart-chat") && (
-          <div className="mt-4 hidden lg:block">
+          <div className="mt-4 hidden lg:block opacity-0 transition-opacity duration-150 group-hover:opacity-100">
             <div className="flex items-center justify-between mb-2">
               <div className="uppercase text-xs font-semibold text-gray-500 tracking-wider">
                 Chats
@@ -247,24 +246,28 @@ export function WhoistrendSidebarMenu() {
       </div>
 
       {/* Subscription Section */}
-      <div className="mt-4">
-        <div className="uppercase text-xs font-semibold text-gray-500 tracking-wider mb-2">
+      <div className="mt-auto pt-4 border-t border-gray-200">
+        <div className="mb-2 h-4 overflow-hidden text-xs font-semibold uppercase tracking-wider text-gray-500 opacity-0 transition-opacity duration-150 group-hover:opacity-100">
           Subscription
         </div>
         <nav className="flex flex-col gap-1">
           <NavLink
             to="/subscription"
-            className={({ isActive }) =>
-              isActive
-                ? "text-[#d72989] font-bold bg-gray-100 rounded px-2 py-1 transition-colors"
-                : "text-gray-900 font-medium rounded px-2 py-1 hover:bg-gray-50 hover:text-[#d72989] transition-colors"
-            }
+            className={navItemClass}
           >
-            Subscriptions
+            <CreditCard className="h-5 w-5 shrink-0" />
+            <span className={labelClass}>Subscriptions</span>
+          </NavLink>
+          <NavLink
+            to="/blog"
+            className={navItemClass}
+          >
+            <BookOpenText className="h-5 w-5 shrink-0" />
+            <span className={labelClass}>Blog</span>
           </NavLink>
         </nav>
       </div>
-    </div>
+    </aside>
   );
 }
 

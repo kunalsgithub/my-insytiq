@@ -12,9 +12,11 @@ export interface InstagramAnalyticsData {
   engagementRate: number;
   avgLikes: number;
   avgComments: number;
-  postingFrequency: number;  
+  postingFrequency: number;
   topHashtags: string[];
   lastUpdated: any;
+  /** Profile picture URL when stored (saves Social Blade credits on next load) */
+  profilePictureUrl?: string | null;
 }
 
 export interface UserAnalyticsState {
@@ -143,6 +145,7 @@ export async function loadInstagramAnalytics(
         postingFrequency: data.postingFrequency || 0,
         topHashtags: data.topHashtags || [],
         lastUpdated: data.lastUpdated || null,
+        profilePictureUrl: data.profilePictureUrl ?? undefined,
       };
     }
     

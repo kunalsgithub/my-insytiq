@@ -3,6 +3,8 @@ import React from "react";
 interface InstagramDashboardProps {
   username?: string;
   profilePictureUrl?: string;
+  /** Base URL for proxying Instagram CDN images (avoids 403). If not set, raw URL is used. */
+  profileImageProxyBaseUrl?: string;
   followers?: number;
   following?: number;
   posts?: number;
@@ -11,9 +13,22 @@ interface InstagramDashboardProps {
   engagementRate?: number;
 }
 
+const INSTAGRAM_CDN_HOSTS = ["cdninstagram.com", "instagram.com", "fbcdn.net"];
+
+function isInstagramCdnUrl(url: string): boolean {
+  try {
+    const u = new URL(url);
+    const host = u.hostname.toLowerCase();
+    return INSTAGRAM_CDN_HOSTS.some((h) => host === h || host.endsWith("." + h));
+  } catch {
+    return false;
+  }
+}
+
 const InstagramDashboard: React.FC<InstagramDashboardProps> = ({
   username = "",
   profilePictureUrl,
+  profileImageProxyBaseUrl,
   followers = 0,
   following = 0,
   posts = 0,
@@ -21,6 +36,11 @@ const InstagramDashboard: React.FC<InstagramDashboardProps> = ({
   averageComments = 0,
   engagementRate = 0,
 }) => {
+  const displayProfileUrl =
+    profilePictureUrl && profileImageProxyBaseUrl && isInstagramCdnUrl(profilePictureUrl)
+      ? `${profileImageProxyBaseUrl}?url=${encodeURIComponent(profilePictureUrl)}`
+      : profilePictureUrl;
+
   const metrics = [
     { label: "Avg. likes", value: Math.round(averageLikes), icon: "🔥", color: "#a78bfa" },
     { label: "Avg. comments", value: averageComments.toFixed(1), icon: "📈", color: "#f472b6" },
@@ -33,9 +53,9 @@ const InstagramDashboard: React.FC<InstagramDashboardProps> = ({
       <div className="bg-white rounded-xl shadow border p-6 flex flex-col md:flex-row md:items-center md:justify-between gap-6">
         {/* Profile summary */}
         <div className="flex flex-col md:flex-row md:items-center gap-6 flex-1">
-          {profilePictureUrl ? (
+          {displayProfileUrl ? (
             <img
-              src={profilePictureUrl}
+              src={displayProfileUrl}
               alt={username}
               className="w-24 h-24 rounded-full object-cover border-2 border-gray-200"
               onError={(e) => {

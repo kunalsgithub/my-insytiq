@@ -25,6 +25,11 @@ import Trending from "./pages/trending";
 import TrendingNow from "./pages/trending-now";
 import SmartChat from "./pages/smart-chat";
 import BrandCollabScorePage from "./pages/brand-collab-score";
+import BlogPage from "./pages/blog/index";
+import InstagramEngagementRateTruth from "./pages/blog/instagram-engagement-rate-truth";
+import GrowInstagramAiAnalytics2026 from "./pages/blog/grow-instagram-ai-analytics-2026";
+import FeaturesPage from "./pages/features";
+import AboutPage from "./pages/about";
 
 
 const queryClient = new QueryClient({
@@ -98,12 +103,24 @@ function App() {
             <Route element={<RequireVerifiedEmail />}>
               <Route element={<SidebarLayout />}>
               <Route path="/" element={<Index />} />
+              <Route path="/features" element={<FeaturesPage />} />
+              <Route path="/about" element={<AboutPage />} />
+              <Route path="/pricing" element={<Navigate to="/subscription" replace />} />
               <Route path="/instagram-analytics" element={<InstagramAnalyticsPage />} />
               <Route path="/analytics/competitor-intelligence" element={<CompetitorIntelligencePage />} />
               <Route path="/brand-collab-score" element={<BrandCollabScorePage />} />
               <Route path="/top-influencers" element={<TopInfluencer />} />
               <Route path="/top-influencers/:category" element={<TopInfluencerCategory />} />
               <Route path="/subscription" element={<Subscription />} />
+              <Route path="/blog" element={<BlogPage />} />
+              <Route
+                path="/blog/instagram-engagement-rate-truth"
+                element={<InstagramEngagementRateTruth />}
+              />
+              <Route
+                path="/blog/grow-instagram-ai-analytics-2026"
+                element={<GrowInstagramAiAnalytics2026 />}
+              />
               {/* Smart Chat: always use the v2 implementation on /smart-chat */}
               <Route path="/smart-chat" element={<SmartChat useV2 />} />
               <Route path="/privacy" element={<Privacy />} />

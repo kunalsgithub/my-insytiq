@@ -33,6 +33,9 @@ export const functions = getFunctions(app, 'us-central1');
 const FUNCTIONS_REGION = 'us-central1';
 export const signupWithIpLimitUrl = `https://${FUNCTIONS_REGION}-${firebaseConfig.projectId}.cloudfunctions.net/signupWithIpLimit`;
 
+// HTTP URL for profile image proxy (avoids Instagram CDN 403 when loading in browser)
+export const proxyProfileImageBaseUrl = `https://${FUNCTIONS_REGION}-${firebaseConfig.projectId}.cloudfunctions.net/proxyProfileImage`;
+
 // In local development, always use the Functions emulator so you see the latest SmartChat changes.
 if (typeof window !== "undefined" && window.location.hostname === "localhost") {
   connectFunctionsEmulator(functions, "127.0.0.1", 5002);

@@ -1,18 +1,18 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
-import { defineSecret } from "firebase-functions/params";
 import axios from "axios";
 import { initializeApp, getApps } from "firebase-admin/app";
 import { getFirestore, Timestamp } from "firebase-admin/firestore";
+import {
+  redactSecretPreview,
+  resolveSocialBladeCredentials,
+} from "./socialBladeCredentials";
+import { sbClientIdParam, sbApiTokenParam } from "./configParams";
 
 // Only initialize if not already initialized
 if (getApps().length === 0) {
   initializeApp();
 }
 const db = getFirestore();
-
-// Define secrets - these will be available at runtime via Firebase config
-const sbClientId = defineSecret("SB_CLIENT_ID");
-const sbApiToken = defineSecret("SB_API_TOKEN");
 
 interface SocialBladeApiResponse {
   status: {
@@ -46,7 +46,6 @@ interface SocialBladeApiResponse {
 
 export const getSocialBladeAnalytics = onCall(
   {
-    secrets: [sbClientId, sbApiToken],
     timeoutSeconds: 30,
     memory: "512MiB",
     cors: true,
@@ -58,11 +57,14 @@ export const getSocialBladeAnalytics = onCall(
       throw new HttpsError("invalid-argument", "Missing or invalid username");
     }
 
-    const cacheKey = `socialblade_${username}`;
+    const cacheKey = `socialblade_${username.trim().toLowerCase()}`;
     const cacheDoc = db.collection("socialblade_cache").doc(cacheKey);
 
+    // Cache TTL: 30 days (same as Apify) — reuse saved data to avoid Social Blade credits
+    const CACHE_DAYS = 30;
+    const CACHE_TTL_HOURS = 24 * CACHE_DAYS;
+
     try {
-      // Check cache first (24-hour TTL)
       const cached = await cacheDoc.get();
       if (cached.exists) {
         const cachedData = cached.data();
@@ -71,8 +73,16 @@ export const getSocialBladeAnalytics = onCall(
           const now = new Date();
           const hoursSinceCache = (now.getTime() - cachedAt.getTime()) / (1000 * 60 * 60);
 
-          if (hoursSinceCache < 24) {
-            console.log(`Returning cached data for ${username} (${hoursSinceCache.toFixed(1)}h old)`);
+          if (hoursSinceCache < CACHE_TTL_HOURS) {
+            console.log(`Returning cached data for ${username} (${hoursSinceCache.toFixed(1)}h old, no API call)`);
+            const data = cachedData.data as { profilePictureUrl?: string | null };
+            if (data?.profilePictureUrl) {
+              const normalizedUsername = username.trim().toLowerCase();
+              await db.collection("instagramAnalytics").doc(normalizedUsername).set(
+                { profilePictureUrl: data.profilePictureUrl },
+                { merge: true }
+              );
+            }
             return {
               success: true,
               data: cachedData.data,
@@ -83,11 +93,29 @@ export const getSocialBladeAnalytics = onCall(
       }
 
       // Fetch from Social Blade Business API
-      const clientId = sbClientId.value();
-      const apiToken = sbApiToken.value();
+      const { clientId, apiToken } = resolveSocialBladeCredentials(
+        sbClientIdParam.value(),
+        sbApiTokenParam.value()
+      );
 
-      if (!apiToken) {
-        throw new HttpsError("failed-precondition", "Missing SB_API_TOKEN secret");
+      if (!clientId || !apiToken) {
+        console.error(
+          "[SocialBlade] Missing credentials after resolve (set CFG_SB_CLIENT_ID / CFG_SB_API_TOKEN in functions/.env or export them)",
+          {
+            hasClientId: Boolean(clientId),
+            hasApiToken: Boolean(apiToken),
+            envClientId: Boolean(
+              process.env.CFG_SB_CLIENT_ID?.trim() || process.env.SB_CLIENT_ID?.trim()
+            ),
+            envApiToken: Boolean(
+              process.env.CFG_SB_API_TOKEN?.trim() || process.env.SB_API_TOKEN?.trim()
+            ),
+          }
+        );
+        throw new HttpsError(
+          "failed-precondition",
+          "Social Blade is not configured: add CFG_SB_CLIENT_ID and CFG_SB_API_TOKEN to functions/.env (see functions/.env.example)."
+        );
       }
 
       // Social Blade Business API endpoint
@@ -99,39 +127,128 @@ export const getSocialBladeAnalytics = onCall(
       
       // Social Blade Business API requires these exact header names (lowercase)
       const headers: Record<string, string> = {
-        "clientid": clientId || "",
-        "token": apiToken,
+        clientid: clientId,
+        token: apiToken,
         "Content-Type": "application/json",
       };
 
-      console.log(`Fetching Social Blade data for ${username}`);
-      console.log(`API URL: ${url}`);
-      console.log(`Headers: clientid: ${clientId ? 'SET' : 'MISSING'}, token: ${apiToken ? 'SET' : 'MISSING'}`);
-      
+      console.log("[SocialBlade] Request", {
+        username: username.trim(),
+        method: "GET",
+        url,
+        clientIdPreview: redactSecretPreview(clientId),
+        tokenPreview: redactSecretPreview(apiToken),
+      });
+
       let response;
       try {
         response = await axios.get<SocialBladeApiResponse>(url, {
           headers,
           timeout: 20000,
+          validateStatus: (s) => s < 600,
         });
       } catch (axiosError: any) {
         const status = axiosError?.response?.status;
         const data = axiosError?.response?.data;
-        const msg = data?.message || axiosError?.message || "Social Blade API request failed";
-        console.error("Social Blade API request failed:", { status, statusText: axiosError?.response?.statusText, data, message: axiosError?.message });
+        const msg =
+          (typeof data === "object" && data && "message" in data
+            ? String((data as { message?: string }).message)
+            : null) ||
+          axiosError?.message ||
+          "Social Blade API request failed";
+        console.error("[SocialBlade] Network/transport error:", {
+          status,
+          statusText: axiosError?.response?.statusText,
+          responseData: data,
+          message: axiosError?.message,
+        });
         if (status === 404) {
-          throw new HttpsError("not-found", "Username not found. Please check the username and try again.");
+          throw new HttpsError(
+            "not-found",
+            "Username not found. Please check the username and try again."
+          );
         }
         if (status === 401 || status === 403) {
-          throw new HttpsError("permission-denied", `Social Blade API auth failed (${status}). Check SB_CLIENT_ID and SB_API_TOKEN.`);
+          throw new HttpsError(
+            "permission-denied",
+            `Social Blade API auth failed (${status}). Check SB_CLIENT_ID and SB_API_TOKEN.`
+          );
         }
         if (status === 429) {
-          throw new HttpsError("resource-exhausted", "Social Blade rate limit reached. Please try again later.");
+          throw new HttpsError(
+            "resource-exhausted",
+            "Social Blade rate limit reached. Please try again later."
+          );
+        }
+        if (status === 482 || status === 402) {
+          throw new HttpsError(
+            "resource-exhausted",
+            "Social Blade credits exhausted. Add credits at Social Blade or try again later."
+          );
         }
         if (status && status >= 500) {
-          throw new HttpsError("unavailable", `Social Blade API error (${status}). Try again later.`);
+          throw new HttpsError(
+            "unavailable",
+            `Social Blade API error (${status}). Try again later.`
+          );
         }
         throw new HttpsError("unavailable", `Social Blade API: ${msg}`);
+      }
+
+      const httpStatus = response.status;
+      if (httpStatus >= 400) {
+        const body = response.data as Record<string, unknown> | string;
+        const bodyStr =
+          typeof body === "string" ? body : JSON.stringify(body);
+        const lower = bodyStr.toLowerCase();
+        console.error("[SocialBlade] HTTP error response", {
+          httpStatus,
+          username: username.trim(),
+          url,
+          bodyPreview: bodyStr.slice(0, 500),
+        });
+        if (httpStatus === 400 && lower.includes("sb_api_token")) {
+          throw new HttpsError(
+            "failed-precondition",
+            "Social Blade rejected the request (missing or invalid API token). " +
+              "Confirm SB_API_TOKEN in Firebase secrets or functions/.secret.local for the emulator, " +
+              "and that the token matches your Social Blade Business API dashboard."
+          );
+        }
+        if (httpStatus === 404) {
+          throw new HttpsError(
+            "not-found",
+            "Username not found. Please check the username and try again."
+          );
+        }
+        if (httpStatus === 401 || httpStatus === 403) {
+          throw new HttpsError(
+            "permission-denied",
+            `Social Blade API auth failed (${httpStatus}). Check SB_CLIENT_ID and SB_API_TOKEN.`
+          );
+        }
+        if (httpStatus === 429) {
+          throw new HttpsError(
+            "resource-exhausted",
+            "Social Blade rate limit reached. Please try again later."
+          );
+        }
+        if (httpStatus === 482 || httpStatus === 402) {
+          throw new HttpsError(
+            "resource-exhausted",
+            "Social Blade credits exhausted. Add credits at Social Blade or try again later."
+          );
+        }
+        if (httpStatus >= 500) {
+          throw new HttpsError(
+            "unavailable",
+            `Social Blade API error (${httpStatus}). Try again later.`
+          );
+        }
+        throw new HttpsError(
+          "unavailable",
+          `Social Blade API error (${httpStatus}): ${bodyStr.slice(0, 200)}`
+        );
       }
 
       const apiData = response.data;
@@ -369,33 +486,40 @@ export const getSocialBladeAnalytics = onCall(
         username,
       });
 
+      // Persist profile picture to instagramAnalytics so we don't need Social Blade again for it
+      if (profilePictureUrl) {
+        const normalizedUsername = username.trim().toLowerCase();
+        const analyticsRef = db.collection("instagramAnalytics").doc(normalizedUsername);
+        await analyticsRef.set({ profilePictureUrl }, { merge: true });
+      }
+
       return {
         success: true,
         data: extractedData,
         cached: false,
       };
     } catch (error: any) {
-      // Re-throw if already an HttpsError (from axios or API check above)
-      if (error?.code && typeof error.code === "string" && error.message) {
-        throw error;
-      }
       console.error("Social Blade API error:", error?.response?.data || error?.message || error);
 
-      // If we have cached data, return it even if expired
+      // Always try to return saved data for this account when API fails (482, 429, 5xx, etc.)
       const cached = await cacheDoc.get();
       if (cached.exists) {
         const cachedData = cached.data();
         if (cachedData?.data) {
-          console.log(`Returning expired cache for ${username} due to API error`);
+          console.log(`Returning saved data for ${username} (API failed; reusing previous result)`);
           return {
             success: true,
             data: cachedData.data,
             cached: true,
-            warning: "Using cached data due to API error",
+            warning: "Using previously saved data (API limit or error).",
           };
         }
       }
 
+      // No saved data — re-throw or wrap
+      if (error?.code && typeof error.code === "string" && error.message) {
+        throw error;
+      }
       const detail = error?.response?.data?.message || error?.message || "Unknown error";
       throw new HttpsError("unavailable", `Failed to fetch Social Blade data: ${detail}`);
     }

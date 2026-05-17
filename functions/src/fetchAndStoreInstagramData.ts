@@ -1,6 +1,6 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
-import { defineSecret } from "firebase-functions/params";
 import { fetchInstagramData } from "./apifyFetcher";
+import { apifyApiTokenParam } from "./configParams";
 import { initializeApp, getApps } from "firebase-admin/app";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
 
@@ -10,28 +10,8 @@ if (getApps().length === 0) {
 }
 const db = getFirestore();
 
-// Profile analyses per month by plan (must match subscription.tsx usageLimit)
-const PROFILE_ANALYSES_LIMIT: Record<string, number> = {
-  Free: 2,
-  "Trends+": 12,
-  "Analytics+": 50,
-};
-
-function normalizePlan(raw: string | null | undefined): keyof typeof PROFILE_ANALYSES_LIMIT {
-  const s = (raw && typeof raw === "string" ? raw.trim() : "") || "Free";
-  if (s === "Free" || s.toLowerCase() === "free") return "Free";
-  if (s === "Trends+") return "Trends+";
-  if (s === "Analytics+" || s === "Pro" || s.toLowerCase() === "pro") return "Analytics+";
-  if (s === "Creator") return "Trends+";
-  return "Free";
-}
-
-// Define Apify API token secret
-const apifyApiTokenSecret = defineSecret("APIFY_API_TOKEN");
-
 export const fetchAndStoreInstagramData = onCall(
   {
-    secrets: [apifyApiTokenSecret],
     timeoutSeconds: 540, // 9 minutes (Apify can take time)
   },
   async (req) => {
@@ -58,38 +38,38 @@ export const fetchAndStoreInstagramData = onCall(
         ? onlyPostsNewerThan.trim()
         : undefined;
 
-    // Enforce profile analyses limit per plan (monthly) – reserve slot atomically
     const userRef = db.collection("users").doc(effectiveUserId);
-    const thisMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
     const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD (for followerHistory)
-
-    const reserveResult = await db.runTransaction(async (transaction) => {
-      const userSnap = await transaction.get(userRef);
-      const data = userSnap.exists ? userSnap.data() : null;
-      const currentPlan = normalizePlan(data?.currentPlan as string | undefined);
-      const limit = PROFILE_ANALYSES_LIMIT[currentPlan];
-      const usage = (data as any)?.profileAnalysisUsage || {};
-      const usageMonth: string | null = typeof usage.month === "string" ? usage.month : null;
-      const usageCount: number = typeof usage.count === "number" ? usage.count : 0;
-      const isSameMonth = usageMonth === thisMonth;
-      if (isSameMonth && usageCount >= limit) {
-        return { allowed: false as const, limit };
-      }
-      const newCount = isSameMonth ? usageCount + 1 : 1;
-      transaction.set(userRef, { profileAnalysisUsage: { month: thisMonth, count: newCount } }, { merge: true });
-      return { allowed: true as const };
-    });
-
-    if (!reserveResult.allowed) {
-      throw new HttpsError(
-        "resource-exhausted",
-        `Your plan allows ${reserveResult.limit} profile analyses per month. You've reached that limit this month. Upgrade your plan to analyze more accounts.`
-      );
-    }
+    const normalizedUsername = username.toLowerCase().trim();
 
     try {
-      // Access the secret value
-      const apifyApiToken = apifyApiTokenSecret.value();
+      // Cache TTL: 30 days (same as Social Blade) — reuse Apify data to avoid API credits
+      const CACHE_DAYS = 30;
+      const analyticsDocRef = db.collection("instagramAnalytics").doc(normalizedUsername);
+      const existingAnalytics = await analyticsDocRef.get();
+      if (existingAnalytics.exists) {
+        const data = existingAnalytics.data();
+        const lastUpdated = data?.lastUpdated?.toDate?.() ?? data?.lastUpdated;
+        if (lastUpdated) {
+          const lastMs = lastUpdated instanceof Date ? lastUpdated.getTime() : (lastUpdated._seconds ?? 0) * 1000;
+          const ageDays = (Date.now() - lastMs) / (1000 * 60 * 60 * 24);
+          if (ageDays < CACHE_DAYS) {
+            console.log(`Returning cached Apify data for ${username} (${ageDays.toFixed(1)} days old, no API call)`);
+            await userRef.set(
+              { selectedInstagramAccount: normalizedUsername, analyticsReady: true },
+              { merge: true }
+            );
+            return {
+              success: true,
+              message: "Served from cache (30 days)",
+              profile: null,
+            };
+          }
+        }
+      }
+
+      // CFG_APIFY_API_TOKEN from functions/.env (see configParams.ts)
+      const apifyApiToken = apifyApiTokenParam.value();
       const profileData = await fetchInstagramData(username, apifyApiToken, postsLimit, timeRange);
 
       // Extract analytics data from profileData (raw write happens later with size cap)
@@ -266,9 +246,6 @@ export const fetchAndStoreInstagramData = onCall(
           ? String(postCount)
           : null;
 
-      // Normalize username once for consistent document IDs (Smart Chat and Analytics both look up by lowercase)
-      const normalizedUsername = username.toLowerCase().trim();
-
       // Store a size-capped copy in rawInstagramData (Firestore doc limit 1 MB).
       // Use normalizedUsername so Smart Chat's getDataSnapshot finds it whether user doc has "User" or "user".
       const MAX_RAW_MEDIA = 100;
@@ -287,8 +264,16 @@ export const fetchAndStoreInstagramData = onCall(
           fetchedAt: new Date().toISOString(),
         });
 
+      // Profile picture URL from Apify (common field names from Instagram scrapers)
+      const profilePictureUrl =
+        profileData.profilePicUrl ??
+        profileData.profilePictureUrl ??
+        profileData.profile_pic_url_hd ??
+        profileData.profile_pic_url ??
+        profileData.imageUrl ??
+        null;
+
       // Create/update instagramAnalytics/{username} document
-      const analyticsDocRef = db.collection("instagramAnalytics").doc(normalizedUsername);
       console.log(`Saving analytics to: instagramAnalytics/${normalizedUsername}`);
       await analyticsDocRef.set(
         {
@@ -305,6 +290,7 @@ export const fetchAndStoreInstagramData = onCall(
           dataWindowLabel,
           dataWindowPostCount: postCount,
           lastUpdated: FieldValue.serverTimestamp(),
+          ...(profilePictureUrl && { profilePictureUrl }),
         },
         { merge: true }
       );

@@ -1,19 +1,19 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
-import { defineSecret } from "firebase-functions/params";
 import axios from "axios";
 import { initializeApp, getApps } from "firebase-admin/app";
 import { getFirestore, Firestore } from "firebase-admin/firestore";
 import { checkAndIncrementUsage, LIMIT_REACHED_CODE } from "./usageEnforcement";
 import { normalizePlanKey } from "./planLimits";
+import {
+  openaiApiKeyParam,
+  sbClientIdParam,
+  sbApiTokenParam,
+} from "./configParams";
 
 if (getApps().length === 0) {
   initializeApp();
 }
 const db = getFirestore();
-
-const openaiApiKeySecret = defineSecret("OPENAI_API_KEY");
-const sbClientId = defineSecret("SB_CLIENT_ID");
-const sbApiToken = defineSecret("SB_API_TOKEN");
 
 // ─── TYPES ───────────────────────────────────────────────────────────────
 
@@ -1572,7 +1572,6 @@ async function callOpenAI(
 export const smartChatV2 = onCall(
   {
     region: "us-central1",
-    secrets: [openaiApiKeySecret, sbClientId, sbApiToken],
     timeoutSeconds: 60,
     memory: "512MiB",
     cors: true,
@@ -1681,13 +1680,8 @@ export const smartChatV2 = onCall(
 
       let sbClientIdVal: string | undefined;
       let sbApiTokenVal: string | undefined;
-      try {
-        sbClientIdVal = sbClientId.value();
-        sbApiTokenVal = sbApiToken.value();
-      } catch {
-        sbClientIdVal = undefined;
-        sbApiTokenVal = undefined;
-      }
+      sbClientIdVal = sbClientIdParam.value().trim() || undefined;
+      sbApiTokenVal = sbApiTokenParam.value().trim() || undefined;
       const snapshot = await getDataSnapshot(db, userId, selectedAccount, sbClientIdVal, sbApiTokenVal);
 
       const intent = classifyIntent(message);
@@ -1875,7 +1869,7 @@ export const smartChatV2 = onCall(
         };
       }
 
-      const apiKey = openaiApiKeySecret.value();
+      const apiKey = openaiApiKeyParam.value();
       if (!apiKey) throw new HttpsError("failed-precondition", "OpenAI API key is not configured.");
 
       if (mode === "STRATEGY") {

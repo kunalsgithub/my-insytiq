@@ -20,6 +20,7 @@ import {
   loadCachedAnalytics,
 } from "../utils/loadCachedAnalytics";
 import { reserveProfileAnalysisUsage } from "../api/reserveProfileAnalysisUsage";
+import { proxyProfileImageBaseUrl } from "../firebase";
 
 import { useInstagramAnalyticsStore } from "../store/useInstagramAnalyticsStore";
 
@@ -107,15 +108,19 @@ const InstagramAnalyticsPage = () => {
           const result = await checkAndLoadAnalytics(userId, username);
 
           if (!result.needsFetch && result.analyticsData) {
-            let profilePictureUrl: string | undefined;
+            // Prefer profile picture from instagramAnalytics (saves Social Blade credits)
+            let profilePictureUrl: string | undefined =
+              result.analyticsData.profilePictureUrl ?? undefined;
             let mediaCount = 0;
 
             try {
               const raw = await loadCachedAnalytics(userId, username);
               if (raw?.profile) {
-                profilePictureUrl =
-                  raw.profile.profilePicUrl ||
-                  raw.profile.profilePictureUrl;
+                if (!profilePictureUrl) {
+                  profilePictureUrl =
+                    raw.profile.profilePicUrl ||
+                    raw.profile.profilePictureUrl;
+                }
                 mediaCount =
                   raw.profile.mediaCount || raw.profile.media?.length || 0;
               }
@@ -156,15 +161,19 @@ const InstagramAnalyticsPage = () => {
         const result = await checkAndLoadAnalytics(userId, username);
 
         if (!result.needsFetch && result.analyticsData) {
-          let profilePictureUrl: string | undefined;
+          // Prefer profile picture from instagramAnalytics (saves Social Blade credits)
+          let profilePictureUrl: string | undefined =
+            result.analyticsData.profilePictureUrl ?? undefined;
           let mediaCount = 0;
 
           try {
             const raw = await loadCachedAnalytics(userId, username);
             if (raw?.profile) {
-              profilePictureUrl =
-                raw.profile.profilePicUrl ||
-                raw.profile.profilePictureUrl;
+              if (!profilePictureUrl) {
+                profilePictureUrl =
+                  raw.profile.profilePicUrl ||
+                  raw.profile.profilePictureUrl;
+              }
               mediaCount =
                 raw.profile.mediaCount || raw.profile.media?.length || 0;
             }
@@ -399,6 +408,7 @@ const InstagramAnalyticsPage = () => {
             <InstagramDashboard
               username={username}
               profilePictureUrl={instagramData.profile?.profile_picture_url}
+              profileImageProxyBaseUrl={proxyProfileImageBaseUrl}
               followers={instagramData.profile?.followers_count ?? 0}
               following={instagramData.profile?.follows_count ?? 0}
               posts={instagramData.profile?.media_count ?? 0}
