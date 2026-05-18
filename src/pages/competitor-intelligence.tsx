@@ -103,6 +103,60 @@ function getComparisonUsernames(
   );
 }
 
+function pickDefaultComparisonTarget(
+  competitorMetrics: GrowthMetric[]
+): GrowthMetric | null {
+  if (competitorMetrics.length === 0) return null;
+  return competitorMetrics.reduce((best, current) =>
+    current.growthPercent > best.growthPercent ? current : best
+  );
+}
+
+function renderGrowthGapInsight(
+  selfMetric: GrowthMetric,
+  compareTarget: GrowthMetric
+): React.ReactNode {
+  const growthDiff = compareTarget.growthPercent - selfMetric.growthPercent;
+  const diffDaily = compareTarget.dailyAvg - selfMetric.dailyAvg;
+  const projectedGap = diffDaily * 30;
+  const compareLabel = compareTarget.displayName;
+
+  if (growthDiff > 0 && projectedGap > 0) {
+    return (
+      <>
+        <p className="text-gray-900 font-semibold">
+          Your 30-day growth rate is {selfMetric.growthPercent.toFixed(1)}% vs{" "}
+          {compareTarget.growthPercent.toFixed(1)}% for {compareLabel} (
+          {growthDiff.toFixed(1)} percentage points lower).
+        </p>
+        <p className="text-gray-800 mt-1">
+          If daily pace continues, {compareLabel} will gain approximately{" "}
+          {Math.round(projectedGap).toLocaleString()} more followers than you over
+          the next 30 days.
+        </p>
+      </>
+    );
+  }
+
+  const reverseGap = -projectedGap;
+  return (
+    <>
+      <p className="text-gray-900 font-semibold">
+        You are growing at a similar or faster rate than {compareLabel} (
+        {selfMetric.growthPercent.toFixed(1)}% vs {compareTarget.growthPercent.toFixed(1)}%
+        ).
+      </p>
+      {reverseGap > 0 && (
+        <p className="text-gray-800 mt-1">
+          If daily pace continues, you could gain approximately{" "}
+          {Math.round(reverseGap).toLocaleString()} more followers than {compareLabel}{" "}
+          over the next 30 days.
+        </p>
+      )}
+    </>
+  );
+}
+
 const CompetitorIntelligencePage: React.FC = () => {
   const { toast } = useToast();
   const [inputUsername, setInputUsername] = useState("");
@@ -118,6 +172,10 @@ const CompetitorIntelligencePage: React.FC = () => {
     Record<string, FollowerHistoryPoint[]>
   >({});
   const autoRefreshedCompetitorsOnce = useRef(false);
+  /** Competitor username selected for one-on-one growth gap insight */
+  const [comparisonTargetUsername, setComparisonTargetUsername] = useState<
+    string | null
+  >(null);
 
   useEffect(() => {
     const user = getCurrentUser();
@@ -559,6 +617,49 @@ const CompetitorIntelligencePage: React.FC = () => {
     return { metrics, chartData: chart, spikes, hasEnoughHistory: true };
   }, [historyData, accountStats?.username, competitors]);
 
+  const comparisonInsight = useMemo(() => {
+    const baseUsername = accountStats?.username?.toLowerCase().trim();
+    if (!baseUsername) return null;
+
+    const selfMetric = metrics.find((m) => m.username === baseUsername);
+    const competitorMetrics = metrics.filter((m) => !m.isSelf);
+    if (!selfMetric || competitorMetrics.length === 0) return null;
+
+    const selected = comparisonTargetUsername
+      ? competitorMetrics.find(
+          (m) =>
+            m.username.toLowerCase() === comparisonTargetUsername.toLowerCase()
+        )
+      : null;
+    const compareTarget =
+      selected ?? pickDefaultComparisonTarget(competitorMetrics);
+    if (!compareTarget) return null;
+
+    return { selfMetric, compareTarget };
+  }, [metrics, accountStats?.username, comparisonTargetUsername]);
+
+  useEffect(() => {
+    if (!hasEnoughHistory || metrics.length === 0) return;
+
+    const competitorMetrics = metrics.filter((m) => !m.isSelf);
+    if (competitorMetrics.length === 0) {
+      setComparisonTargetUsername(null);
+      return;
+    }
+
+    const selectedStillTracked =
+      comparisonTargetUsername &&
+      competitorMetrics.some(
+        (m) =>
+          m.username.toLowerCase() === comparisonTargetUsername.toLowerCase()
+      );
+
+    if (!selectedStillTracked) {
+      const defaultTarget = pickDefaultComparisonTarget(competitorMetrics);
+      setComparisonTargetUsername(defaultTarget?.username ?? null);
+    }
+  }, [metrics, hasEnoughHistory, comparisonTargetUsername]);
+
   const isProPlan = useMemo(() => {
     if (!currentPlan) return false;
     const plan = currentPlan.toLowerCase();
@@ -766,6 +867,10 @@ const CompetitorIntelligencePage: React.FC = () => {
         <Card>
           <CardHeader>
             <CardTitle>Growth Comparison</CardTitle>
+            <p className="text-xs text-gray-500 font-normal mt-1">
+              Tap a competitor card to compare your growth one-on-one. The insight below
+              updates for the selected account.
+            </p>
           </CardHeader>
           <CardContent className="relative">
             {historyLoading ? (
@@ -797,26 +902,45 @@ const CompetitorIntelligencePage: React.FC = () => {
                     const maxGrowth = Math.max(...growthValues);
                     const minGrowth = Math.min(...growthValues);
                     const hasMultiple = metrics.length > 1;
+                    const activeCompareUsername =
+                      comparisonInsight?.compareTarget.username ?? null;
+
                     return metrics.map((m) => {
                       const isMax = hasMultiple && m.growthPercent === maxGrowth;
                       const isMin = hasMultiple && m.growthPercent === minGrowth;
+                      const isCompareTarget =
+                        !m.isSelf &&
+                        activeCompareUsername !== null &&
+                        m.username.toLowerCase() ===
+                          activeCompareUsername.toLowerCase();
                       const baseClasses =
-                        "rounded-xl border p-3 bg-white shadow-sm text-xs md:text-sm";
+                        "rounded-xl border p-3 bg-white shadow-sm text-xs md:text-sm text-left w-full transition-shadow";
                       const toneClasses = isMax
                         ? " border-green-500 bg-green-50"
                         : isMin
                         ? " border-red-500 bg-red-50"
                         : " border-gray-200";
+                      const selectedClasses = isCompareTarget
+                        ? " ring-2 ring-[#d72989] ring-offset-1 shadow-md"
+                        : "";
                       const statusSymbol =
                         m.status === "Accelerating"
                           ? "↗"
                           : m.status === "Slowing"
                           ? "↘"
                           : "→";
-                      return (
-                        <div key={m.username} className={baseClasses + toneClasses}>
-                          <p className="text-[11px] text-gray-500 mb-1">
-                            {m.isSelf ? `${m.username} (you)` : `@${m.username}`}
+
+                      const cardBody = (
+                        <>
+                          <p className="text-[11px] text-gray-500 mb-1 flex items-center justify-between gap-2">
+                            <span>
+                              {m.isSelf ? `${m.username} (you)` : `@${m.username}`}
+                            </span>
+                            {isCompareTarget && (
+                              <span className="shrink-0 rounded-full bg-[#d72989]/10 px-2 py-0.5 text-[10px] font-semibold text-[#d72989]">
+                                Comparing
+                              </span>
+                            )}
                           </p>
                           <p className="font-semibold mb-1">
                             30 Day Growth: {m.growthPercent.toFixed(1)}%
@@ -830,7 +954,36 @@ const CompetitorIntelligencePage: React.FC = () => {
                           <p className="mt-1 text-gray-700 font-medium">
                             {statusSymbol} {m.status}
                           </p>
-                        </div>
+                        </>
+                      );
+
+                      if (m.isSelf) {
+                        return (
+                          <div
+                            key={m.username}
+                            className={baseClasses + toneClasses + selectedClasses}
+                          >
+                            {cardBody}
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <button
+                          key={m.username}
+                          type="button"
+                          onClick={() => setComparisonTargetUsername(m.username)}
+                          aria-pressed={isCompareTarget}
+                          aria-label={`Compare your growth with @${m.username}`}
+                          className={
+                            baseClasses +
+                            toneClasses +
+                            selectedClasses +
+                            " cursor-pointer hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-[#d72989] focus-visible:ring-offset-2"
+                          }
+                        >
+                          {cardBody}
+                        </button>
                       );
                     });
                   })()}
@@ -838,70 +991,25 @@ const CompetitorIntelligencePage: React.FC = () => {
 
                 {/* Growth Gap Insight */}
                 <div className="rounded-xl border border-[#d72989]/25 bg-gradient-to-r from-[#f9ce34]/10 via-[#ee2a7b]/10 to-[#6228d7]/10 p-3 text-xs md:text-sm ring-1 ring-[#d72989]/10">
-                  {(() => {
-                    if (!accountStats?.username) {
-                      return (
-                        <p className="text-gray-500">
-                          Connect an Instagram account to see growth gap insights.
-                        </p>
-                      );
-                    }
-                    const selfMetric = metrics.find(
-                      (m) => m.username === accountStats.username
-                    );
-                    const competitorMetrics = metrics.filter(
-                      (m) => m.username !== accountStats.username
-                    );
-                    if (!selfMetric || competitorMetrics.length === 0) {
-                      return (
-                        <p className="text-gray-500">
-                          Add at least one competitor to see growth gap insights.
-                        </p>
-                      );
-                    }
-                    const bestCompetitor = competitorMetrics.reduce(
-                      (best, current) =>
-                        current.growthPercent > best.growthPercent ? current : best
-                    );
-                    const growthDiff =
-                      bestCompetitor.growthPercent - selfMetric.growthPercent;
-                    const userDaily = selfMetric.dailyAvg;
-                    const compDaily = bestCompetitor.dailyAvg;
-                    const diffDaily = compDaily - userDaily;
-                    const projectedGap = diffDaily * 30;
-                    if (growthDiff > 0 && projectedGap > 0) {
-                      return (
-                        <>
-                          <p className="text-gray-900 font-semibold">
-                            You are growing {Math.round(growthDiff)}% slower than{" "}
-                            {bestCompetitor.displayName}.
-                          </p>
-                          <p className="text-gray-800 mt-1">
-                            If this continues, {bestCompetitor.displayName} will gain
-                            approximately{" "}
-                            {Math.round(projectedGap).toLocaleString()} more
-                            followers than you in the next 30 days.
-                          </p>
-                        </>
-                      );
-                    }
-                    const reverseGap = -projectedGap;
-                    return (
-                      <>
-                        <p className="text-gray-900 font-semibold">
-                          You are growing at a similar or faster rate than{" "}
-                          {bestCompetitor.displayName}.
-                        </p>
-                        {reverseGap > 0 && (
-                          <p className="text-gray-800 mt-1">
-                            If this continues, you could gain approximately{" "}
-                            {Math.round(reverseGap).toLocaleString()} more followers
-                            than {bestCompetitor.displayName} in the next 30 days.
-                          </p>
-                        )}
-                      </>
-                    );
-                  })()}
+                  {!accountStats?.username ? (
+                    <p className="text-gray-500">
+                      Connect an Instagram account to see growth gap insights.
+                    </p>
+                  ) : !comparisonInsight ? (
+                    <p className="text-gray-500">
+                      Add at least one competitor to see growth gap insights.
+                    </p>
+                  ) : (
+                    <>
+                      <p className="text-[11px] font-semibold uppercase tracking-wide text-[#d72989] mb-2">
+                        You vs {comparisonInsight.compareTarget.displayName}
+                      </p>
+                      {renderGrowthGapInsight(
+                        comparisonInsight.selfMetric,
+                        comparisonInsight.compareTarget
+                      )}
+                    </>
+                  )}
                 </div>
               </div>
             )}
