@@ -1,19 +1,13 @@
 import { Link } from "react-router-dom";
-import { Helmet } from "react-helmet-async";
+import { PageSeo } from "@/components/PageSeo";
+import { PAGE_SEO } from "@/config/siteSeo";
 import Navbar from "../../components/Navbar";
 import { blogPosts } from "../../data/blogPosts";
 
 export default function BlogIndexPage() {
   return (
     <div className="min-h-screen flex flex-col bg-[#fafafa]">
-      <Helmet>
-        <title>Instagram Analytics Insights | Insytiq Blog</title>
-        <meta
-          name="description"
-          content="Data-backed strategy for Indian D2C brands and creators. Read Instagram analytics insights from Insytiq."
-        />
-        <link rel="canonical" href="https://www.insytiq.ai/blog" />
-      </Helmet>
+      <PageSeo {...PAGE_SEO.blog} />
 
       <Navbar />
       <main className="flex-1 w-full px-4 py-10 md:px-6 md:py-14 lg:px-8">

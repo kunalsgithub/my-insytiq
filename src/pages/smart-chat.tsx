@@ -1,4 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { PageSeo } from '@/components/PageSeo';
+import { PAGE_SEO } from '@/config/siteSeo';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Input } from '../components/ui/input';
 import { Button } from '../components/ui/button';
@@ -938,6 +940,8 @@ const SmartChat = ({ useV2 = true }: SmartChatProps) => {
   ];
 
   return (
+    <>
+      <PageSeo {...PAGE_SEO.smartChat} />
     <div
       className="h-screen flex flex-col overflow-hidden"
       style={{
@@ -1216,6 +1220,7 @@ const SmartChat = ({ useV2 = true }: SmartChatProps) => {
         </button>
       )}
     </div>
+    </>
   );
 };
 

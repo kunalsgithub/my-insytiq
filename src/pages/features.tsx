@@ -1,18 +1,12 @@
-import { Helmet } from "react-helmet-async";
+import { PageSeo } from "@/components/PageSeo";
+import { PAGE_SEO } from "@/config/siteSeo";
 import { Link } from "react-router-dom";
 import { ArrowRight } from "lucide-react";
 
 export default function FeaturesPage() {
   return (
     <>
-      <Helmet>
-        <title>Features | Insytiq — Instagram analytics &amp; growth tools</title>
-        <meta
-          name="description"
-          content="Explore Insytiq: Instagram analytics, trending Reels and audio, competitor intelligence, brand collab readiness, and AI-assisted growth insights."
-        />
-        <link rel="canonical" href="https://www.insytiq.ai/features" />
-      </Helmet>
+      <PageSeo {...PAGE_SEO.features} />
       <div className="mx-auto max-w-3xl px-4 py-12 md:py-16">
         <h1 className="text-3xl font-bold tracking-tight text-gray-900 md:text-4xl">Insytiq features</h1>
         <p className="mt-4 text-base leading-relaxed text-gray-600">

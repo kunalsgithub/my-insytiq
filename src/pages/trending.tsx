@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { PageSeo } from "@/components/PageSeo";
+import { PAGE_SEO } from "@/config/siteSeo";
 import TrendingHashtags from "../components/TrendingHashtags";
 import TrendingContent from "../components/TrendingContent";
 import InstagramNews from "../components/InstagramNews";
@@ -11,6 +13,8 @@ const Trending = () => {
   const { planKey } = useUserPlan();
 
   return (
+    <>
+      <PageSeo {...PAGE_SEO.trending} />
     <div className="relative min-h-screen flex flex-col">
       {/* Headline: responsive, edge-to-edge on desktop, contained on mobile */}
       <div className="relative w-full">
@@ -97,6 +101,7 @@ const Trending = () => {
         </main>
       </div>
     </div>
+    </>
   );
 };
 

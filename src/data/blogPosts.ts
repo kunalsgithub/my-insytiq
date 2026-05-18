@@ -3,6 +3,10 @@ export type BlogPostSummary = {
   title: string;
   excerpt: string;
   publishedLabel: string;
+  /** Optional shorter headline for document title and og:title */
+  seoTitle?: string;
+  /** Optional meta description override (defaults to excerpt) */
+  seoDescription?: string;
 };
 
 export const blogPosts: BlogPostSummary[] = [
@@ -18,6 +22,9 @@ export const blogPosts: BlogPostSummary[] = [
     slug: "instagram-engagement-rate-truth",
     title:
       "Instagram Engagement Rate Benchmarks for Indian D2C Brands: 2026 Data Report",
+    seoTitle: "Why Your Instagram Engagement Rate Is Lying to You",
+    seoDescription:
+      "Engagement rate is the most misunderstood Instagram metric. Learn which data points actually predict growth and what you should be tracking instead.",
     excerpt:
       "Indian D2C brands average 1.84% engagement rate in 2026 versus the global 0.48% average. See follower-tier benchmarks, top-performing content patterns, and practical thresholds to evaluate your account.",
     publishedLabel: "Published April 2026",

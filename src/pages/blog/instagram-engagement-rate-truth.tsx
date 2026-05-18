@@ -1,40 +1,34 @@
-import { Helmet } from "react-helmet-async";
+import { BlogPostSeo } from "@/components/BlogPostSeo";
+import { blogPosts } from "@/data/blogPosts";
 import Navbar from "../../components/Navbar";
+
+const post = blogPosts.find((p) => p.slug === "instagram-engagement-rate-truth")!;
 
 export default function InstagramEngagementRateTruth() {
   return (
     <div className="min-h-screen flex flex-col bg-[#fafafa]">
-      <Helmet>
-        <title>
-          Why Your Instagram Engagement Rate Is Lying to You | Insytiq
-        </title>
-        <meta
-          name="description"
-          content="Most analytics dashboards show you numbers. Insytiq shows you what they mean. Real Instagram engagement rate benchmarks for India 2026, with AI-anchored strategy."
-        />
-        <link
-          rel="canonical"
-          href="https://www.insytiq.ai/blog/instagram-engagement-rate-truth"
-        />
-        <script type="application/ld+json">
-          {JSON.stringify({
-            "@context": "https://schema.org",
-            "@type": "Article",
-            headline: "Why Your Instagram Engagement Rate Is Lying to You",
-            author: { "@type": "Organization", name: "Insytiq" },
-            publisher: {
-              "@type": "Organization",
-              name: "Insytiq",
-              url: "https://www.insytiq.ai",
-            },
-            datePublished: "2026-04-08",
-            dateModified: "2026-04-08",
-            url: "https://www.insytiq.ai/blog/instagram-engagement-rate-truth",
-            mainEntityOfPage:
-              "https://www.insytiq.ai/blog/instagram-engagement-rate-truth",
-          })}
-        </script>
-      </Helmet>
+      <BlogPostSeo
+        slug={post.slug}
+        title={post.title}
+        excerpt={post.excerpt}
+        seoTitle={post.seoTitle}
+        seoDescription={post.seoDescription}
+        jsonLd={{
+          "@context": "https://schema.org",
+          "@type": "Article",
+          headline: post.seoTitle ?? post.title,
+          author: { "@type": "Organization", name: "INSYTIQ" },
+          publisher: {
+            "@type": "Organization",
+            name: "INSYTIQ",
+            url: "https://www.insytiq.ai",
+          },
+          datePublished: "2026-04-08",
+          dateModified: "2026-04-08",
+          url: `https://www.insytiq.ai/blog/${post.slug}`,
+          mainEntityOfPage: `https://www.insytiq.ai/blog/${post.slug}`,
+        }}
+      />
 
       <Navbar />
       <main className="flex-1 w-full px-4 py-10 md:px-6 md:py-14 lg:px-8">

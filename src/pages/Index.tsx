@@ -16,7 +16,8 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import FAQSection from "@/components/FAQSection";
-import { Helmet } from "react-helmet-async";
+import { PageSeo } from "@/components/PageSeo";
+import { PAGE_SEO } from "@/config/siteSeo";
 
 // ---------------------------------------------------------------------------
 // Hero: animated gradient text class (needs bg-size for keyframes)
@@ -211,24 +212,7 @@ export default function Index() {
 
   return (
     <div className="min-h-screen bg-white">
-      <Helmet>
-        <title>Instagram Analytics Tool | AI Growth Strategy Platform</title>
-        <meta
-          name="description"
-          content="Analyze Instagram performance and get actionable growth recommendations powered by AI."
-        />
-        <link rel="canonical" href="https://www.insytiq.ai/" />
-        <meta property="og:title" content="Instagram Analytics Tool | AI Growth Strategy Platform" />
-        <meta
-          property="og:description"
-          content="Analyze Instagram performance and get actionable growth recommendations powered by AI."
-        />
-        <meta name="twitter:title" content="Instagram Analytics Tool | AI Growth Strategy Platform" />
-        <meta
-          name="twitter:description"
-          content="Analyze Instagram performance and get actionable growth recommendations powered by AI."
-        />
-      </Helmet>
+      <PageSeo {...PAGE_SEO.home} />
       {/* ---------------------------------------------------------------------------
           HERO
       --------------------------------------------------------------------------- */}

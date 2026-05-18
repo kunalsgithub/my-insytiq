@@ -1,3 +1,5 @@
+import { PageSeo } from "@/components/PageSeo";
+import { PAGE_SEO } from "@/config/siteSeo";
 import Navbar from "../components/Navbar";
 import InstagramAnalytics from "../components/InstagramAnalytics";
 import InstagramDashboard from "../components/InstagramDashboard";
@@ -335,6 +337,8 @@ const InstagramAnalyticsPage = () => {
   }, [instagramData.loading, isRestoringFromCache]);
 
   return (
+    <>
+      <PageSeo {...PAGE_SEO.instagramAnalytics} />
     <div className="min-h-screen flex flex-col">
       <Navbar />
       <ErrorBoundary>
@@ -433,6 +437,7 @@ const InstagramAnalyticsPage = () => {
       </main>
       </ErrorBoundary>
     </div>
+    </>
   );
 };
 

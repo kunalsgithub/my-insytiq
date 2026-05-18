@@ -1,43 +1,33 @@
-import { Helmet } from "react-helmet-async";
+import { BlogPostSeo } from "@/components/BlogPostSeo";
+import { blogPosts } from "@/data/blogPosts";
 import { Link } from "react-router-dom";
 import Navbar from "../../components/Navbar";
 
-const SLUG = "grow-instagram-ai-analytics-2026";
-const CANONICAL = `https://www.insytiq.ai/blog/${SLUG}`;
+const post = blogPosts.find((p) => p.slug === "grow-instagram-ai-analytics-2026")!;
 
 export default function GrowInstagramAiAnalytics2026() {
   return (
     <div className="min-h-screen flex flex-col bg-[#fafafa]">
-      <Helmet>
-        <title>How to Grow on Instagram in 2026 Using AI Analytics | INSYTIQ</title>
-        <meta
-          name="description"
-          content="Most Instagram growth advice is recycled. This guide shows the exact AI analytics method that fast-growing accounts use in 2026 — with real metrics, real benchmarks, and a clear weekly system."
-        />
-        <meta
-          name="keywords"
-          content="How to grow on Instagram with AI analytics, Instagram growth strategy 2026, AI Instagram analytics, Instagram engagement rate, how to track Instagram competitors, Instagram saves rate"
-        />
-        <link rel="canonical" href={CANONICAL} />
-        <script type="application/ld+json">
-          {JSON.stringify({
-            "@context": "https://schema.org",
-            "@type": "Article",
-            headline:
-              "How to Grow on Instagram in 2026 Using AI Analytics (The Method Nobody Is Talking About)",
-            author: { "@type": "Organization", name: "INSYTIQ Team" },
-            publisher: {
-              "@type": "Organization",
-              name: "INSYTIQ",
-              url: "https://www.insytiq.ai",
-            },
-            datePublished: "2026-05-13",
-            dateModified: "2026-05-13",
-            url: CANONICAL,
-            mainEntityOfPage: CANONICAL,
-          })}
-        </script>
-      </Helmet>
+      <BlogPostSeo
+        slug={post.slug}
+        title={post.title}
+        excerpt={post.excerpt}
+        jsonLd={{
+          "@context": "https://schema.org",
+          "@type": "Article",
+          headline: post.title,
+          author: { "@type": "Organization", name: "INSYTIQ" },
+          publisher: {
+            "@type": "Organization",
+            name: "INSYTIQ",
+            url: "https://www.insytiq.ai",
+          },
+          datePublished: "2026-05-13",
+          dateModified: "2026-05-13",
+          url: `https://www.insytiq.ai/blog/${post.slug}`,
+          mainEntityOfPage: `https://www.insytiq.ai/blog/${post.slug}`,
+        }}
+      />
 
       <Navbar />
       <main className="flex-1 w-full px-4 py-10 md:px-6 md:py-14 lg:px-8">

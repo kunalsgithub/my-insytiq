@@ -1,17 +1,11 @@
-import { Helmet } from "react-helmet-async";
+import { PageSeo } from "@/components/PageSeo";
+import { PAGE_SEO } from "@/config/siteSeo";
 import { Link } from "react-router-dom";
 
 export default function AboutPage() {
   return (
     <>
-      <Helmet>
-        <title>About | Insytiq — AI Instagram analytics platform</title>
-        <meta
-          name="description"
-          content="Insytiq helps creators and teams use Instagram analytics and social media analytics to plan content, track trends, and grow with confidence."
-        />
-        <link rel="canonical" href="https://www.insytiq.ai/about" />
-      </Helmet>
+      <PageSeo {...PAGE_SEO.about} />
       <div className="mx-auto max-w-3xl px-4 py-12 md:py-16">
         <h1 className="text-3xl font-bold tracking-tight text-gray-900 md:text-4xl">About Insytiq</h1>
         <p className="mt-4 text-base leading-relaxed text-gray-600">
