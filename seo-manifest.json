@@ -5,7 +5,7 @@
     "home": {
       "path": "/",
       "title": "Instagram Analytics Tool | AI Growth Strategy Platform",
-      "description": "Analyze Instagram performance and get actionable growth recommendations powered by AI."
+      "description": "INSYTIQ is an AI-powered Instagram analytics platform for creators, agencies, and brands. Track competitors, discover trends, and get actionable growth recommendations — no Instagram login required."
     },
     "features": {
       "path": "/features",
@@ -42,18 +42,5 @@
       "title": "Instagram Analytics Blog — Growth Insights & Strategy | INSYTIQ",
       "description": "Read INSYTIQ's blog for data-driven Instagram growth strategies, analytics insights, competitor tracking tips, and AI-powered social media marketing advice."
     }
-  },
-  "blogPosts": [
-    {
-      "slug": "instagram-engagement-rate-truth",
-      "seoTitle": "Why Your Instagram Engagement Rate Is Lying to You",
-      "seoDescription": "Engagement rate is the most misunderstood Instagram metric. Learn which data points actually predict growth and what you should be tracking instead.",
-      "excerpt": "Indian D2C brands average 1.84% engagement rate in 2026 versus the global 0.48% average. See follower-tier benchmarks, top-performing content patterns, and practical thresholds to evaluate your account."
-    },
-    {
-      "slug": "grow-instagram-ai-analytics-2026",
-      "title": "How to Grow on Instagram in 2026 Using AI Analytics (The Method Nobody Is Talking About)",
-      "excerpt": "Most Instagram growth advice is recycled. Learn the AI analytics method fast-growing accounts use in 2026 — real metrics, niche benchmarks, and a 25-minute weekly system."
-    }
-  ]
+  }
 }

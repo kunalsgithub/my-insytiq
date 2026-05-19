@@ -1,33 +1,7 @@
-export type BlogPostSummary = {
-  slug: string;
-  title: string;
-  excerpt: string;
-  publishedLabel: string;
-  /** Optional shorter headline for document title and og:title */
-  seoTitle?: string;
-  /** Optional meta description override (defaults to excerpt) */
-  seoDescription?: string;
-};
+import type { BlogPostSummary } from "./blogPostTypes";
+import blogSeo from "./blogSeo.json";
 
-export const blogPosts: BlogPostSummary[] = [
-  {
-    slug: "grow-instagram-ai-analytics-2026",
-    title:
-      "How to Grow on Instagram in 2026 Using AI Analytics (The Method Nobody Is Talking About)",
-    excerpt:
-      "Most Instagram growth advice is recycled. Learn the AI analytics method fast-growing accounts use in 2026 — real metrics, niche benchmarks, and a 25-minute weekly system.",
-    publishedLabel: "Published May 2026",
-  },
-  {
-    slug: "instagram-engagement-rate-truth",
-    title:
-      "Instagram Engagement Rate Benchmarks for Indian D2C Brands: 2026 Data Report",
-    seoTitle: "Why Your Instagram Engagement Rate Is Lying to You",
-    seoDescription:
-      "Engagement rate is the most misunderstood Instagram metric. Learn which data points actually predict growth and what you should be tracking instead.",
-    excerpt:
-      "Indian D2C brands average 1.84% engagement rate in 2026 versus the global 0.48% average. See follower-tier benchmarks, top-performing content patterns, and practical thresholds to evaluate your account.",
-    publishedLabel: "Published April 2026",
-  },
-];
+/** Single source for blog list + SEO (also used by build-time inject-seo-html.mjs). */
+export type { BlogPostSummary } from "./blogPostTypes";
 
+export const blogPosts: BlogPostSummary[] = blogSeo as BlogPostSummary[];

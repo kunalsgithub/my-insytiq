@@ -2,6 +2,8 @@
  * After `vite build`, writes one HTML file per SEO route with correct
  * title, description, canonical, and og/twitter tags in the initial response.
  * Required because react-helmet-async only updates the DOM after JavaScript runs.
+ *
+ * Blog routes: add each post to `src/data/blogSeo.json` (same list the app uses).
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -11,8 +13,10 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(__dirname, "..");
 const distDir = path.join(root, "dist");
 const manifestPath = path.join(root, "seo-manifest.json");
+const blogSeoPath = path.join(root, "src", "data", "blogSeo.json");
 
 const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+const blogPosts = JSON.parse(fs.readFileSync(blogSeoPath, "utf8"));
 const templatePath = path.join(distDir, "index.html");
 
 if (!fs.existsSync(templatePath)) {
@@ -96,7 +100,7 @@ for (const page of Object.values(manifest.pages)) {
   written.push(writeRouteHtml(page.path, page));
 }
 
-for (const post of manifest.blogPosts) {
+for (const post of blogPosts) {
   const headline = post.seoTitle || post.title;
   let description = (post.seoDescription || post.excerpt || "").trim();
   if (description.length > 160) description = `${description.slice(0, 157)}...`;
