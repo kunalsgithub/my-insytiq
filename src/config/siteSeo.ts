@@ -27,11 +27,15 @@ export function blogPostSeoMeta(post: {
   seoDescription?: string;
 }): PageSeoMeta & { path: string } {
   const headline = post.seoTitle ?? post.title;
-  const description = (post.seoDescription ?? post.excerpt).trim();
+  const description = post.seoDescription
+    ? post.seoDescription.trim()
+    : post.excerpt.trim();
   return {
     title: `${headline} | INSYTIQ Blog`,
     description:
-      description.length > 160 ? `${description.slice(0, 157)}...` : description,
+      !post.seoDescription && description.length > 160
+        ? `${description.slice(0, 157)}...`
+        : description,
     path: `/blog/${post.slug}`,
   };
 }

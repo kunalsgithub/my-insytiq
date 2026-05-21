@@ -103,7 +103,9 @@ for (const page of Object.values(manifest.pages)) {
 for (const post of blogPosts) {
   const headline = post.seoTitle || post.title;
   let description = (post.seoDescription || post.excerpt || "").trim();
-  if (description.length > 160) description = `${description.slice(0, 157)}...`;
+  if (!post.seoDescription && description.length > 160) {
+    description = `${description.slice(0, 157)}...`;
+  }
 
   written.push(
     writeRouteHtml(`/blog/${post.slug}`, {
@@ -114,4 +116,26 @@ for (const post of blogPosts) {
   );
 }
 
+function syncBlogRewrites() {
+  const vercelPath = path.join(root, "vercel.json");
+  const vercel = JSON.parse(fs.readFileSync(vercelPath, "utf8"));
+  const rewrites = (vercel.rewrites || []).filter(
+    (r) => r.source !== "/(.*)" && !r.source.startsWith("/blog/")
+  );
+
+  for (const post of blogPosts) {
+    const route = `/blog/${post.slug}`;
+    const dest = `/blog/${post.slug}.html`;
+    rewrites.push({ source: route, destination: dest });
+    rewrites.push({ source: `${route}/`, destination: dest });
+  }
+
+  rewrites.push({ source: "/(.*)", destination: "/index.html" });
+  vercel.rewrites = rewrites;
+  fs.writeFileSync(vercelPath, `${JSON.stringify(vercel, null, 2)}\n`, "utf8");
+}
+
+syncBlogRewrites();
+
 console.log(`inject-seo-html: wrote ${written.length} HTML files with per-route canonical tags.`);
+console.log("inject-seo-html: synced blog rewrites in vercel.json");

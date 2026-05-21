@@ -3,28 +3,49 @@
     {
       "source": "/llms.txt",
       "headers": [
-        { "key": "Content-Type", "value": "text/plain; charset=utf-8" }
+        {
+          "key": "Content-Type",
+          "value": "text/plain; charset=utf-8"
+        }
       ]
     }
   ],
   "rewrites": [
-    { "source": "/", "destination": "/index.html" },
-    { "source": "/features", "destination": "/features.html" },
-    { "source": "/smart-chat", "destination": "/smart-chat.html" },
-    { "source": "/trending", "destination": "/trending.html" },
-    { "source": "/trending/", "destination": "/trending.html" },
-    { "source": "/instagram-analytics", "destination": "/instagram-analytics.html" },
-    { "source": "/top-influencers", "destination": "/top-influencers.html" },
-    { "source": "/about", "destination": "/about.html" },
-    { "source": "/blog", "destination": "/blog.html" },
-    { "source": "/blog/", "destination": "/blog.html" },
     {
-      "source": "/blog/instagram-engagement-rate-truth",
-      "destination": "/blog/instagram-engagement-rate-truth.html"
+      "source": "/",
+      "destination": "/index.html"
     },
     {
-      "source": "/blog/instagram-engagement-rate-truth/",
-      "destination": "/blog/instagram-engagement-rate-truth.html"
+      "source": "/features",
+      "destination": "/features.html"
+    },
+    {
+      "source": "/smart-chat",
+      "destination": "/smart-chat.html"
+    },
+    {
+      "source": "/trending",
+      "destination": "/trending.html"
+    },
+    {
+      "source": "/trending/",
+      "destination": "/trending.html"
+    },
+    {
+      "source": "/instagram-analytics",
+      "destination": "/instagram-analytics.html"
+    },
+    {
+      "source": "/top-influencers",
+      "destination": "/top-influencers.html"
+    },
+    {
+      "source": "/about",
+      "destination": "/about.html"
+    },
+    {
+      "source": "/blog",
+      "destination": "/blog.html"
     },
     {
       "source": "/blog/grow-instagram-ai-analytics-2026",
@@ -34,6 +55,17 @@
       "source": "/blog/grow-instagram-ai-analytics-2026/",
       "destination": "/blog/grow-instagram-ai-analytics-2026.html"
     },
-    { "source": "/(.*)", "destination": "/index.html" }
+    {
+      "source": "/blog/instagram-engagement-rate-truth",
+      "destination": "/blog/instagram-engagement-rate-truth.html"
+    },
+    {
+      "source": "/blog/instagram-engagement-rate-truth/",
+      "destination": "/blog/instagram-engagement-rate-truth.html"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
   ]
 }
