@@ -32,7 +32,9 @@ export default function BlogIndexPage() {
                 className="group rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
               >
                 <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#d72989]">
+                  {post.category ? `${post.category} · ` : ""}
                   {post.publishedLabel}
+                  {post.readTime ? ` · ${post.readTime} read` : ""}
                 </p>
                 <h2 className="mt-3 text-xl font-semibold leading-snug text-slate-900 group-hover:text-[#d72989]">
                   {post.title}

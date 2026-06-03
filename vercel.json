@@ -48,6 +48,14 @@
       "destination": "/blog.html"
     },
     {
+      "source": "/blog/instagram-engagement-rate-2026",
+      "destination": "/blog/instagram-engagement-rate-2026.html"
+    },
+    {
+      "source": "/blog/instagram-engagement-rate-2026/",
+      "destination": "/blog/instagram-engagement-rate-2026.html"
+    },
+    {
       "source": "/blog/grow-instagram-ai-analytics-2026",
       "destination": "/blog/grow-instagram-ai-analytics-2026.html"
     },

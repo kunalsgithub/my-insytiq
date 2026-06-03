@@ -1,4 +1,9 @@
-import { fetchHashtagsFromSheet, fetchAudioFromSheet, fetchContentFromSheet } from "../utils/googleSheetsService";
+import { fetchAudioFromSheet } from "../utils/googleSheetsService";
+import {
+  fetchTrendingContentFromFirestore,
+  fetchTrendingHashtagsFromFirestore,
+  fetchTrendingMeta,
+} from "@/services/trendingFirestoreService";
 import { toast } from "../hooks/use-toast";
 import { QueryClient } from '@tanstack/react-query';
 
@@ -27,6 +32,10 @@ export interface TrendingContent {
   id: number;
   title: string;
   creator: string;
+  /** Instagram @handle */
+  username?: string;
+  /** Profile / brand display name */
+  accountName?: string;
   likes?: string;
   comments?: string;
   thumbnailColor: string;
@@ -52,56 +61,60 @@ export interface LiveEngagement {
 // Set to false to attempt real API calls or fetch from Google Sheets
 const ALWAYS_USE_FALLBACK = false;
 
-export const fetchTrendingHashtags = async (searchTerm?: string, category: string = 'all'): Promise<TrendingHashtag[]> => {
-  try {
-    console.log("Fetching Trending Hashtags");
-    console.log("Search Term:", searchTerm);
-    console.log("Category:", category);
-
-    let hashtags: TrendingHashtag[] = [];
-
-    try {
-      // Fetch from Google Sheets
-      hashtags = await fetchHashtagsFromSheet();
-      console.log("Hashtags from Google Sheets:", hashtags);
-      
-      if (hashtags.length === 0) {
-        toast({
-          title: "No Data Found",
-          description: "No hashtag data was found in Google Sheets.",
-          variant: "destructive",
-        });
-      }
-    } catch (error) {
-      console.error("Error fetching from Google Sheets:", error);
-      toast({
-        title: "Data Fetch Error",
-        description: "Error fetching data from Google Sheets. Check your sheet format.",
-        variant: "destructive",
-      });
-      throw error;
-    }
-
-    // Filter hashtags by category and search term
-    let filteredHashtags = hashtags.filter(hashtag => {
-      console.log(`Filtering hashtag: ${hashtag.name}, categories:`, hashtag.categories);
-      
-      const categoryMatch = category === 'all' || 
-                           hashtag.categories.includes(category) || 
-                           hashtag.categories.includes('all');
-                           
-      const searchMatch = !searchTerm || 
-                         hashtag.name.toLowerCase().includes(searchTerm.toLowerCase());
-                         
-      return categoryMatch && searchMatch;
-    });
-
-    console.log("Filtered Hashtags:", filteredHashtags);
-    return filteredHashtags;
-  } catch (error) {
-    console.error("Error in fetchTrendingHashtags:", error);
-    throw error;
+/** Direct image/CDN URLs only — never Instagram page URLs (oEmbed blocked by CORS in browser). */
+function isDirectImageUrl(url: string | undefined): boolean {
+  if (!url || !url.startsWith("http")) return false;
+  const lower = url.toLowerCase();
+  if (lower.includes("instagram.com/p/") || lower.includes("instagram.com/reel/")) {
+    return false;
   }
+  return (
+    /\.(jpe?g|png|gif|webp)(\?|$)/i.test(url) ||
+    lower.includes("cdninstagram") ||
+    lower.includes("fbcdn.net")
+  );
+}
+
+function mapSheetRowToTrendingContent(item: Record<string, unknown>): TrendingContent {
+  const mediaUrl = String(item.mediaUrl || "");
+  const originalUrl = String(item.originalUrl || "");
+  const instagramPageUrl =
+    originalUrl.includes("instagram.com/p/") || originalUrl.includes("instagram.com/reel/")
+      ? originalUrl
+      : mediaUrl.includes("instagram.com/p/") || mediaUrl.includes("instagram.com/reel/")
+        ? mediaUrl
+        : originalUrl || mediaUrl;
+
+  const thumbnailUrl =
+    (typeof item.thumbnailUrl === "string" && item.thumbnailUrl) ||
+    (isDirectImageUrl(mediaUrl) ? mediaUrl : undefined);
+
+  return {
+    id: Number(item.id) || 0,
+    title: String(item.title || "Untitled"),
+    creator: String(item.creator || "@unknown"),
+    username: String(item.username || item.creator || "@unknown"),
+    accountName: String(item.accountName || item.title || "Unknown"),
+    thumbnailColor: String(item.thumbnailColor || "bg-blue-500"),
+    categories: Array.isArray(item.categories) ? (item.categories as string[]) : ["all"],
+    keywords: Array.isArray(item.keywords) ? (item.keywords as string[]) : [],
+    type: (item.type as TrendingContent["type"]) || "post",
+    mediaUrl: thumbnailUrl || instagramPageUrl,
+    originalUrl: instagramPageUrl,
+    contentId: String(item.contentId || `content_${item.id}`),
+    lastUpdated: String(item.lastUpdated || new Date().toISOString()),
+    thumbnailUrl,
+  };
+}
+
+export const fetchTrendingHashtags = async (
+  searchTerm?: string,
+  category: string = "all"
+): Promise<TrendingHashtag[]> => {
+  console.log("Fetching trending hashtags from Firestore (shared daily cache)");
+  const hashtags = await fetchTrendingHashtagsFromFirestore(searchTerm || "", category);
+  console.log(`Loaded ${hashtags.length} hashtags from Firestore`);
+  return hashtags;
 };
 
 export const fetchTrendingAudio = async (searchTerm?: string, category: string = 'all'): Promise<TrendingAudio[]> => {
@@ -155,160 +168,17 @@ export const fetchTrendingAudio = async (searchTerm?: string, category: string =
   }
 };
 
-export const fetchTrendingContent = async (searchTerm?: string, category: string = 'all'): Promise<TrendingContent[]> => {
-  try {
-    console.log(`Fetching trending content for category: ${category}, search: ${searchTerm || 'none'}`);
-    
-    let content: TrendingContent[] = [];
-    
-    try {
-      // Fetch content from Google Sheets
-      console.log("Attempting to fetch content from Google Sheets");
-      const fetchedContent = await fetchContentFromSheet();
-      console.log("Content from Google Sheets:", fetchedContent);
-      
-      if (fetchedContent && Array.isArray(fetchedContent) && fetchedContent.length > 0) {
-        // Convert to TrendingContent and ensure all required properties exist
-        content = await Promise.all(fetchedContent.map(async item => {
-          try {
-            // Use Instagram URL for embed when we have it (sheet may put it in originalUrl; mediaUrl may be sheet thumbnail or empty)
-            const instagramUrl = item.originalUrl && (item.originalUrl.includes('instagram.com/p/') || item.originalUrl.includes('instagram.com/reel/'))
-              ? item.originalUrl
-              : (item.mediaUrl && (item.mediaUrl.includes('instagram.com/p/') || item.mediaUrl.includes('instagram.com/reel/')) ? item.mediaUrl : null);
-            let embedData: InstagramEmbedData | null = null;
-            if ((item.type === 'reel' || item.type === 'post') && instagramUrl) {
-              try {
-                embedData = await getInstagramEmbedData(instagramUrl);
-              } catch (e) {
-                console.warn(`Skipping embed fetch for Instagram URL: ${instagramUrl}`);
-                embedData = null;
-              }
-            }
-            // Prefer: sheet thumbnail (mediaUrl if it's a direct image), then embed thumbnail
-            const sheetThumb = item.mediaUrl && !item.mediaUrl.includes('instagram.com/') ? item.mediaUrl : undefined;
-            const thumbnailUrl = sheetThumb || embedData?.thumbnailUrl;
-            return {
-              id: item.id,
-              title: item.title || 'Untitled',
-              creator: item.creator || '@unknown',
-              thumbnailColor: item.thumbnailColor || 'bg-blue-500',
-              categories: Array.isArray(item.categories) ? item.categories : ['all'],
-              keywords: Array.isArray(item.keywords) ? item.keywords : [],
-              type: item.type as "post" | "reel" | "audio",
-              mediaUrl: item.mediaUrl || '',
-              originalUrl: item.originalUrl || item.mediaUrl || '',
-              contentId: item.contentId || `content_${item.id}`,
-              lastUpdated: item.lastUpdated || new Date().toISOString(),
-              embedHtml: embedData?.embedHtml,
-              thumbnailUrl: thumbnailUrl || undefined
-            };
-          } catch (error) {
-            console.error(`Error processing content item ${item.id}:`, error);
-            return {
-              ...item,
-              embedHtml: undefined,
-              thumbnailUrl: undefined
-            };
-          }
-        }));
-        
-        console.log("Processed content from Google Sheets:", content);
-      } else {
-        console.warn("No content found in Google Sheets or invalid data format");
-      }
-      
-      // Fetch audio data for additional content
-      try {
-        console.log("Attempting to fetch audio data");
-        const audioData = await fetchAudioFromSheet();
-        console.log("Audio data for content:", audioData);
-        
-        // Add audio data as content items
-        if (audioData && Array.isArray(audioData) && audioData.length > 0) {
-          const audioContent = audioData.map(audio => {
-            return {
-              id: audio.id + 1000, // Avoid ID conflicts
-              title: audio.title,
-              creator: audio.creator || audio.artist,
-              thumbnailColor: audio.thumbnailColor || "bg-purple-500",
-              categories: audio.categories,
-              keywords: audio.keywords,
-              type: "audio" as "post" | "reel" | "audio",
-              mediaUrl: audio.mediaUrl || "https://storage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
-              originalUrl: audio.originalUrl || audio.mediaUrl,
-              contentId: audio.contentId || `audio_${audio.id}`,
-              lastUpdated: audio.lastUpdated || new Date().toISOString()
-            };
-          });
-          
-          // Combine content with audio content
-          content = [...content, ...audioContent];
-          console.log("Combined content after adding audio:", content);
-        }
-      } catch (audioError) {
-        console.error("Error fetching audio data:", audioError);
-      }
-      
-      if (content.length === 0) {
-        console.warn("No content found in Google Sheets, using fallback data");
-        content = getFallbackContent();
-        toast({
-          title: "Using Sample Content Data",
-          description: "No content data found in Google Sheets. Using sample data instead.",
-          variant: "default",
-        });
-      }
-    } catch (error) {
-      console.error("Error fetching content from Google Sheets:", error);
-      toast({
-        title: "Content Data Fetch Error",
-        description: "Error fetching content data. Using fallback data instead.",
-        variant: "default",
-      });
-      content = getFallbackContent();
-    }
-    
-    console.log("Combined content before filtering:", content);
-    console.log("Filtering by category:", category);
-    console.log("Filtering by search term:", searchTerm || "none");
-    
-    // Filter content by category and search term
-    const filteredContent = content.filter(item => {
-      // Log each item's categories for debugging
-      console.log(`Item ${item.id} (${item.title}) categories:`, item.categories);
-      
-      const categoryMatch = category === 'all' || 
-                          (item.categories && Array.isArray(item.categories) && 
-                          (item.categories.includes(category) || item.categories.includes('all')));
-                          
-      const searchMatch = !searchTerm || 
-                        item.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                        item.creator.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                        (item.keywords && Array.isArray(item.keywords) && item.keywords.length > 0 && 
-                         item.keywords.some(kw => kw && kw.toLowerCase().includes(searchTerm?.toLowerCase() || '')));
-      
-      console.log(`Item ${item.id} - Category match: ${categoryMatch}, Search match: ${searchMatch}`);            
-      return categoryMatch && searchMatch;
-    });
-    
-    console.log(`Found ${filteredContent.length} content items after filtering`);
-    console.log("Posts:", filteredContent.filter(item => item.type === "post"));
-    console.log("Reels:", filteredContent.filter(item => item.type === "reel"));
-    console.log("Audio:", filteredContent.filter(item => item.type === "audio"));
-    
-    // If we still have no content, definitely use fallback content
-    if (filteredContent.length === 0) {
-      console.warn("No content found after filtering, using unfiltered fallback data");
-      return getFallbackContent();
-    }
-    
-    return filteredContent;
-  } catch (error) {
-    console.error("Error in fetchTrendingContent:", error);
-    const fallbackContent = getFallbackContent();
-    console.log("Using fallback content due to error:", fallbackContent);
-    return fallbackContent;
-  }
+/** Shared daily cache in Firestore only — no Google Sheets or sample fallback. */
+export const fetchTrendingContent = async (
+  searchTerm?: string,
+  category: string = "all"
+): Promise<TrendingContent[]> => {
+  console.log(
+    `Fetching trending content from Firestore — category: ${category}, search: ${searchTerm || "none"}`
+  );
+  const content = await fetchTrendingContentFromFirestore(searchTerm || "", category);
+  console.log(`Loaded ${content.length} items from Firestore (shared daily cache)`);
+  return content;
 };
 
 export const fetchLiveEngagement = async (contentId: string): Promise<LiveEngagement> => {
@@ -445,6 +315,8 @@ const getFallbackContent = (): TrendingContent[] => {
       id: 1,
       title: "Mumbai Street Food Tour",
       creator: "@mumbai_foodie",
+      username: "@mumbai_foodie",
+      accountName: "Mumbai Street Food Tour",
       thumbnailColor: "bg-orange-500",
       categories: ["food", "travel", "all"],
       keywords: ["street food", "mumbai"],
@@ -456,6 +328,8 @@ const getFallbackContent = (): TrendingContent[] => {
       id: 2,
       title: "Yoga Sunrise Session",
       creator: "@yogaguru",
+      username: "@yogaguru",
+      accountName: "Yoga Sunrise Session",
       thumbnailColor: "bg-green-500",
       categories: ["fitness", "lifestyle", "all"],
       keywords: ["yoga", "wellness"],
@@ -467,6 +341,8 @@ const getFallbackContent = (): TrendingContent[] => {
       id: 3,
       title: "IPL Cricket Highlights",
       creator: "@cricketmania",
+      username: "@cricketmania",
+      accountName: "IPL Cricket Highlights",
       thumbnailColor: "bg-blue-500",
       categories: ["sports", "all"],
       keywords: ["cricket", "ipl"],
@@ -627,64 +503,11 @@ export interface InstagramEmbedData {
   thumbnailUrl?: string;
 }
 
-// Add this new function to handle Instagram embeds
-export const getInstagramEmbedData = async (url: string): Promise<InstagramEmbedData> => {
-  try {
-    // Extract the post/reel ID from the URL
-    const postId = url.split('/').filter(Boolean).pop()?.split('?')[0];
-    
-    if (!postId) {
-      throw new Error('Invalid Instagram URL');
-    }
-
-    // For development/testing, you can use this mock response
-    if (process.env.NODE_ENV === 'development') {
-      return {
-        embedHtml: `<blockquote class="instagram-media" data-instgrm-permalink="https://www.instagram.com/p/${postId}/" data-instgrm-version="14" style="background:#FFF; border:0; border-radius:3px; box-shadow:0 0 1px 0 rgba(0,0,0,0.5),0 1px 10px 0 rgba(0,0,0,0.15); margin: 1px; max-width:540px; min-width:326px; padding:0; width:99.375%; width:-webkit-calc(100% - 2px); width:calc(100% - 2px);">
-          <div style="padding:16px;">
-            <a href="https://www.instagram.com/p/${postId}/" style="background:#FFFFFF; line-height:0; padding:0 0; text-align:center; text-decoration:none; width:100%;" target="_blank">
-              <div style="display: flex; flex-direction: row; align-items: center;">
-                <div style="background-color: #F4F4F4; border-radius: 50%; flex-grow: 0; height: 40px; margin-right: 14px; width: 40px;"></div>
-                <div style="display: flex; flex-direction: column; flex-grow: 1; justify-content: center;">
-                  <div style="background-color: #F4F4F4; border-radius: 4px; flex-grow: 0; height: 14px; margin-bottom: 6px; width: 100px;"></div>
-                  <div style="background-color: #F4F4F4; border-radius: 4px; flex-grow: 0; height: 14px; width: 60px;"></div>
-                </div>
-              </div>
-              <div style="padding: 19% 0;"></div>
-              <div style="display:block; height:50px; margin:0 auto 12px; width:50px;">
-                <svg width="50px" height="50px" viewBox="0 0 60 60" version="1.1" xmlns="https://www.w3.org/2000/svg">
-                  <g stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
-                    <g transform="translate(-511.000000, -20.000000)" fill="#000000">
-                      <g>
-                        <path d="M556.869,30.41 C554.814,30.41 553.148,32.076 553.148,34.131 C553.148,36.186 554.814,37.852 556.869,37.852 C558.924,37.852 560.59,36.186 560.59,34.131 C560.59,32.076 558.924,30.41 556.869,30.41 M541,53.842 C541,56.003 539.003,58 536.842,58 L520.158,58 C517.997,58 516,56.003 516,53.842 L516,40.158 C516,37.997 517.997,36 520.158,36 L536.842,36 C539.003,36 541,37.997 541,40.158 L541,53.842 Z M562.759,36.58 C561.94,35.544 560.544,35 559,35 L540.271,35 C538.733,35 537.338,35.541 536.519,36.574 L516.519,56.574 C515.701,57.612 515.701,59.388 516.519,60.426 C517.338,61.459 518.733,62 520.271,62 L539,62 C540.544,62 541.94,61.459 542.759,60.426 L562.759,40.426 C563.577,39.388 563.577,37.612 562.759,36.58 Z"></path>
-                      </g>
-                    </g>
-                  </g>
-                </svg>
-              </div>
-              <div style="padding-top: 8px;">
-                <div style="color:#3897f0; font-family:Arial,sans-serif; font-size:14px; font-style:normal; font-weight:550; line-height:18px;">View this post on Instagram</div>
-              </div>
-            </a>
-          </div>
-        </blockquote>`,
-        mediaUrl: url,
-        thumbnailUrl: `https://instagram.com/p/${postId}/media/?size=t`
-      };
-    }
-
-    // In production, you would make an API call to Instagram's oEmbed endpoint
-    // Note: This requires proper authentication and API access
-    const response = await fetch(`https://api.instagram.com/oembed/?url=${encodeURIComponent(url)}`);
-    const data = await response.json();
-    
-    return {
-      embedHtml: data.html,
-      mediaUrl: url,
-      thumbnailUrl: data.thumbnail_url
-    };
-  } catch (error) {
-    console.error('Error getting Instagram embed data:', error);
-    throw error;
-  }
-};
+/** @deprecated Browser cannot call Instagram oEmbed (CORS). Use thumbnailUrl from Firestore/Sheets. */
+export const getInstagramEmbedData = async (
+  url: string
+): Promise<InstagramEmbedData> => ({
+  embedHtml: "",
+  mediaUrl: url,
+  thumbnailUrl: undefined,
+});

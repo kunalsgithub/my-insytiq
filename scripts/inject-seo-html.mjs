@@ -75,7 +75,7 @@ function writeRouteHtml(routePath, meta) {
     title: meta.title,
     description: meta.description,
     canonical,
-    ogImage: manifest.ogImage,
+    ogImage: meta.ogImage || manifest.ogImage,
     ogType: meta.ogType || "website",
   });
 
@@ -102,16 +102,23 @@ for (const page of Object.values(manifest.pages)) {
 
 for (const post of blogPosts) {
   const headline = post.seoTitle || post.title;
+  const pageTitle = post.pageTitle || `${headline} | INSYTIQ Blog`;
   let description = (post.seoDescription || post.excerpt || "").trim();
   if (!post.seoDescription && description.length > 160) {
     description = `${description.slice(0, 157)}...`;
   }
+  const ogImage = post.ogImage
+    ? post.ogImage.startsWith("http")
+      ? post.ogImage
+      : `${manifest.siteOrigin}${post.ogImage.startsWith("/") ? post.ogImage : `/${post.ogImage}`}`
+    : manifest.ogImage;
 
   written.push(
     writeRouteHtml(`/blog/${post.slug}`, {
-      title: `${headline} | INSYTIQ Blog`,
+      title: pageTitle,
       description,
       ogType: "article",
+      ogImage,
     })
   );
 }

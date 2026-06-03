@@ -7,6 +7,7 @@ import { Button } from "./button";
 import { signOut, onAuthStateChangedListener, getCurrentUser } from '../../services/firebaseService';
 import { useToast } from "../../hooks/use-toast";
 import trendLogo from '../../trendlogo.png';
+import { SiteFooter } from "../SiteFooter";
 
 export default function SidebarLayout() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -225,8 +226,11 @@ export default function SidebarLayout() {
       )}
 
       {/* Main content area — extra top padding on mobile so items don't hide under logo bar */}
-      <div className="flex-1 flex flex-col pt-8 md:pt-0">
-        <Outlet />
+      <div className="flex min-h-screen flex-1 flex-col pt-8 md:pt-0">
+        <div className="flex-1">
+          <Outlet />
+        </div>
+        <SiteFooter />
       </div>
     </div>
   );

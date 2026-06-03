@@ -28,8 +28,13 @@ import BrandCollabScorePage from "./pages/brand-collab-score";
 import BlogPage from "./pages/blog/index";
 import InstagramEngagementRateTruth from "./pages/blog/instagram-engagement-rate-truth";
 import GrowInstagramAiAnalytics2026 from "./pages/blog/grow-instagram-ai-analytics-2026";
+import InstagramEngagementRate2026 from "./pages/blog/instagram-engagement-rate-2026";
 import FeaturesPage from "./pages/features";
 import AboutPage from "./pages/about";
+import ReferralProgramPage from "./pages/referral-program";
+import AffiliateDashboardPage from "./pages/affiliate-dashboard";
+import AffiliateRedirectPage from "./pages/affiliate-redirect";
+import { AffiliateAttributionSync } from "./components/AffiliateAttributionSync";
 
 
 const queryClient = new QueryClient({
@@ -98,13 +103,17 @@ function App() {
         <Toaster />
         <Sonner />
         <BrowserRouter>
+          <AffiliateAttributionSync />
           <Routes>
+            <Route path="/r/:slug" element={<AffiliateRedirectPage />} />
             {/* Protected app: requires email-verified user */}
             <Route element={<RequireVerifiedEmail />}>
+              <Route path="/affiliate" element={<AffiliateDashboardPage />} />
               <Route element={<SidebarLayout />}>
               <Route path="/" element={<Index />} />
               <Route path="/features" element={<FeaturesPage />} />
               <Route path="/about" element={<AboutPage />} />
+              <Route path="/referral-program" element={<ReferralProgramPage />} />
               <Route path="/pricing" element={<Navigate to="/subscription" replace />} />
               <Route path="/instagram-analytics" element={<InstagramAnalyticsPage />} />
               <Route path="/analytics/competitor-intelligence" element={<CompetitorIntelligencePage />} />
@@ -113,6 +122,10 @@ function App() {
               <Route path="/top-influencers/:category" element={<TopInfluencerCategory />} />
               <Route path="/subscription" element={<Subscription />} />
               <Route path="/blog" element={<BlogPage />} />
+              <Route
+                path="/blog/instagram-engagement-rate-2026"
+                element={<InstagramEngagementRate2026 />}
+              />
               <Route
                 path="/blog/instagram-engagement-rate-truth"
                 element={<InstagramEngagementRateTruth />}
@@ -138,6 +151,7 @@ function App() {
               </Route>
             </Route>
             <Route path="/auth" element={<LoginPage />} />
+            <Route path="/signup" element={<Navigate to="/auth" replace />} />
             <Route path="/verify-email" element={<VerifyEmailPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>

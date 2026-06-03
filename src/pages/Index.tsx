@@ -16,6 +16,8 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import FAQSection from "@/components/FAQSection";
+import { SocialProof } from "@/components/SocialProof";
+import { HowItWorksSection } from "@/components/HowItWorksSection";
 import { PageSeo } from "@/components/PageSeo";
 import { PAGE_SEO } from "@/config/siteSeo";
 
@@ -650,47 +652,7 @@ export default function Index() {
         </div>
       </section>
 
-      <section
-        id="how-it-works"
-        className="border-t border-gray-100 bg-gray-50/60 px-4 py-14 md:py-20"
-        aria-labelledby="how-it-works-heading"
-      >
-        <div className="mx-auto max-w-3xl">
-          <h2 id="how-it-works-heading" className="text-2xl font-bold text-gray-900 md:text-3xl">
-            How it works
-          </h2>
-          <p className="mt-3 text-base leading-relaxed text-gray-700 md:text-lg">
-            Insytiq is designed as a simple loop: measure, compare, and act. Each step uses{" "}
-            <strong className="font-semibold text-gray-900">Instagram analytics</strong> or live trend data so your{" "}
-            <strong className="font-semibold text-gray-900">content strategy</strong> stays grounded in evidence.
-          </p>
-          <h3 className="mt-8 text-lg font-semibold text-gray-900">1. Connect your performance story</h3>
-          <p className="mt-2 text-base leading-relaxed text-gray-700">
-            Pull in profile and post metrics to see engagement patterns, consistency, and which formats deserve another
-            iteration.
-          </p>
-          <h3 className="mt-6 text-lg font-semibold text-gray-900">2. Layer in trends and competitors</h3>
-          <p className="mt-2 text-base leading-relaxed text-gray-700">
-            Browse what is rising across Instagram—hashtags, audio, and content themes—then contrast that with your own
-            lane using competitor-style intelligence.
-          </p>
-          <h3 className="mt-6 text-lg font-semibold text-gray-900">3. Turn insight into next week’s plan</h3>
-          <p className="mt-2 text-base leading-relaxed text-gray-700">
-            Use AI-assisted summaries and scores (like brand readiness) to prioritize actions: what to film, what to
-            test, and what to pause—so <strong className="font-semibold text-gray-900">Instagram growth</strong> is
-            intentional, not random.
-          </p>
-          <p className="mt-8 text-sm text-gray-600">
-            <Link to="/features" className="font-medium text-[#c0257a] hover:underline">
-              Browse all features
-            </Link>
-            <span className="text-gray-400"> · </span>
-            <Link to="/pricing" className="font-medium text-[#c0257a] hover:underline">
-              View pricing
-            </Link>
-          </p>
-        </div>
-      </section>
+      <HowItWorksSection />
 
       <section
         id="what-insytiq-does"
@@ -750,42 +712,10 @@ export default function Index() {
         </div>
       </section>
 
+      <SocialProof />
+
       <FAQSection />
 
-      {/* ---------------------------------------------------------------------------
-          FOOTER
-      --------------------------------------------------------------------------- */}
-      <footer className="border-t border-gray-200 bg-gray-50/50 py-8">
-        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-4 md:flex-row md:px-6">
-          <div className="flex flex-wrap justify-center gap-6 text-sm text-gray-500">
-            <Link to="/features" className="hover:text-[#c0257a] transition-colors">
-              Features
-            </Link>
-            <Link to="/pricing" className="hover:text-[#c0257a] transition-colors">
-              Pricing
-            </Link>
-            <Link to="/about" className="hover:text-[#c0257a] transition-colors">
-              About
-            </Link>
-            <Link to="/blog" className="hover:text-[#c0257a] transition-colors">
-              Blog
-            </Link>
-            <Link to="/terms-and-conditions" className="hover:text-[#c0257a] transition-colors">
-              Terms of Service
-            </Link>
-            <Link to="/privacy" className="hover:text-[#c0257a] transition-colors">
-              Privacy Policy
-            </Link>
-            <Link to="/refund" className="hover:text-[#c0257a] transition-colors">
-              Refund Policy
-            </Link>
-          </div>
-          <p className="text-sm text-gray-500">
-            &copy; {new Date().getFullYear()} Insytiq. All rights reserved.
-          </p>
-          <p className="text-sm text-gray-500">Data refreshes every 24 hours</p>
-        </div>
-      </footer>
     </div>
   );
 }

@@ -3,6 +3,9 @@ import { OG_IMAGE, canonicalUrl, type PageSeoMeta } from "@/config/siteSeo";
 
 type PageSeoProps = PageSeoMeta & {
   ogType?: "website" | "article";
+  ogImage?: string;
+  articlePublishedTime?: string;
+  articleModifiedTime?: string;
   children?: React.ReactNode;
 };
 
@@ -12,6 +15,9 @@ export function PageSeo({
   description,
   path,
   ogType = "website",
+  ogImage = OG_IMAGE,
+  articlePublishedTime,
+  articleModifiedTime,
   children,
 }: PageSeoProps) {
   const canonical = canonicalUrl(path);
@@ -27,8 +33,14 @@ export function PageSeo({
       <meta property="og:description" content={description} />
       <meta property="og:type" content={ogType} />
       <meta property="og:url" content={canonical} />
-      <meta property="og:image" content={OG_IMAGE} />
-      <meta property="og:image:secure_url" content={OG_IMAGE} />
+      <meta property="og:image" content={ogImage} />
+      <meta property="og:image:secure_url" content={ogImage} />
+      {articlePublishedTime ? (
+        <meta property="article:published_time" content={articlePublishedTime} />
+      ) : null}
+      {articleModifiedTime ? (
+        <meta property="article:modified_time" content={articleModifiedTime} />
+      ) : null}
       <meta property="og:image:width" content="1200" />
       <meta property="og:image:height" content="630" />
       <meta property="og:locale" content="en_US" />
@@ -36,7 +48,7 @@ export function PageSeo({
       <meta name="twitter:card" content="summary_large_image" />
       <meta name="twitter:title" content={title} />
       <meta name="twitter:description" content={description} />
-      <meta name="twitter:image" content={OG_IMAGE} />
+      <meta name="twitter:image" content={ogImage} />
 
       {children}
     </Helmet>

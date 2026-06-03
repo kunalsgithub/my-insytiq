@@ -40,6 +40,11 @@ const CACHE_DURATION = 3600 * 1000; // 1 hour cache
  * Get Instagram embed HTML with multiple fallback methods
  */
 export const getInstagramEmbed = async (url: string): Promise<string> => {
+  // Instagram oEmbed cannot be called from the browser (CORS). Use server-side proxy or sheet/Firestore thumbnails.
+  if (typeof window !== "undefined") {
+    return createFallbackEmbed(url);
+  }
+
   try {
     // Check cache first
     const cacheKey = `embed_${url}`;

@@ -51,12 +51,12 @@ const TrendingHashtags = ({ selectedCategory = "all" }: TrendingHashtagsProps) =
       });
     } catch (error) {
       console.error("Error fetching hashtags:", error);
-      setError("Could not fetch hashtag data. Please check your Google Sheet format.");
+      setError("Could not load trending hashtags. Data syncs daily from Instagram Explore.");
       
       // Show a toast notification
       toast({
         title: "Error fetching data",
-        description: "Please check your Google Sheet format and API connection.",
+        description: "Trending hashtags load from the daily Firestore cache.",
         variant: "destructive"
       });
     } finally {

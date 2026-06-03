@@ -41,6 +41,16 @@
       "path": "/blog",
       "title": "Instagram Analytics Blog — Growth Insights & Strategy | INSYTIQ",
       "description": "Read INSYTIQ's blog for data-driven Instagram growth strategies, analytics insights, competitor tracking tips, and AI-powered social media marketing advice."
+    },
+    "referralProgram": {
+      "path": "/referral-program",
+      "title": "Referral Program — Earn 20–40% Commission | INSYTIQ",
+      "description": "Join the Insytiq affiliate program. Earn tiered recurring commissions promoting AI Instagram analytics for creators, coaches, and agencies."
+    },
+    "affiliateDashboard": {
+      "path": "/affiliate",
+      "title": "Affiliate Dashboard | INSYTIQ",
+      "description": "Create and manage Insytiq promotional links and track clicks and signups."
     }
   }
 }

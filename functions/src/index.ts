@@ -11,6 +11,13 @@ import { onAuthUserCreated } from "./onAuthUserCreated";
 import { reserveProfileAnalysisUsage } from "./reserveProfileAnalysisUsage";
 import { signupWithIpLimit } from "./signupWithIpLimit";
 import { proxyProfileImage } from "./proxyProfileImage";
+import {
+  syncTrendingDaily,
+  syncTrendingNow,
+  ensureTrendingPopulated,
+} from "./syncTrendingFromApify";
+import { trackAffiliateClick } from "./affiliateTracking";
+import { attributeAffiliateSignup } from "./attributeAffiliateSignup";
 
 setGlobalOptions({ maxInstances: 10 });
 
@@ -29,4 +36,9 @@ export {
   reserveProfileAnalysisUsage,
   signupWithIpLimit,
   proxyProfileImage,
+  syncTrendingDaily,
+  syncTrendingNow,
+  ensureTrendingPopulated,
+  trackAffiliateClick,
+  attributeAffiliateSignup,
 };

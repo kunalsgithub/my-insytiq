@@ -27,6 +27,13 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const fromSubscription = searchParams.get('from') === 'subscription' || searchParams.get('message') === 'upgrade';
+  const fromAffiliate = searchParams.get('from') === 'affiliate';
+
+  const postAuthPath = fromAffiliate
+    ? '/affiliate'
+    : fromSubscription
+      ? '/subscription'
+      : '/';
 
   useEffect(() => {
     if (fromSubscription) {
@@ -35,8 +42,13 @@ export default function LoginPage() {
         description: 'Please sign in to upgrade your plan.',
         variant: 'destructive',
       });
+    } else if (fromAffiliate) {
+      toast({
+        title: 'Join the partner program',
+        description: 'Sign in or create an account to open your affiliate dashboard.',
+      });
     }
-  }, [fromSubscription, toast]);
+  }, [fromSubscription, fromAffiliate, toast]);
 
   const showAuthErrorToast = (title: string, description: string) => {
     toast({
@@ -62,7 +74,7 @@ export default function LoginPage() {
         description: 'Welcome to Insytiq!',
       });
 
-      navigate(fromSubscription ? '/subscription' : '/');
+      navigate(postAuthPath);
     } catch (error) {
       console.error('Google sign-in error in login page:', error);
       const code = (error as any)?.code as string | undefined;
@@ -167,7 +179,7 @@ export default function LoginPage() {
           setStep(1);
         }
       }
-      navigate(fromSubscription ? '/subscription' : '/');
+      navigate(postAuthPath);
     } catch (error: any) {
       const code = error?.code as string | undefined;
       let title = mode === 'login' ? 'Login failed' : 'Signup failed';

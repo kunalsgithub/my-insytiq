@@ -183,8 +183,10 @@ export const fetchContentFromSheet = async (): Promise<any[]> => {
           console.log(`Processing content row ${index}:`, row);
           
           // Parse data from the sheet based on the expected columns
-          const title = row[0] || 'Untitled Content'; // Column A: Title
-          const creator = row[1] || '@unknown'; // Column B: Creator/Username
+          const accountName = row[0] || 'Unknown'; // Column A: Account / display name
+          const username = row[1] || '@unknown'; // Column B: @username
+          const title = accountName;
+          const creator = username.startsWith('@') ? username : `@${username}`;
           const thumbnailColor = row[2] || 'bg-blue-500'; // Column C: Thumbnail Color
           
           // Ensure categories is always an array
@@ -236,12 +238,15 @@ export const fetchContentFromSheet = async (): Promise<any[]> => {
             id: index + 1,
             title,
             creator,
+            username: creator,
+            accountName,
             thumbnailColor,
             categories,
             keywords,
             type,
-            mediaUrl: thumbnailUrl, // Use the thumbnail URL from column I
-            originalUrl: instagramUrl, // Keep the Instagram URL for live engagement
+            thumbnailUrl: thumbnailUrl || undefined,
+            mediaUrl: thumbnailUrl || instagramUrl,
+            originalUrl: instagramUrl,
             contentId,
             lastUpdated: new Date().toISOString()
           };

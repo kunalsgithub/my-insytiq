@@ -1,8 +1,9 @@
-import { useState, useEffect } from "react";
-import { Instagram, Music } from "lucide-react";
-import { fetchTrendingContent } from "@/services/instagramService";
+import { useState } from "react";
+import { Instagram, RefreshCcw } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
+import { useTrendingFeed } from "@/hooks/useTrendingFeed";
+import { toast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -14,6 +15,7 @@ import {
 } from "@/components/ui/carousel";
 import { hasAccess, PLAN } from "@/utils/accessControl";
 import { getUserPlan } from "@/utils/userPlan";
+import { resolveTrendingIdentity, trendThumbnailSrc } from "@/utils/trendingDisplay";
 
 const ReelsLogo = ({ className = "h-8 w-8" }) => (
   <img src="/reellogo.png" alt="Reels Logo" className={className} style={{ display: 'block' }} />
@@ -39,6 +41,8 @@ interface TrendingPost {
   id: number;
   title: string;
   creator: string;
+  username?: string;
+  accountName?: string;
   type?: "post" | "reel" | "audio";
   mediaUrl?: string;
   originalUrl?: string;
@@ -61,10 +65,23 @@ interface TrendingContentProps {
 
 const TrendingContent = ({ selectedCategory = "all", isPremium = false, userPlan = PLAN.FREE }: TrendingContentProps) => {
   const [searchTerm, setSearchTerm] = useState("");
-  const [displayedPosts, setDisplayedPosts] = useState<TrendingPost[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("posts");
+
+  const {
+    items: displayedPosts,
+    isLoading,
+    isRefreshing,
+    isBootstrapping,
+    serverSyncActive,
+    isRetrying,
+    isSignedIn,
+    error,
+    lastSyncedLabel,
+    dataSource,
+    dateKey,
+    refreshFromCache,
+    retryServerSync,
+  } = useTrendingFeed(searchTerm, selectedCategory);
 
   // Normalize plan once per render so all checks use the same value
   const normalizedUserPlanKey = userPlan || PLAN.FREE;
@@ -73,22 +90,21 @@ const TrendingContent = ({ selectedCategory = "all", isPremium = false, userPlan
   // Determine content limit based on internal PLAN key
   const contentLimit = hasAccess("trendingContentLimit", normalizedUserPlanKey) || 5;
 
-  useEffect(() => {
-    const getContent = async () => {
-      setIsLoading(true);
-      setError(null);
-      try {
-        const content = await fetchTrendingContent(searchTerm, selectedCategory);
-        if (!Array.isArray(content)) throw new Error("Invalid content data received");
-        setDisplayedPosts(content);
-      } catch (error) {
-        setError("Could not fetch content data. Please check your Google Sheet format.");
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    getContent();
-  }, [selectedCategory, searchTerm]);
+  const handleRefresh = async () => {
+    const ok = await refreshFromCache();
+    if (ok) {
+      toast({
+        title: "Refreshed",
+        description: "Loaded the latest shared trending feed from the server.",
+      });
+    } else if (error) {
+      toast({
+        title: "Could not refresh",
+        description: error,
+        variant: "destructive",
+      });
+    }
+  };
 
   const posts = displayedPosts.filter(item => item.type === "post").slice(0, 10);
   const reels = displayedPosts.filter(item => item.type === "reel").slice(0, 10);
@@ -109,8 +125,10 @@ const TrendingContent = ({ selectedCategory = "all", isPremium = false, userPlan
 
     if (items.length === 0) {
       return (
-        <p className="text-muted-foreground text-center py-4">
-          No trending {contentType} found.
+        <p className="text-muted-foreground text-center py-8 px-4">
+          {isBootstrapping
+            ? `Loading today's Instagram ${contentType} from Explore…`
+            : `No trending ${contentType} yet. Data updates daily at 6:00 AM IST — tap Refresh or check back soon.`}
         </p>
       );
     }
@@ -137,16 +155,23 @@ const TrendingContent = ({ selectedCategory = "all", isPremium = false, userPlan
               cardWidth = "w-[85vw] max-w-xs sm:w-[180px] md:w-[216px] lg:w-[260px]";
             }
             const locked = isLocked(idx);
+            const { username, accountName } = resolveTrendingIdentity(post);
+            const profileUrl = username !== "@unknown"
+              ? `https://www.instagram.com/${username.replace(/^@/, "")}/`
+              : undefined;
             return (
               <div key={post.id} className={`relative border-2 border-muted rounded-lg p-1 flex flex-col items-center bg-white flex-shrink-0 ${cardWidth} snap-start`}>
                 <div className={`bg-gray-200 rounded-lg my-2 flex items-center justify-center overflow-hidden ${thumbClass} ${locked ? 'blur-lg pointer-events-none select-none' : ''}`}> 
                   {(() => {
-                    const imageUrl = post.thumbnailUrl || (isDirectImageUrl(post.mediaUrl) ? post.mediaUrl : undefined);
+                    const rawThumb =
+                      post.thumbnailUrl ||
+                      (isDirectImageUrl(post.mediaUrl) ? post.mediaUrl : undefined);
+                    const imageUrl = trendThumbnailSrc(rawThumb) || rawThumb;
                     if (imageUrl) {
                       return (
                         <img 
                           src={imageUrl} 
-                          alt={post.title} 
+                          alt={`${accountName} (${username})`}
                           className="object-cover w-full h-full" 
                           loading="lazy"
                           onError={(e) => {
@@ -173,20 +198,24 @@ const TrendingContent = ({ selectedCategory = "all", isPremium = false, userPlan
                     );
                   })()}
                 </div>
-                <div className={`w-full text-center ${locked ? 'blur-md pointer-events-none select-none' : ''}`}>
-                  <div className="font-semibold text-sm truncate mb-1">{post.title || 'Untitled'}</div>
-                  <div className="text-gray-500 text-xs mb-2">{post.creator || 'unknown'}</div>
+                <div className={`w-full text-center px-1 ${locked ? 'blur-md pointer-events-none select-none' : ''}`}>
+                  <p className="font-semibold text-sm text-foreground truncate mb-0.5">
+                    {username}
+                  </p>
+                  <p className="text-muted-foreground text-xs truncate mb-2">
+                    {accountName}
+                  </p>
                 </div>
-                <Button 
-                  size="sm" 
-                    className={`w-full text-xs ${locked ? 'pointer-events-none opacity-60' : ''}`} 
+                <Button
+                  size="sm"
+                  className={`w-full text-xs font-medium bg-violet-600 text-white hover:bg-violet-700 ${locked ? 'pointer-events-none opacity-60' : ''}`}
                   onClick={() => {
-                    const url = post.originalUrl || post.mediaUrl;
-                    if (url) window.open(url, '_blank');
+                    const url = post.originalUrl || post.mediaUrl || profileUrl;
+                    if (url) window.open(url, '_blank', 'noopener,noreferrer');
                   }}
-                    disabled={locked}
+                  disabled={locked || !(post.originalUrl || post.mediaUrl || profileUrl)}
                 >
-                    View Content
+                  View Content
                 </Button>
                 {locked && idx === contentLimit && (
                   <div className="absolute inset-0 flex items-center justify-center z-20">
@@ -230,13 +259,53 @@ const TrendingContent = ({ selectedCategory = "all", isPremium = false, userPlan
   return (
     <div>
       <AudioGradientDef />
-      <div className="pb-2">
-        <div className="text-lg font-medium flex items-center justify-between">
+      <div className="pb-2 space-y-2">
+        <div className="text-lg font-medium flex items-center justify-between gap-2 flex-wrap">
           <div className="flex items-center">
             <InstagramLogo className="mr-2 h-5 w-5" />
             Trending Content {searchTerm && `for "${searchTerm}"`}
           </div>
+          {error && isSignedIn && (
+            <Button
+              type="button"
+              variant="default"
+              size="sm"
+              className="h-8 gap-1.5 bg-violet-600 hover:bg-violet-700"
+              disabled={isRetrying || isBootstrapping}
+              onClick={() => retryServerSync()}
+            >
+              {isRetrying ? "Retrying…" : "Retry sync"}
+            </Button>
+          )}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-8 gap-1.5"
+            disabled={isLoading || isRefreshing || isBootstrapping}
+            onClick={handleRefresh}
+          >
+            <RefreshCcw
+              className={`h-3.5 w-3.5 ${isRefreshing || isBootstrapping ? "animate-spin" : ""}`}
+            />
+            {isBootstrapping
+              ? "Loading trends…"
+              : isRefreshing
+                ? "Refreshing…"
+                : "Refresh"}
+          </Button>
         </div>
+        <p className="text-xs text-muted-foreground">
+          {serverSyncActive && dataSource === "empty"
+            ? "Instagram trending sync is running on the server (usually 5–15 min). This page will update automatically."
+            : lastSyncedLabel
+              ? `Shared feed updated daily at 6:00 AM IST · Last sync: ${lastSyncedLabel}`
+              : "Shared feed updates automatically every day at 6:00 AM IST."}
+          {dateKey && !serverSyncActive ? ` · Batch ${dateKey}` : ""}
+        </p>
+        {error && (
+          <p className="text-xs text-destructive">{error}</p>
+        )}
       </div>
       <Tabs defaultValue="posts" value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid w-full grid-cols-3 mb-4">

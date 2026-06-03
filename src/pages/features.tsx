@@ -26,7 +26,7 @@ export default function FeaturesPage() {
             </Link>
             <p className="mt-1 text-sm text-gray-600">Profile and post-level metrics to guide posting and creative tests.</p>
           </li>
-          <li>
+          <li id="trend-explorer">
             <Link
               to="/trending"
               className="group inline-flex items-center gap-2 font-medium text-[#c0257a] hover:text-[#a01d68]"
@@ -36,7 +36,7 @@ export default function FeaturesPage() {
             </Link>
             <p className="mt-1 text-sm text-gray-600">Trending hashtags, audio, and content signals for faster ideation.</p>
           </li>
-          <li>
+          <li id="competitor-intelligence">
             <Link
               to="/analytics/competitor-intelligence"
               className="group inline-flex items-center gap-2 font-medium text-[#c0257a] hover:text-[#a01d68]"
@@ -46,7 +46,7 @@ export default function FeaturesPage() {
             </Link>
             <p className="mt-1 text-sm text-gray-600">Benchmark angles and spot gaps in your niche.</p>
           </li>
-          <li>
+          <li id="brand-score">
             <Link
               to="/brand-collab-score"
               className="group inline-flex items-center gap-2 font-medium text-[#c0257a] hover:text-[#a01d68]"

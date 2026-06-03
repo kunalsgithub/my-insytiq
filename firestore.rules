@@ -1,0 +1,52 @@
+rules_version = '2';
+// MERGE these blocks into your existing Firestore rules in Firebase Console
+// before deploying. Do not replace your full rules file unless you know
+// what other collections (users, instagramAnalytics, etc.) require.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Apify-synced trending (writes only via Admin SDK in Cloud Functions)
+    match /trendingContent/{docId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+    match /trendingHashtags/{docId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+    match /trendingMeta/{docId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+    match /trendingSnapshots/{dateKey} {
+      allow read: if false;
+      allow write: if false;
+      match /items/{itemId} {
+        allow read, write: if false;
+      }
+    }
+    match /trendingHashtagSnapshots/{dateKey} {
+      allow read, write: if false;
+      match /tags/{tagId} {
+        allow read, write: if false;
+      }
+    }
+    match /trendingAudioSnapshots/{dateKey} {
+      allow read, write: if false;
+      match /tracks/{trackId} {
+        allow read, write: if false;
+      }
+    }
+
+    match /affiliates/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+      match /links/{linkId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+    }
+    match /affiliateLinksBySlug/{slug} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null
+        && request.resource.data.affiliateUserId == request.auth.uid;
+    }
+  }
+}

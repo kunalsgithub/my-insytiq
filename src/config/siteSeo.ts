@@ -23,6 +23,7 @@ export function blogPostSeoMeta(post: {
   slug: string;
   title: string;
   excerpt: string;
+  pageTitle?: string;
   seoTitle?: string;
   seoDescription?: string;
 }): PageSeoMeta & { path: string } {
@@ -30,12 +31,20 @@ export function blogPostSeoMeta(post: {
   const description = post.seoDescription
     ? post.seoDescription.trim()
     : post.excerpt.trim();
+  const trimmedDescription =
+    !post.seoDescription && description.length > 160
+      ? `${description.slice(0, 157)}...`
+      : description;
+
   return {
-    title: `${headline} | INSYTIQ Blog`,
-    description:
-      !post.seoDescription && description.length > 160
-        ? `${description.slice(0, 157)}...`
-        : description,
+    title: post.pageTitle ?? `${headline} | INSYTIQ Blog`,
+    description: trimmedDescription,
     path: `/blog/${post.slug}`,
   };
+}
+
+export function blogPostOgImage(ogImagePath?: string): string {
+  if (!ogImagePath) return OG_IMAGE;
+  if (ogImagePath.startsWith("http")) return ogImagePath;
+  return `${SITE_ORIGIN}${ogImagePath.startsWith("/") ? ogImagePath : `/${ogImagePath}`}`;
 }

@@ -8,6 +8,7 @@
     "shell": "npm run build && firebase functions:shell",
     "start": "firebase emulators:start",
     "deploy": "firebase deploy --only functions",
+    "trending:sync-local": "npm run build && node lib/runTrendingSyncLocal.js",
     "logs": "firebase functions:log"
   },
   "engines": {
