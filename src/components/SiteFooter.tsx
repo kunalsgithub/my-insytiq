@@ -23,6 +23,9 @@ export function SiteFooter() {
           >
             Referral Program
           </Link>
+          <Link to="/creators/apply" className="transition-colors hover:text-[#7c1d5c]">
+            Creator&apos;s Economy
+          </Link>
           <Link to="/terms-and-conditions" className="transition-colors hover:text-[#c0257a]">
             Terms of Service
           </Link>

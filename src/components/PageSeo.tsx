@@ -6,6 +6,7 @@ type PageSeoProps = PageSeoMeta & {
   ogImage?: string;
   articlePublishedTime?: string;
   articleModifiedTime?: string;
+  noIndex?: boolean;
   children?: React.ReactNode;
 };
 
@@ -18,6 +19,7 @@ export function PageSeo({
   ogImage = OG_IMAGE,
   articlePublishedTime,
   articleModifiedTime,
+  noIndex = false,
   children,
 }: PageSeoProps) {
   const canonical = canonicalUrl(path);
@@ -26,6 +28,7 @@ export function PageSeo({
     <Helmet>
       <title>{title}</title>
       <meta name="description" content={description} />
+      {noIndex ? <meta name="robots" content="noindex, nofollow" /> : null}
       <link rel="canonical" href={canonical} />
 
       <meta property="og:site_name" content="INSYTIQ" />

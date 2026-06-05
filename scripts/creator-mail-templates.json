@@ -1,0 +1,27 @@
+[
+  {
+    "name": "welcome_creator",
+    "subject": "Welcome to Creator's Economy — here's your referral link",
+    "html": "Hi {{creatorName}},<br><br>You're in. Your Creator's Economy application has been approved.<br><br>Your referral link: {{referralLink}}<br><br>Your first month is completely free — no performance threshold applies. Use Insytiq, love it, share it. You earn 40% recurring commission on every paying user you refer.<br><br>To keep free access from month 2: hit 3 paying conversions OR 100 clicks in any rolling 30-day window.<br><br>Dashboard: {{dashboardUrl}}<br>— Insytiq Team"
+  },
+  {
+    "name": "conversion_alert",
+    "subject": "You just earned ${{commissionAmount}}",
+    "html": "Hi {{creatorName}},<br><br>Someone signed up for Insytiq's {{planType}} plan via your referral link. Commission: ${{commissionAmount}} (clears from 30-day hold in 30 days)<br><br>Dashboard: {{dashboardUrl}}"
+  },
+  {
+    "name": "access_renewed",
+    "subject": "Your Creator's Economy access is renewed ✓",
+    "html": "Hi {{creatorName}},<br><br>Great work. You hit the threshold — free access renewed for next 30 days. Clicks: {{clicksLast30}} | Conversions: {{conversionsLast30}}<br><br>Dashboard: {{dashboardUrl}}"
+  },
+  {
+    "name": "access_paused",
+    "subject": "Your Creator's Economy access has been paused",
+    "html": "Hi {{creatorName}},<br><br>Your free access is paused this month.<br>Clicks last 30 days: {{clicksLast30}} / 100 needed<br>Conversions last 30 days: {{conversionsLast30}} / 3 needed<br><br>Options:<br>1. Subscribe to keep using Insytiq: {{pricingUrl}}<br>2. Keep your referral link active — hit the threshold and access auto-restores<br><br>— Insytiq Team"
+  },
+  {
+    "name": "grace_ended",
+    "subject": "Your grace period has ended",
+    "html": "Hi {{creatorName}},<br><br>Your first free month is complete. From today, access is evaluated on a rolling 30-day basis. Hit 3 conversions OR 100 clicks to keep it free.<br><br>Dashboard shows real-time progress: {{dashboardUrl}}"
+  }
+]

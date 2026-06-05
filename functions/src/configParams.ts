@@ -32,3 +32,6 @@ export const paddleWebhookSecretParam = defineString("CFG_PADDLE_WEBHOOK_SECRET"
 export const sendgridApiKeyParam = defineString("CFG_SENDGRID_API_KEY", {
   default: "",
 });
+export const creatorAdminEmailParam = defineString("CFG_CREATOR_ADMIN_EMAIL", {
+  default: "official@insytiq.ai",
+});

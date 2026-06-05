@@ -13,6 +13,7 @@ import {
   BookOpenText,
 } from "lucide-react";
 import trendLogo from "../../trendlogo.png";
+import { CreatorEconomyNavLink } from "../CreatorEconomyNavLink";
 
 // Minimal sidebar menu for MVP.
 // Growth AI items intentionally omitted but underlying feature files are kept in the codebase.
@@ -265,6 +266,7 @@ export function WhoistrendSidebarMenu() {
             <BookOpenText className="h-5 w-5 shrink-0" />
             <span className={labelClass}>Blog</span>
           </NavLink>
+          <CreatorEconomyNavLink />
         </nav>
       </div>
     </aside>

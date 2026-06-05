@@ -20,6 +20,7 @@ import { SocialProof } from "@/components/SocialProof";
 import { HowItWorksSection } from "@/components/HowItWorksSection";
 import { PageSeo } from "@/components/PageSeo";
 import { PAGE_SEO } from "@/config/siteSeo";
+import { syncCreatorRefFromServer } from "@/utils/creatorReferralStorage";
 
 // ---------------------------------------------------------------------------
 // Hero: animated gradient text class (needs bg-size for keyframes)
@@ -206,6 +207,11 @@ export default function Index() {
   const trustRef = useRef<HTMLElement>(null);
   const aiCompareRef = useRef<HTMLElement>(null);
   const proRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    syncCreatorRefFromServer();
+  }, []);
+
   const heroInView = useInView(heroRef, { once: true, amount: 0.2 });
   const featuresInView = useInView(featuresRef, { once: true, amount: 0.15 });
   const trustInView = useInView(trustRef, { once: true, amount: 0.2 });

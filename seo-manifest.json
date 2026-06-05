@@ -51,6 +51,11 @@
       "path": "/affiliate",
       "title": "Affiliate Dashboard | INSYTIQ",
       "description": "Create and manage Insytiq promotional links and track clicks and signups."
+    },
+    "creatorsApply": {
+      "path": "/creators/apply",
+      "title": "Apply — Creator's Economy | INSYTIQ",
+      "description": "Join Insytiq's Creator's Economy program. Earn 40% recurring commission and get free access when you share what you love."
     }
   }
 }

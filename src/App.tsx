@@ -35,6 +35,12 @@ import ReferralProgramPage from "./pages/referral-program";
 import AffiliateDashboardPage from "./pages/affiliate-dashboard";
 import AffiliateRedirectPage from "./pages/affiliate-redirect";
 import { AffiliateAttributionSync } from "./components/AffiliateAttributionSync";
+import { CreatorAttributionSync } from "./components/CreatorAttributionSync";
+import { CreatorReferralRedirect } from "./components/CreatorReferralRedirect";
+import CreatorsApplyPage from "./pages/creators/apply";
+import CreatorsDashboardPage from "./pages/creators/dashboard";
+import CreatorsPayoutPage from "./pages/creators/payout";
+import AdminCreatorsPage from "./pages/admin/creators";
 
 
 const queryClient = new QueryClient({
@@ -103,13 +109,19 @@ function App() {
         <Toaster />
         <Sonner />
         <BrowserRouter>
+          <CreatorReferralRedirect />
           <AffiliateAttributionSync />
+          <CreatorAttributionSync />
           <Routes>
             <Route path="/r/:slug" element={<AffiliateRedirectPage />} />
             {/* Protected app: requires email-verified user */}
             <Route element={<RequireVerifiedEmail />}>
               <Route path="/affiliate" element={<AffiliateDashboardPage />} />
+              <Route path="/creators/dashboard" element={<CreatorsDashboardPage />} />
+              <Route path="/creators/payout" element={<CreatorsPayoutPage />} />
+              <Route path="/admin/creators" element={<AdminCreatorsPage />} />
               <Route element={<SidebarLayout />}>
+              <Route path="/creators/apply" element={<CreatorsApplyPage />} />
               <Route path="/" element={<Index />} />
               <Route path="/features" element={<FeaturesPage />} />
               <Route path="/about" element={<AboutPage />} />

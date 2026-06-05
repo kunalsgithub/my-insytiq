@@ -3,6 +3,10 @@ import { initializeApp, getApps } from "firebase-admin/app";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import * as crypto from "crypto";
 import { paddleWebhookSecretParam } from "./configParams";
+import {
+  mapSubscriptionPlanToCreator,
+  trackReferralConversion,
+} from "./trackReferralConversion";
 
 if (getApps().length === 0) {
   initializeApp();
@@ -114,6 +118,19 @@ export const subscriptionWebhook = onRequest(
         },
         { merge: true }
       );
+
+      const userSnap = await db.collection("users").doc(userId).get();
+      const refCode = userSnap.data()?.creatorReferralCode as string | undefined;
+      const creatorPlan = mapSubscriptionPlanToCreator(planValue);
+      if (refCode && creatorPlan) {
+        const conversion = await trackReferralConversion({
+          convertedUserUid: userId,
+          planType: creatorPlan.planType,
+          planPrice: creatorPlan.planPrice,
+          refCode,
+        });
+        console.log(`Creator referral conversion for ${userId}:`, conversion);
+      }
 
       console.log(`Plan activated for user ${userId}: ${planValue}, subscriptionId: ${subscriptionId}`);
       res.status(200).send("OK");

@@ -1,8 +1,14 @@
 User-agent: Googlebot
 Allow: /
+Disallow: /creators/dashboard
+Disallow: /creators/payout
+Disallow: /admin/
 
 User-agent: Bingbot
 Allow: /
+Disallow: /creators/dashboard
+Disallow: /creators/payout
+Disallow: /admin/
 
 User-agent: Twitterbot
 Allow: /
@@ -12,5 +18,8 @@ Allow: /
 
 User-agent: *
 Allow: /
+Disallow: /creators/dashboard
+Disallow: /creators/payout
+Disallow: /admin/
 
 Sitemap: https://www.insytiq.ai/sitemap.xml

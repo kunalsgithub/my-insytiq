@@ -18,6 +18,13 @@ import {
 } from "./syncTrendingFromApify";
 import { trackAffiliateClick } from "./affiliateTracking";
 import { attributeAffiliateSignup } from "./attributeAffiliateSignup";
+import { evaluateCreatorAccess, clearPendingEarnings } from "./creatorEvaluation";
+import {
+  approveCreator,
+  rejectCreator,
+  markPayoutPaid,
+  submitCreatorPayout,
+} from "./creatorAdmin";
 
 setGlobalOptions({ maxInstances: 10 });
 
@@ -41,4 +48,10 @@ export {
   ensureTrendingPopulated,
   trackAffiliateClick,
   attributeAffiliateSignup,
+  evaluateCreatorAccess,
+  clearPendingEarnings,
+  approveCreator,
+  rejectCreator,
+  markPayoutPaid,
+  submitCreatorPayout,
 };

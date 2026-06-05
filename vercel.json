@@ -64,6 +64,14 @@
       "destination": "/top-influencers.html"
     },
     {
+      "source": "/creators/apply",
+      "destination": "/creators/apply.html"
+    },
+    {
+      "source": "/creators/apply/",
+      "destination": "/creators/apply.html"
+    },
+    {
       "source": "/smart-chat",
       "destination": "/smart-chat.html"
     },
