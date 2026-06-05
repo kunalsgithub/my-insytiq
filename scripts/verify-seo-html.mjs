@@ -5,6 +5,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { collectSeoRoutePaths, routePathToHtmlDest } from "./seoHead.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(__dirname, "..");
@@ -16,15 +17,10 @@ const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
 const blogPosts = JSON.parse(fs.readFileSync(blogSeoPath, "utf8"));
 const siteOrigin = manifest.siteOrigin;
 
-const checks = [
-  { path: "/", file: "index.html" },
-  { path: "/smart-chat", file: "smart-chat.html" },
-  { path: "/trending", file: "trending.html" },
-  ...blogPosts.map((p) => ({
-    path: `/blog/${p.slug}`,
-    file: `blog/${p.slug}.html`,
-  })),
-];
+const checks = collectSeoRoutePaths(manifest, blogPosts).map((routePath) => ({
+  path: routePath,
+  file: routePath === "/" ? "index.html" : routePathToHtmlDest(routePath).slice(1),
+}));
 
 let failed = 0;
 
@@ -47,10 +43,7 @@ for (const { path: routePath, file } of checks) {
   );
   const titleMatch = html.match(/<title>([^<]*)<\/title>/);
 
-  const wrongHomepage =
-    html.includes('href="https://www.insytiq.ai/"') &&
-    routePath !== "/" &&
-    canonicalMatch?.[1] === "https://www.insytiq.ai/";
+  const homepageTitle = manifest.pages.home.title;
 
   if (!canonicalMatch || canonicalMatch[1] !== expectedCanonical) {
     console.error(
@@ -66,8 +59,8 @@ for (const { path: routePath, file } of checks) {
     continue;
   }
 
-  if (wrongHomepage) {
-    console.error(`FAIL ${routePath}: still using homepage canonical`);
+  if (routePath !== "/" && titleMatch[1] === homepageTitle) {
+    console.error(`FAIL ${routePath}: still using homepage <title>`);
     failed += 1;
     continue;
   }
